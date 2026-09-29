@@ -3869,6 +3869,234 @@ function boot(){
       mountSlide(0);
     }, "tutorial");
   };
+  /* ===== [landing title fx] लंबाई STRETCHES TO THE PENCIL NIB AND SPRINGS BACK; मापना BECOMES A RULER =====
+     (review 2026-09-28). Driven by the landing greeting's own clock (voEl.currentTime), so it lands on
+     the spoken word even when the greeting starts late (autoplay block) or is replayed.
+     WHEN: "लंबाई" is spoken 5.46-6.00s into vo_landing.ogg - edge-tts word boundaries of the same line,
+     aligned to this clip and mapped through the VO re-time (pause compression, x1.028).
+     HOW IT STAYS IDENTICAL AT REST: the heading is still the real CSS text. For the animation each
+     letter group (लं बा ई | मा प ना) is a copy of that text in the same .sg-title style, painted the way
+     one text run paints - every outline/shadow UNDER every fill - so swapping to the copies and back
+     is invisible. Each word is its own composited stack, so a fade never lets the white outline show
+     through a half-faded fill. The only drawn parts are the continuous top line, the ruler and the
+     dotted outline (SVG). This font breaks its top line between letters; during the animation one
+     continuous line takes its place, and the letters' own pieces return when it settles.
+     PHYSICS (लंबाई):
+       - pull: the left end is drawn to the pencil nib tip while the word is spoken; the right end is
+         the fixed end. Uniform strain: each letter group moves in proportion to its distance from the
+         fixed end, so ल's left edge lands exactly on the nib. The line is taut and straight.
+       - release: the spring snaps back, s(t) = D cos(w t) (1.8 Hz).
+       - HARD STOP: at rest the letters already touch - the word is at its SOLID length, like a coil
+         spring with closed coils - so it cannot compress past rest (letters never overlap). It hits the
+         stop at speed v = D w and rebounds with restitution e = .3 (v -> e v): a few smaller bounces,
+         each s(t) = (e v / w) sin(w t).
+       - CURL: at each impact the letters stop but the top line's own material keeps moving, so it
+         buckles into waves - m = 5 half-waves, a damped standing wave
+         y(u,t) = C v e^(-g t) sin(wl t) sin(m pi u)   (C .0105 s, wl 3.2 Hz, g 3.2 /s).
+         The (much heavier) letters hang from it and sway a little with it. The waves die away and the
+         line settles straight.
+     मापना: grey dotted outline -> a ruler draws in as its top line (tall ticks at the start, the end and
+     each letter join, 4 small ticks between; no numbers) -> it fills back to orange; the ruler stays. */
+  (function(){
+    const titleEl = $("sgTitle");
+    if(!titleEl || titleEl.textContent.trim() !== "लंबाई मापना") return;
+    const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const T_WORD = 5.46, T_WORD_END = 6.00;                  // "लंबाई" in vo_landing.ogg (seconds)
+    const BAND_TOP = 39.68, BAND_BOT = 32.6;                  // headline band, px above the baseline (Baloo 2 800 @64px)
+    const BAR_T = BAND_TOP - BAND_BOT, BAR_MID = (BAND_TOP + BAND_BOT) / 2;
+    const W0 = 2 * Math.PI * 1.8, RESTITUTION = 0.3, HALF_WAVES = 5;                        // spring + hard stop
+    const CURL_C = 0.0105, CURL_W = 2 * Math.PI * 3.2, CURL_G = 3.2, CURL_MAX = 9, SWAY = 0.35; // line buckling at impact
+    // the heading's sticker look (.sg-title text-shadow) for the drawn parts: white pen, blue extrusion, ambient
+    const OUT_W = 8.4, EXT_DY = 4.8, ORANGE = "#F85A00", BLUE = "#2F82DE", GREY = "#9A9AA6", GREY_DOT = "#6F6F7B";
+    const W2_PATHS = ["M26.3 -21.57V-13.5H16.83Q16.06 -10.69 14.08 -9.31Q12.1 -7.94 8.96 -7.94Q5.06 -7.94 3.1 -9.82Q1.15 -11.71 1.15 -14.27Q1.15 -15.36 1.5 -16.45Q1.86 -17.54 2.5 -18.56H3.78Q6.85 -18.56 6.85 -22.02V-34.37H17.34V-21.57ZM29.76 -32.13H0.64Q-0.96 -32.13 -1.6 -33.12Q-2.24 -34.11 -2.24 -36.03Q-2.24 -36.8 -2.02 -37.95Q-1.79 -39.1 -1.54 -39.68H27.65Q30.53 -39.68 30.53 -35.9Q30.53 -35.07 30.3 -33.89Q30.08 -32.7 29.76 -32.13ZM26.3 -35.97H36.8V0Q36.1 0.26 34.94 0.48Q33.79 0.7 32.26 0.7Q28.8 0.7 27.55 -0.42Q26.3 -1.54 26.3 -4.03ZM42.56 -32.13H22.66Q21.06 -32.13 20.42 -33.12Q19.78 -34.11 19.78 -36.03Q19.78 -36.8 20 -37.95Q20.22 -39.1 20.48 -39.68H40.45Q43.33 -39.68 43.33 -35.9Q43.33 -35.07 43.1 -33.89Q42.88 -32.7 42.56 -32.13ZM45.38 -35.97H55.87V0Q55.17 0.26 54.02 0.48Q52.86 0.7 51.33 0.7Q47.87 0.7 46.62 -0.42Q45.38 -1.54 45.38 -4.03ZM61.63 -32.13H41.73Q40.13 -32.13 39.49 -33.12Q38.85 -34.11 38.85 -36.03Q38.85 -36.8 39.07 -37.95Q39.3 -39.1 39.55 -39.68H59.52Q62.4 -39.68 62.4 -35.9Q62.4 -35.07 62.18 -33.89Q61.95 -32.7 61.63 -32.13Z", "M30.53 -32.13H0Q-1.6 -32.13 -2.24 -33.12Q-2.88 -34.11 -2.88 -36.03Q-2.88 -36.8 -2.66 -37.95Q-2.43 -39.1 -2.18 -39.68H28.42Q31.3 -39.68 31.3 -35.9Q31.3 -35.07 31.07 -33.89Q30.85 -32.7 30.53 -32.13ZM2.88 -32.96H13.38V-24.32Q13.38 -20.8 14.82 -19.33Q16.26 -17.86 19.07 -17.86Q20.54 -17.86 21.82 -18.34Q23.1 -18.82 23.74 -19.46L28.35 -15.1Q26.69 -12.74 23.71 -11.17Q20.74 -9.6 16.64 -9.6Q10.18 -9.6 6.53 -13.28Q2.88 -16.96 2.88 -23.81ZM23.23 -35.97H33.73V0Q33.02 0.26 31.87 0.48Q30.72 0.7 29.18 0.7Q25.73 0.7 24.48 -0.42Q23.23 -1.54 23.23 -4.03ZM39.49 -32.13H19.58Q17.98 -32.13 17.34 -33.12Q16.7 -34.11 16.7 -36.03Q16.7 -36.8 16.93 -37.95Q17.15 -39.1 17.41 -39.68H37.38Q40.26 -39.68 40.26 -35.9Q40.26 -35.07 40.03 -33.89Q39.81 -32.7 39.49 -32.13Z", "M9.66 -24.26H27.26V-16.19H14.98Q13.95 -16.19 13.34 -15.62Q12.74 -15.04 12.74 -13.76V-10.62Q11.65 -10.05 10.62 -9.76Q9.6 -9.47 8.51 -9.47Q5.95 -9.47 3.94 -11.36Q1.92 -13.25 1.92 -16.77Q1.92 -20.22 4.03 -22.24Q6.14 -24.26 9.66 -24.26ZM27.01 -32.13H0.32Q-1.28 -32.13 -1.92 -33.12Q-2.56 -34.11 -2.56 -36.03Q-2.56 -36.8 -2.34 -37.95Q-2.11 -39.1 -1.86 -39.68H24.9Q27.78 -39.68 27.78 -35.9Q27.78 -35.07 27.55 -33.89Q27.33 -32.7 27.01 -32.13ZM23.55 -35.97H34.05V0Q33.34 0.26 32.19 0.48Q31.04 0.7 29.5 0.7Q26.05 0.7 24.8 -0.42Q23.55 -1.54 23.55 -4.03ZM39.81 -32.13H19.9Q18.3 -32.13 17.66 -33.12Q17.02 -34.11 17.02 -36.03Q17.02 -36.8 17.25 -37.95Q17.47 -39.1 17.73 -39.68H37.7Q40.58 -39.68 40.58 -35.9Q40.58 -35.07 40.35 -33.89Q40.13 -32.7 39.81 -32.13ZM42.62 -35.97H53.12V0Q52.42 0.26 51.26 0.48Q50.11 0.7 48.58 0.7Q45.12 0.7 43.87 -0.42Q42.62 -1.54 42.62 -4.03ZM58.88 -32.13H38.98Q37.38 -32.13 36.74 -33.12Q36.1 -34.11 36.1 -36.03Q36.1 -36.8 36.32 -37.95Q36.54 -39.1 36.8 -39.68H56.77Q59.65 -39.68 59.65 -35.9Q59.65 -35.07 59.42 -33.89Q59.2 -32.7 58.88 -32.13Z"];   // मापना outlines per letter group: px, origin = the group's pen, y down from the baseline
+    titleEl.innerHTML = '<span class="tfx-w1">लंबाई</span> <span class="tfx-w2">मापना</span>';
+    const WORDS = { w1: { el: titleEl.querySelector(".tfx-w1"), groups: [[0, 2, "लं", -2.24], [2, 4, "बा", -2.56], [4, 5, "ई", -2.56]], barL: -2.25, barR: 38.02 },
+                    w2: { el: titleEl.querySelector(".tfx-w2"), groups: [[0, 2, "मा", -2.24], [2, 3, "प", -2.88], [3, 5, "ना", -2.56]], barL: -2.29, barR: 57.28 } };
+    const NS = "http://www.w3.org/2000/svg";
+    const svgEl = (tag, attrs)=>{ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+    const div = cls => { const d = document.createElement("div"); d.className = cls; return d; };
+    let fx = null;   // built lazily, the first time it is needed (fonts + layout ready by then)
+    function build(){
+      /* the stage's own scale factor - NOT rect.width / offsetWidth: offsetWidth is rounded to a whole
+         pixel, and that error grew letter by letter (0.3px off by ना, a visible shimmer at the swap) */
+      const tr = titleEl.getBoundingClientRect();
+      const sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || (tr.width / (titleEl.offsetWidth || 1));
+      const probe = document.createElement("span"); probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+      titleEl.appendChild(probe); const base = (probe.getBoundingClientRect().bottom - tr.top) / sc; probe.remove();
+      const root = div("tfx"); root.setAttribute("aria-hidden", "true"); titleEl.appendChild(root);
+      const nibImg = document.querySelector(".sg-art img"), nr = nibImg ? nibImg.getBoundingClientRect() : null;
+      const nibX = nr && nr.width ? (nr.left + nr.width * (6 / 1658) - tr.left) / sc : null;   // pencil_purple.webp: nib tip 6px in from the left of 1658
+      const hole = "M-80 -80H320V260H-80Z M-80 " + (base - BAND_TOP - .4).toFixed(2) + "H320V" + (base - BAND_BOT + .4).toFixed(2) + "H-80Z";
+      /* The heading's text-shadow, split in two. One text run paints ALL letters' blue/ambient shadows,
+         then ALL letters' white outline, then the fills; letter-by-letter copies would paint the next
+         letter's blue over the previous letter's white outline at every join. Three layers restore it. */
+      const shadows = [], ts = getComputedStyle(titleEl).textShadow || "none";
+      let depth = 0, cur = "";
+      for(const ch of ts){ if(ch === "(") depth++; if(ch === ")") depth--; if(ch === "," && depth === 0){ shadows.push(cur.trim()); cur = ""; } else cur += ch; }
+      if(cur.trim() && cur.trim() !== "none") shadows.push(cur.trim());
+      const isWhite = t => /rgb\(\s*255,\s*255,\s*255\s*\)|#fff\b|#ffffff\b|\bwhite\b/i.test(t);
+      const shWhite = shadows.filter(isWhite).join(", ") || "none", shBlue = shadows.filter(t => !isWhite(t)).join(", ") || "none";
+      const out = { root, base, nibX };
+      const mkPath = (parent, attrs)=>{ const e = svgEl("path", Object.assign({ fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, attrs)); parent.appendChild(e); return e; };
+      let fid = 0;
+      for(const key of ["w1", "w2"]){
+        const w = WORDS[key], txt = w.el.firstChild;
+        /* per word, two complete stacks, each one composited unit (a fade can't show through):
+           full = the letters as they are;  cut = letters without their own top line + the drawn line */
+        const full = div("tfx-word"), cut = div("tfx-word");
+        const fBl = div("tfx-sh"), fSh = div("tfx-sh"), fFi = div("tfx-fi"), under = svgEl("svg", { class: "tfx-svg" }),
+              cBl = div("tfx-sh"), cSh = div("tfx-sh"), over = svgEl("svg", { class: "tfx-svg" }), cFi = div("tfx-fi");
+        [fBl, cBl].forEach(l => { l.style.textShadow = shBlue; }); [fSh, cSh].forEach(l => { l.style.textShadow = shWhite; });
+        full.append(fBl, fSh, fFi); cut.append(under, cBl, cSh, over, cFi);
+        const defs = svgEl("defs", {}); const ext = "tfxExt" + (++fid), amb = "tfxAmb" + fid;
+        defs.innerHTML = '<filter id="' + ext + '" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation=".4"/></filter>' +
+                         '<filter id="' + amb + '" x="-30%" y="-150%" width="160%" height="400%"><feGaussianBlur stdDeviation="6"/></filter>';
+        under.appendChild(defs);
+        root.append(full, cut);
+        const groups = [];
+        for(const [a, b, str, inkL] of w.groups){
+          const r = document.createRange(); r.setStart(txt, a); r.setEnd(txt, b);
+          const x = (r.getBoundingClientRect().left - tr.left) / sc;
+          const mk = (layer, isCut)=>{ const s = document.createElement("span"); s.className = "tfx-g"; s.textContent = str; s.style.left = x + "px";
+            if(isCut) s.style.clipPath = 'path(evenodd, "' + hole + '")'; layer.appendChild(s); return s; };
+          groups.push({ x, inkL: x + inkL, spans: [mk(fBl), mk(fSh), mk(fFi), mk(cBl, true), mk(cSh, true), mk(cFi, true)] });
+        }
+        const barL = groups[0].x + w.barL, barR = groups[groups.length - 1].x + w.barR;
+        const line = [ mkPath(under, { stroke: "rgba(0,40,120,.26)", "stroke-width": BAR_T + OUT_W, filter: "url(#" + amb + ")", transform: "translate(0 8)" }),
+                       mkPath(under, { stroke: BLUE, "stroke-width": BAR_T + OUT_W, filter: "url(#" + ext + ")", transform: "translate(0 " + EXT_DY + ")" }),
+                       mkPath(under, { stroke: "#fff", "stroke-width": BAR_T + OUT_W }),
+                       mkPath(over, { stroke: ORANGE, "stroke-width": BAR_T }) ];
+        out[key] = { w, full, cut, under, over, ext, groups, barL, barR, line, yMid: base - BAR_MID, yTop: base - BAND_TOP };
+      }
+      // मापना extras: grey dotted outline + grey ruler (their own layer), and the ruler ticks in the cut stack
+      const w2 = out.w2, dots = svgEl("svg", { class: "tfx-svg" }); dots.style.opacity = 0; root.appendChild(dots);
+      W2_PATHS.forEach((d, i)=>{ const tf = "translate(" + w2.groups[i].x.toFixed(2) + " " + base.toFixed(2) + ")";
+        for(const [stroke, sw] of [["rgba(255,255,255,.75)", 5.2], [GREY_DOT, 3]])
+          dots.appendChild(svgEl("path", { d, transform: tf, fill: "none", stroke, "stroke-width": sw, "stroke-dasharray": "0.01 5.6",
+            "stroke-linecap": "round", "stroke-linejoin": "round" })); });
+      const x0 = w2.barL + BAR_T / 2, x1 = w2.barR - BAR_T / 2, y0 = w2.yTop + 0.5;
+      const greyLine = svgEl("line", { x1: x0, x2: x1, y1: w2.yMid, y2: w2.yMid, stroke: GREY, "stroke-width": BAR_T, "stroke-linecap": "round" });
+      dots.appendChild(greyLine);
+      const majors = [x0, w2.groups[1].x, w2.groups[2].x, x1], ticks = [];
+      majors.forEach((x, i)=>{ ticks.push({ x, h: 15, sw: 3.4 });
+        if(i < majors.length - 1) for(let k = 1; k <= 4; k++) ticks.push({ x: x + (majors[i + 1] - x) * k / 5, h: 8, sw: 2.6 }); });
+      ticks.sort((p, q)=> p.x - q.x);
+      for(const t of ticks){
+        const mkT = (parent, attrs)=>{ const e = svgEl("line", Object.assign({ x1: t.x, x2: t.x, y1: y0, y2: y0, "stroke-linecap": "round" }, attrs)); parent.appendChild(e); return e; };
+        t.els = [ mkT(dots, { stroke: GREY, "stroke-width": t.sw }),
+                  mkT(w2.under, { stroke: BLUE, "stroke-width": t.sw + OUT_W, filter: "url(#" + w2.ext + ")", transform: "translate(0 " + EXT_DY + ")" }),
+                  mkT(w2.under, { stroke: "#fff", "stroke-width": t.sw + OUT_W }),
+                  mkT(w2.over, { stroke: ORANGE, "stroke-width": t.sw }) ];
+      }
+      w2.dots = dots; w2.ruler = { greyLine, ticks, x0, x1, y0 };
+      return out;
+    }
+    const clamp01 = v => Math.max(0, Math.min(1, v));
+    const smoother = v => { v = clamp01(v); return v * v * v * (v * (v * 6 - 15) + 10); };
+    const op = (el, v)=>{ el.style.opacity = v; };
+    const showCopy = (word, on)=> word.w.el.classList.toggle("tfx-off", on);   // hide the real word while its copy is up
+    function linePath(x0, x1, y, amp){
+      if(Math.abs(amp) < 0.05) return "M" + x0.toFixed(2) + " " + y.toFixed(2) + "H" + x1.toFixed(2);
+      let d = ""; const n = 60;
+      for(let i = 0; i <= n; i++){ const u = i / n, x = x0 + (x1 - x0) * u, yy = y - amp * Math.sin(HALF_WAVES * Math.PI * u);
+        d += (i ? "L" : "M") + x.toFixed(2) + " " + yy.toFixed(2); }
+      return d;
+    }
+    const setLine = (word, d)=> word.line.forEach(e => e.setAttribute("d", d));
+    /* ---- लंबाई: one frame at extension s (px, >= 0: stretched toward the nib) and curl amplitude amp ---- */
+    let D = 0, Wlen = 0;
+    function frameW1(s, amp, cutOp, fullOp){
+      const w = fx.w1, xR = w.barR, xL = w.barL - s, S = xR - xL;
+      setLine(w, linePath(xL + BAR_T / 2, xR - BAR_T / 2, w.yMid, amp));
+      w.groups.forEach((g, i)=>{
+        const dx = -s * (xR - g.inkL) / Wlen;                                  // uniform strain from the fixed right end
+        const next = i + 1 < w.groups.length ? w.groups[i + 1].inkL : xR;
+        const u = clamp01(((g.inkL + next) / 2 + dx - xL) / S);                // letter centre along the line
+        const dy = -SWAY * amp * Math.sin(HALF_WAVES * Math.PI * u);           // the letters sway a little with it
+        const tf = "translate(" + dx.toFixed(2) + "px," + dy.toFixed(2) + "px)";
+        g.spans.forEach(e => { e.style.transform = tf; });
+      });
+      op(w.full, fullOp); op(w.cut, cutOp);   // the cut stack fades ON TOP of the full one; the full one is hidden while the line curls (it would show a second, straight line)
+    }
+    function restW1(){ const w = fx.w1; op(w.full, 0); op(w.cut, 0); w.groups.forEach(g => g.spans.forEach(e => { e.style.transform = ""; })); showCopy(w, false); }
+    /* ---- मापना: the ruler sequence, t = seconds since it started. Returns true when finished. ---- */
+    const M = { dotIn: 0.30, draw: 0.60, hold: 0.15, back: 0.45 };
+    const tickSpring = tau => { if(tau <= 0) return 0; const z = .35, w0 = 2 * Math.PI * 3.2, wd = w0 * Math.sqrt(1 - z * z);
+      return 1 - Math.exp(-z * w0 * tau) * (Math.cos(wd * tau) + z / Math.sqrt(1 - z * z) * Math.sin(wd * tau)); };
+    function frameW2(t){
+      const w = fx.w2, R = w.ruler;
+      const a = smoother(t / M.dotIn);                                        // orange word fades out, dotted outline in
+      const tb = t - M.dotIn - M.draw - M.hold, b = smoother(tb / M.back);    // grey -> orange again, ruler kept
+      op(w.full, 1 - a); op(w.dots, a * (1 - b)); op(w.cut, b);
+      const pd = clamp01((t - M.dotIn) / M.draw), len = R.x1 - R.x0, drawn = len * smoother(pd);
+      R.greyLine.setAttribute("stroke-dasharray", drawn.toFixed(2) + " " + (len + 20).toFixed(0));
+      op(R.greyLine, pd > 0 ? 1 : 0);
+      setLine(w, "M" + R.x0.toFixed(2) + " " + w.yMid.toFixed(2) + "H" + R.x1.toFixed(2));
+      for(const tk of R.ticks){
+        /* each tick springs up the moment the drawing line reaches it - computed from its position, not
+           caught by a frame, so a skipped frame (or jumping straight to the end) can't leave it flat */
+        if(tk.t0 === undefined){ const f = clamp01((tk.x - R.x0) / len); let lo = 0, hi = 1;
+          for(let i = 0; i < 24; i++){ const mid = (lo + hi) / 2; if(smoother(mid) < f) lo = mid; else hi = mid; }
+          tk.t0 = M.dotIn + M.draw * hi; }
+        const k = tickSpring(t - tk.t0), y1 = (R.y0 - tk.h * k).toFixed(2);
+        tk.els.forEach(e => e.setAttribute("y2", y1));
+        tk.els.forEach(e => { e.style.visibility = k > 0 ? "" : "hidden"; }); op(tk.els[0], 1);
+      }
+      return tb >= M.back;
+    }
+    /* ---- driver: one rAF loop while something is moving ---- */
+    let phase = "idle", relWall = 0, w2Start = 0, w2Done = false, lastCt = 0, raf = 0, quietAt = 0;
+    function tick(now){
+      raf = 0;
+      const gate = $("startGate"); if(!gate || gate.classList.contains("hidden")) return;   // left the landing: stop
+      const onLanding = (voEl.getAttribute("src") || "").indexOf("vo_landing") >= 0;
+      const ct = onLanding ? voEl.currentTime : 0;
+      if(onLanding && ct + 0.3 < lastCt && (phase === "pull" || phase === "recoil")){ restW1(); phase = "idle"; }   // greeting restarted
+      if(onLanding) lastCt = ct;
+      if((phase === "idle" || phase === "done") && onLanding && isPlaying && ct >= T_WORD - 0.05 && ct < T_WORD_END){
+        fx = fx || build();
+        const w = fx.w1; Wlen = w.barR - w.barL;
+        D = (fx.nibX !== null && fx.nibX < w.barL) ? (w.barL - fx.nibX) : 0;
+        if(D > 0 && !reduce){ showCopy(w, true); frameW1(0, 0, 0, 1); phase = "pull"; }
+        else { phase = "settled"; w2Start = now; }                             // nothing to stretch to / reduced motion
+      }
+      if(phase === "pull"){
+        const p = (ct - T_WORD) / (T_WORD_END - T_WORD);
+        if(p >= 1 || !isPlaying || !onLanding){ phase = "recoil"; relWall = now - Math.max(0, ct - T_WORD_END) * 1000; quietAt = 0; }
+        else frameW1(D * smoother(p), 0, clamp01(p / 0.25), 1);                // continuous line fades in over the letters' own
+      }
+      if(phase === "recoil"){
+        const tau = (now - relWall) / 1000, half = Math.PI / W0;
+        // flight back to the stop: s = D cos(w t); first impact at a quarter period, speed D w
+        let s = tau < half / 2 ? D * Math.cos(W0 * tau) : 0, amp = 0, env = 0, stopped = false;
+        let tk = half / 2, vk = D * W0;
+        while(tk <= tau){
+          const dt = tau - tk, a = Math.min(CURL_MAX, CURL_C * vk) * Math.exp(-CURL_G * dt);
+          amp += a * Math.sin(CURL_W * dt); env += a;                            // this impact's curl wave
+          const vOut = RESTITUTION * vk;
+          if(vOut / W0 <= 0.3){ stopped = true; break; }                          // rebound too small to see: it rests on the stop
+          if(dt < half) s = (vOut / W0) * Math.sin(W0 * dt);                      // rebound flight, back after half a period
+          tk += half; vk = vOut;
+        }
+        if(stopped && env < 0.3 && !quietAt) quietAt = tau;
+        const back = quietAt ? clamp01((tau - quietAt) / 0.25) : 0;             // the letters' own top line returns
+        frameW1(s, amp, 1 - back, quietAt ? 1 : 0);
+        if(back >= 1){ restW1(); phase = "settled"; w2Start = now; }
+      }
+      if(phase === "settled"){
+        if(w2Done){ phase = "done"; }
+        else {
+          showCopy(fx.w2, true);
+          if(reduce){ frameW2(60); w2Done = true; phase = "done"; }
+          else if(frameW2((now - w2Start) / 1000)){ w2Done = true; phase = "done"; }
+        }
+      }
+      if(phase === "pull" || phase === "recoil" || phase === "settled" || (phase === "idle" && onLanding && isPlaying)) raf = requestAnimationFrame(tick);
+    }
+    const kick = ()=>{ if(!raf) raf = requestAnimationFrame(tick); };
+    voEl.addEventListener("playing", kick); voEl.addEventListener("timeupdate", kick);
+  })();
+
   // tapping आगे clears any pending nav-nudge
   $("navBtn").addEventListener("click", ()=>{ clearTimeout(state.navNudgeTimer); stopNudge(); });
   /* [12][14] QA CHECKLIST: "hint_used event fires on every bulb tap." Each slide

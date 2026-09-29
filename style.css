@@ -2362,3 +2362,17 @@ body.is-start .sg-sky{
   .sg-btn.sg-btn--play.sg-pop,.sg-btn.sg-btn--play.idle-pulse,
   .sg-btn.sg-btn--play.sg-pop::before,.sg-btn.sg-btn--play.idle-pulse::before{animation:none;}
 }
+
+/* ==================== [landing title fx] लंबाई spring + मापना ruler (review 2026-09-28) ====================
+   Overlay built by app.js [landing title fx]. The letter copies inherit every .sg-title property
+   (font, size, letter-spacing, line-height, colour, text-shadow), so they render exactly like the heading.
+   Two layers, as one text run paints: .tfx-sh = outlines/shadows only (transparent text),
+   .tfx-fi = fills only (no shadow). The drawn line/ruler slot in between (SVG). */
+.sg-title .tfx{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
+.sg-title .tfx-word,.sg-title .tfx-sh,.sg-title .tfx-fi{position:absolute;left:0;top:0;width:100%;height:100%;}
+.sg-title .tfx-word{opacity:0;isolation:isolate;}   /* each word stack = ONE composited unit, so its fades never show the outline through the fill */
+.sg-title .tfx-g{position:absolute;top:0;white-space:nowrap;}   /* no will-change: a promoted layer rasterises text differently from the real heading */
+.sg-title .tfx-sh .tfx-g{color:transparent;text-shadow:inherit;}   /* each shadow layer sets its half of the heading's text-shadow (app.js) */
+.sg-title .tfx-fi .tfx-g{text-shadow:none;}
+.sg-title .tfx-svg{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;}
+.sg-title .tfx-off{visibility:hidden;}
