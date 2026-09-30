@@ -50,11 +50,10 @@
     <div class="slide-stage">
       <div class="slide-host" id="slideHost"></div>
       <div class="nudge-hand" id="nudgeHand">
-        <!-- [QA 12] two-layer clipped hand (kit recipe 3, treatment A): the same SVG twice, split by
-             clip-path - the FINGER layer presses, the PALM layer holds - plus a contact ring at the tip -->
-        <img class="nh-palm" src="assets/nudge_hand_new.svg" alt="">
-        <img class="nh-finger" src="assets/nudge_hand_new.svg" alt="">
-        <i class="nh-ring"></i>
+        <!-- FLN animation kit recipes 3 (treatment C, the plain press) + 4 (the tap ripple), review 2026-09-30:
+             two wavefronts and three sparks break out of the fingertip as it touches, BEHIND the hand -->
+        <span class="nh-tapfx" aria-hidden="true"><i class="fx-ro"></i><i class="fx-ri"></i><i class="fx-sp"></i></span>
+        <img src="assets/nudge_hand_new.svg" alt="">
       </div>
     </div>
 
@@ -131,6 +130,11 @@
     <img id="phaseGateImg" src="assets/gif/peeking.webp" alt="">
 </div>
 
+<!-- CORRECT-ANSWER CONFETTI (FLN animation kit recipe 7) - BODY-LEVEL for the same reason: it falls over the WHOLE
+     window, the letterbox beside the stage included (review 2026-09-30: "not covering the full horizontal space");
+     inside .stage-inner it was clipped to the scaled 1333px stage. -->
+<div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
+
 <!-- ============ CARD DATA (embedded; in prod the compiler does this) ============ -->
 <script type="application/json" id="cardData">
 {
@@ -200,23 +204,28 @@
       "prompt_hi": "कौन-सी टेबल ज़्यादा लंबी है?",
       "audio": {
         "prompt": "vo_p2_ask",
-        "try_again": "vo_p2_fb",
-        "hint": "vo_p2_fb",
+        "try_again": "vo_hint_mcq2_1",
+        "hint": "vo_hint_mcq2_2",
         "reveal": "vo_p2_fb"
       },
       "data": {
         "by": "length",
         "look": "tables",
-        "wrong_cue": "show_correct",
+        "wrong_cue": "sheet",
         "options": [
           {
-            "src": "assets/obj_table_long.svg",
+            "src": "assets/obj_table_long.webp",
             "w": 450,
             "correct": true,
-            "emoji": "🪑"
+            "emoji": "🪑",
+            "tap": [
+              0.932,
+              0.74
+            ],
+            "audio": "vo_ok_mcq2"
           },
           {
-            "src": "assets/obj_table_short.svg",
+            "src": "assets/obj_table_short.webp",
             "w": 308,
             "emoji": "🪑"
           }
@@ -241,18 +250,21 @@
         "rule_b": "vo_rule_b",
         "rule_c": "vo_rule_c",
         "child": "vo_p3_child",
-        "conclude": "vo_p3_done"
+        "conclude": "vo_p3_done",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
         "n": 6,
         "demo": 2,
         "axis": "x",
+        "count_at": 1.92,
         "obj": {
-          "src": "assets/obj_table_long.svg",
-          "w": 400,
-          "ar": 0.4609,
-          "a0": 0.0043,
-          "a1": 0.9957
+          "src": "assets/obj_table_measure.webp",
+          "w": 560,
+          "ar": 0.4562,
+          "a0": 0.0018,
+          "a1": 0.9982
         },
         "unit_hi": "ब्लॉक्स"
       },
@@ -275,17 +287,27 @@
         "rule_b": "vo_rule_b",
         "rule_c": "vo_rule_c",
         "child": "vo_p4_child",
-        "conclude": "vo_p4_done"
+        "conclude": "vo_p4_done",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
-        "n": 9,
+        "n": 5,
         "demo": 2,
         "axis": "y",
+        "count_at": 2.12,
+        "holder": "painting",
+        "floor": "wood",
+        "wall": "paint",
         "obj": {
           "src": "assets/obj_door.webp",
+          "light": [
+            0.093,
+            0.907,
+            0.984
+          ],
           "ar": 1.6434
         },
-        "bh": 44,
         "unit_hi": "ब्लॉक्स"
       },
       "signals": {
@@ -302,16 +324,20 @@
         "prompt": "vo_p5_instr",
         "ask": "vo_p5_ask",
         "correct": "vo_p5_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_hint_mcq3_1",
+        "hint": "vo_hint_mcq3_2",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
         "n": 8,
         "axis": "x",
+        "holder": "basket",
+        "bg": "yard",
         "obj": {
-          "src": "assets/obj_bed.webp",
-          "ar": 0.3918
+          "src": "assets/obj_charpai.webp",
+          "ar": 0.3715
         },
-        "s": 64,
         "ask_hi": "पलंग की लंबाई कितनी है?",
         "options": [
           7,
@@ -336,23 +362,34 @@
         "prompt": "vo_p6_instr",
         "ask": "vo_p6_ask",
         "correct": "vo_p6_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_hint_mcq3_1",
+        "hint": "vo_hint_mcq3_2",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
-        "n": 7,
+        "n": 4,
         "axis": "y",
         "obj": {
           "src": "assets/obj_almirah.webp",
           "ar": 1.6914
         },
-        "s": 48,
         "ask_hi": "अलमारी की लंबाई कितनी है?",
         "options": [
-          6,
-          7,
-          8
+          3,
+          4,
+          5
         ],
-        "unit_hi": "ब्लॉक्स"
+        "unit_hi": "ब्लॉक्स",
+        "bg": "bedroom",
+        "holder": "laundry",
+        "gag": {
+          "src": "assets/prop_sock.webp",
+          "x": 0.44,
+          "y": 0.57,
+          "w": 0.2,
+          "rot": 8
+        }
       },
       "signals": {
         "on_complete": [
@@ -370,7 +407,10 @@
         "prompt": "vo_p6b_instr",
         "ask": "vo_p6b_ask",
         "correct": "vo_p6b_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_hint_mcq3_1",
+        "hint": "vo_hint_mcq3_2",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
         "n": 3,
@@ -379,14 +419,16 @@
           "src": "assets/obj_pillow.webp",
           "ar": 0.5921
         },
-        "s": 96,
         "ask_hi": "तकिये की लंबाई कितनी है?",
         "options": [
           2,
           3,
           5
         ],
-        "unit_hi": "ब्लॉक्स"
+        "unit_hi": "ब्लॉक्स",
+        "bg": "dusk",
+        "holder": "catbed",
+        "horizon": "base"
       },
       "signals": {
         "on_complete": [
@@ -404,23 +446,27 @@
         "prompt": "vo_p7_instr",
         "ask": "vo_p7_ask",
         "correct": "vo_p7_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_hint_mcq3_1",
+        "hint": "vo_hint_mcq3_2",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
-        "n": 6,
+        "n": 3,
         "axis": "y",
         "obj": {
           "src": "assets/obj_fridge.webp",
           "ar": 2.0403
         },
-        "s": 52,
         "ask_hi": "फ्रिज की लंबाई कितनी है?",
         "options": [
-          4,
-          5,
-          6
+          2,
+          3,
+          4
         ],
-        "unit_hi": "ब्लॉक्स"
+        "unit_hi": "ब्लॉक्स",
+        "bg": "kitchen",
+        "holder": "tokri"
       },
       "signals": {
         "on_complete": [
@@ -437,25 +483,26 @@
       "audio": {
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
-        "reask": "vo_p8_reask"
+        "try_again": "vo_hint_mcq2_1",
+        "hint": "vo_hint_mcq2_2"
       },
       "data": {
         "axis": "x",
-        "s": 64,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
             "src": "assets/obj_mat_1.webp",
             "ar": 0.5056,
-            "n": 6
+            "n": 5
           },
           {
             "src": "assets/obj_mat_2.webp",
             "ar": 0.4686,
-            "n": 7,
+            "n": 6,
             "correct": true
           }
-        ]
+        ],
+        "bg": "terrace"
       },
       "signals": {
         "on_complete": [
@@ -472,25 +519,26 @@
       "audio": {
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
-        "reask": "vo_p9_reask"
+        "try_again": "vo_hint_mcq2_1",
+        "hint": "vo_hint_mcq2_2"
       },
       "data": {
         "axis": "y",
-        "s": 70,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
             "src": "assets/obj_chair_short.webp",
             "ar": 1.615,
-            "n": 4
+            "n": 3
           },
           {
             "src": "assets/obj_chair_tall.webp",
             "ar": 1.7926,
-            "n": 5,
+            "n": 4,
             "correct": true
           }
-        ]
+        ],
+        "bg": "veranda"
       },
       "signals": {
         "on_complete": [
@@ -506,16 +554,16 @@
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "correct": "vo_match_ok"
+        "correct": "vo_match_ok",
+        "item_ok": "vo_ok_dd",
+        "try_again": "vo_hint_dd_1",
+        "hint": "vo_hint_dd_2"
       },
       "data": {
-        "s": 50,
         "unit_hi": "ब्लॉक्स",
         "rows": [
           [
-            "bench"
-          ],
-          [
+            "bench",
             "board",
             "stool"
           ]
@@ -525,29 +573,37 @@
             "id": "bench",
             "src": "assets/obj_bench.svg",
             "ar": 0.2762,
-            "n": 7,
-            "axis": "x"
+            "n": 4,
+            "axis": "x",
+            "scene": "floor"
           },
           {
             "id": "board",
             "src": "assets/obj_blackboard.svg",
             "ar": 0.44,
-            "n": 5,
-            "axis": "x"
+            "n": 3,
+            "axis": "x",
+            "scene": "wall",
+            "wall": "#EFE6CF"
           },
           {
             "id": "stool",
             "src": "assets/obj_stool.svg",
             "ar": 1.2267,
-            "n": 3,
-            "axis": "y"
+            "n": 2,
+            "axis": "y",
+            "scene": "floor",
+            "wall": "#F6E9D3"
           }
         ],
         "boxes": [
-          3,
-          7,
-          5
-        ]
+          2,
+          4,
+          3
+        ],
+        "strip": true,
+        "look": "board",
+        "bg": "corkboard"
       },
       "signals": {
         "on_complete": [
@@ -563,10 +619,12 @@
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "correct": "vo_match_ok"
+        "correct": "vo_match_ok",
+        "item_ok": "vo_ok_dd",
+        "try_again": "vo_hint_dd_1",
+        "hint": "vo_hint_dd_2"
       },
       "data": {
-        "s": 56,
         "unit_hi": "ब्लॉक्स",
         "rows": [
           [
@@ -580,29 +638,47 @@
             "id": "window",
             "src": "assets/obj_window.svg",
             "ar": 1.3587,
-            "n": 5,
-            "axis": "y"
+            "n": 3,
+            "axis": "y",
+            "scene": "shelf",
+            "wall": "#E4EEDC",
+            "fit": {
+              "kind": "curtain"
+            }
           },
           {
             "id": "bottle",
             "src": "assets/obj_bottle.svg",
             "ar": 2.6389,
-            "n": 3,
-            "axis": "y"
+            "n": 2,
+            "axis": "y",
+            "scene": "table",
+            "wall": "#F5E5EC",
+            "fit": {
+              "kind": "sleeve"
+            }
           },
           {
             "id": "tv",
             "src": "assets/obj_tv.svg",
             "ar": 0.6615,
             "n": 4,
-            "axis": "x"
+            "axis": "x",
+            "scene": "table",
+            "wall": "#F4E8DA",
+            "fit": {
+              "kind": "cover"
+            }
           }
         ],
         "boxes": [
-          5,
+          3,
           4,
-          3
-        ]
+          2
+        ],
+        "strip": true,
+        "look": "fridge",
+        "bg": "fridge"
       },
       "signals": {
         "on_complete": [
@@ -619,7 +695,12 @@
       "audio": {
         "intro": "vo_p13_intro",
         "measure": "vo_p13_measure",
-        "place": "vo_p13_place"
+        "place": "vo_p13_place",
+        "item_ok": "vo_ok_dd",
+        "try_again": "vo_hint_dd_1",
+        "hint": "vo_hint_dd_2",
+        "block_try": "vo_hint_dd_1",
+        "block_hint": "vo_rule_a"
       },
       "data": {
         "sc": 36,
@@ -744,10 +825,8 @@
       "vo_p7_ok": "assets/voiceover/vo_p7_ok.ogg",
       "vo_p8_ask": "assets/voiceover/vo_p8_ask.ogg",
       "vo_p8_ok": "assets/voiceover/vo_p8_ok.ogg",
-      "vo_p8_reask": "assets/voiceover/vo_p8_reask.ogg",
       "vo_p9_ask": "assets/voiceover/vo_p9_ask.ogg",
       "vo_p9_ok": "assets/voiceover/vo_p9_ok.ogg",
-      "vo_p9_reask": "assets/voiceover/vo_p9_reask.ogg",
       "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
       "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
       "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.ogg",
@@ -763,10 +842,17 @@
       "vo_p4_explain_a": "assets/voiceover/vo_p4_explain_a.ogg",
       "vo_p4_explain_b": "assets/voiceover/vo_p4_explain_b.ogg",
       "vo_p4_child": "assets/voiceover/vo_p4_child.ogg",
-      "vo_try_again": "assets/voiceover/vo_try_again.ogg",
       "vo_well_done": "assets/voiceover/vo_well_done.ogg",
       "vo_p13_intro": "assets/voiceover/vo_p13_intro.ogg",
-      "vo_p13_place": "assets/voiceover/vo_p13_place.ogg"
+      "vo_p13_place": "assets/voiceover/vo_p13_place.ogg",
+      "vo_hint_mcq2_1": "assets/voiceover/vo_hint_mcq2_1.ogg",
+      "vo_hint_mcq2_2": "assets/voiceover/vo_hint_mcq2_2.ogg",
+      "vo_ok_mcq2": "assets/voiceover/vo_ok_mcq2.ogg",
+      "vo_hint_mcq3_1": "assets/voiceover/vo_hint_mcq3_1.ogg",
+      "vo_hint_mcq3_2": "assets/voiceover/vo_hint_mcq3_2.ogg",
+      "vo_hint_dd_1": "assets/voiceover/vo_hint_dd_1.ogg",
+      "vo_hint_dd_2": "assets/voiceover/vo_hint_dd_2.ogg",
+      "vo_ok_dd": "assets/voiceover/vo_ok_dd.ogg"
     },
     "audio_text": {
       "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
@@ -785,7 +871,7 @@
       "vo_p2_ask": "इनमें से कौन-सी टेबल ज्यादा लंबी है? उस पर टैप करिए।",
       "vo_p2_fb": "यह टेबल ज्यादा लंबी है।",
       "vo_p3_done": "शाबाश! यह टेबल 6 ब्लॉक्स लंबी है।",
-      "vo_p4_done": "शाबाश! यह दरवाजा 9 ब्लॉक्स लंबा है।",
+      "vo_p4_done": "शाबाश! यह दरवाजा 5 ब्लॉक्स लंबा है।",
       "vo_p5_instr": "पलंग की लंबाई ब्लॉक से मापिए।",
       "vo_p7_ask": "अब बताइए, फ्रिज की लंबाई कितनी है?",
       "vo_p6b_ok": "शाबाश! तकिये की लंबाई 3 ब्लॉक्स है।",
@@ -795,15 +881,13 @@
       "vo_p5_ask": "अब बताइए, पलंग की लंबाई कितनी है?",
       "vo_p5_ok": "शाबाश! पलंग की लंबाई 8 ब्लॉक्स है।",
       "vo_p6_ask": "अब बताइए, अलमारी की लंबाई कितनी है?",
-      "vo_p6_ok": "शाबाश! अलमारी की लंबाई 7 ब्लॉक्स है।",
+      "vo_p6_ok": "शाबाश! अलमारी की लंबाई 4 ब्लॉक्स है।",
       "vo_p7_instr": "फ्रिज की लंबाई ब्लॉक से मापिए।",
-      "vo_p7_ok": "शाबाश! फ्रिज की लंबाई 6 ब्लॉक्स है।",
+      "vo_p7_ok": "शाबाश! फ्रिज की लंबाई 3 ब्लॉक्स है।",
       "vo_p8_ask": "कौन-सी चटाई ज़्यादा लंबी है? उस पर टैप करिए।",
       "vo_p8_ok": "शाबाश! यह चटाई ज़्यादा लंबी है।",
-      "vo_p8_reask": "अब बताइए, कौन-सी चटाई ज़्यादा लंबी है?",
       "vo_p9_ask": "कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए।",
       "vo_p9_ok": "शाबाश! यह कुर्सी ज़्यादा लंबी है।",
-      "vo_p9_reask": "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?",
       "vo_pt_guided": "बहुत बढ़िया! अब हम साथ मिलकर शुरू करते हैं। चलिए, साथ में करें!",
       "vo_pt_practice": "वाह! अब आपकी बारी।",
       "vo_pt_tutorial": "ध्यान से देखिए और मेरे साथ जानिए। चलिए, शुरू करें!",
@@ -819,16 +903,24 @@
       "vo_p4_explain_a": "इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे",
       "vo_p4_explain_b": "और ऊपर तक जाएंगे।",
       "vo_p4_child": "अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है।",
-      "vo_try_again": "ब्लॉक्स को एक बार फिर गिनिए।",
       "vo_well_done": "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!",
       "vo_p13_intro": "आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए।",
-      "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।"
+      "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।",
+      "vo_hint_mcq2_1": "दोनों विकल्पों को ध्यान से देखिए और सोचिए।",
+      "vo_hint_mcq2_2": "ध्यान से देखिए और सही विकल्प चुनिए।",
+      "vo_ok_mcq2": "शाबाश! आपने सही चुना।",
+      "vo_hint_mcq3_1": "फिर से सोचिए और विकल्पों को ध्यान से देखिए।",
+      "vo_hint_mcq3_2": "चित्र को ध्यान से देखिए और सही उत्तर पहचानिए।",
+      "vo_hint_dd_1": "फिर से सोचिए। ध्यान से देखिए और सही जगह चुनिए।",
+      "vo_hint_dd_2": "ब्लॉक्स को ध्यान से गिनिए और सही जगह पर रखिए।",
+      "vo_ok_dd": "शाबाश! सही जगह पर रखा।"
     },
     "image": {
-      "obj_table_long": "assets/obj_table_long.svg",
-      "obj_table_short": "assets/obj_table_short.svg",
+      "obj_table_long": "assets/obj_table_long.webp",
+      "obj_table_short": "assets/obj_table_short.webp",
+      "obj_table_measure": "assets/obj_table_measure.webp",
       "obj_door": "assets/obj_door.webp",
-      "obj_bed": "assets/obj_bed.webp",
+      "obj_charpai": "assets/obj_charpai.webp",
       "obj_almirah": "assets/obj_almirah.webp",
       "obj_pillow": "assets/obj_pillow.webp",
       "obj_fridge": "assets/obj_fridge.webp",

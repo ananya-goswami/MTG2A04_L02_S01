@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+  <!-- One of the two stars on the result badge (badge_result.webp), drawn to the supplied art's own star: a puffy
+       5-point star (inner/outer radius 0.6), glossy yellow body, orange rim, a darker orange underside. Centred in the
+       box so it spins about its middle; each badge star sets its own tilt (CSS). -->
+  <defs>
+    <radialGradient id="bsBody" cx=".38" cy=".3" r=".75">
+      <stop offset="0" stop-color="#FFF7A8"/><stop offset=".45" stop-color="#FFDF3A"/><stop offset="1" stop-color="#FFBE14"/>
+    </radialGradient>
+    <path id="bsStar" d="M60 16 L75.52 38.64 L101.85 46.4 L85.11 68.16 L85.86 95.6 L60 86.4 L34.14 95.6 L34.89 68.16 L18.15 46.4 L44.48 38.64 Z"/>
+  </defs>
+  <g stroke-linejoin="round">
+    <use href="#bsStar" xlink:href="#bsStar" transform="translate(2.4 3.4)" fill="#D2600A" stroke="#D2600A" stroke-width="17"/>
+    <use href="#bsStar" xlink:href="#bsStar" fill="#EE8410" stroke="#EE8410" stroke-width="17"/>
+    <use href="#bsStar" xlink:href="#bsStar" fill="url(#bsBody)" stroke="url(#bsBody)" stroke-width="7"/>
+  </g>
+  <path d="M44 34 C50 27 58 26 62 29" fill="none" stroke="#FFFDE6" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+  <ellipse cx="38" cy="48" rx="6" ry="3.4" transform="rotate(-28 38 48)" fill="#FFFDE6" opacity=".7"/>
+</svg>

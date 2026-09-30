@@ -61,27 +61,7 @@ const XAPI = window.XAPI = (function(){
       else window.parent && window.parent.postMessage({ type:"swiftpal:xapi", statement: statement }, "*");
     }catch(e){}
     try{ console.log("[xapi]", verb, statement); }catch(e){}
-    devLog(verb, statement);
     return statement;
-  }
-  /* [QA 14] ?dev=1 on-screen verb log: every verb as it fires, with a running count per verb, so a
-     misfired or duplicated verb is visible on screen during a QA pass (not only in the console). */
-  var devBox = null, counts = {};
-  function devLog(verb, st){
-    if(!q.get || q.get("dev") === null) return;
-    try{
-      if(!devBox){
-        devBox = document.createElement("div"); devBox.id = "xapiDevLog";
-        devBox.style.cssText = "position:fixed;right:8px;top:8px;z-index:2147483000;max-height:46vh;width:300px;overflow:auto;" +
-          "font:12px/1.35 ui-monospace,Consolas,monospace;background:rgba(10,20,40,.86);color:#E6F1FF;border-radius:8px;padding:6px 8px;pointer-events:none;";
-        (document.body || document.documentElement).appendChild(devBox);
-      }
-      counts[verb] = (counts[verb] || 0) + 1;
-      var r = st.result || {}, line = document.createElement("div");
-      line.textContent = verb + " #" + counts[verb] + (st.context.question_id ? " · " + st.context.question_id : "") +
-        (r.is_correct !== undefined ? " · correct=" + r.is_correct + " att=" + r.attempt + " score=" + r.score : "");
-      devBox.appendChild(line); devBox.scrollTop = devBox.scrollHeight;
-    }catch(e){}
   }
   return { ctx:ctx, log:log, send:send,
            once:function(v,o,r){ if(fired[v]) return null; fired[v]=1; return send(v,o,r); },
@@ -284,16 +264,15 @@ function setSwMood(m){ swMood = m;
    The old function is kept, unreferenced, so the change is reversible in one line. */
 function confettiCannon(){
   var sl = CARD.slides[state.idx] || {};
-  /* [13] QA CHECKLIST gauge: ~100 pieces, 3s fall, staggered 0-0.5s, appended
-     inside the stage, approved 7-colour palette. Size/radius/easing are pinned
-     in style.css. phases:[] because the checklist asks for confetti on every
-     correct answer, including tutorial. */
+  /* [13] the kit's recipe 7 with its own shapes (star 40%, rectangle, line, square), sizes, depth and fall - review
+     2026-09-30: "all square-shaped and not covering the full horizontal space". It falls over the WHOLE window
+     (#fxLayer, body-level: the stage is letterboxed and clips at its edges), so ~100 pieces keep the density of the
+     kit's 80 across the wider field. phases:[] because the checklist asks for confetti on every correct answer,
+     including tutorial. The palette is the kit's own VIBGYOR pairs. */
+  /* fall: seconds to cross the window, before the depth divisor - the kit's [1.1, 1.8] made ~40% slower (review
+     2026-09-30: "reduce its speed a bit"); pieces cross in ~1.4-3.5s, the burst clears in ~3.8s */
   FLNMotion.confetti.burst({
-    host: ".stage-inner", phase: sl.phase, phases: [],
-    count: 100, stagger: 0.5, fall: [3, 3], depth: [1, 1],
-    colors: [["#8B2FC9","#5E1C8C"],["#3F51B5","#27358A"],["#1E88E5","#135FA6"],
-             ["#22B24C","#157A34"],["#FFD21E","#D9A800"],["#FF8A1E","#C75F00"],
-             ["#E5322D","#A81F1B"]]
+    host: "#fxLayer", phase: sl.phase, phases: [], count: 100, fall: [1.6, 2.6]
   });
 }
 /* ===== FLN ANIMATION KIT: confetti (call site) END ===== */
@@ -508,7 +487,8 @@ function placeNudge(el){
   if(cutTop !== Infinity){
     const keep = (cutTop - 4 - hr.t) / scale;                 // design px of the hand left visible
     if(keep < NH.H * 0.4){ nh.classList.remove("show"); return false; }
-    nh.style.clipPath = "inset(0 0 " + Math.max(0, NH.H - keep).toFixed(1) + "px 0)";
+    /* only the BOTTOM is cut: the tap ripple (kit recipe 4) spreads up to ~55px above and around the box */
+    nh.style.clipPath = "inset(-60px -60px " + Math.max(0, NH.H - keep).toFixed(1) + "px -60px)";
   }
   nh.classList.add("show");
   return true;
@@ -532,18 +512,14 @@ function showBox(emoji, text, theme, audioSrc, onEnd){
   // wrong/hint/reveal keep a light card (mechanics use it for a short cue); Swiftie reacts too.
   // one-Swiftie rule: the popup shows the reacting Swiftie (animated), so HIDE the header buddy
   // while it's open — never two Swifties on screen at once (MoM flag).
-  /* [kit] the measurement sheet ships seven FULL-BODY Swiftie poses; the feedback
-     card is the one place this build already shows a whole mascot, so it reads
-     them instead of the old three-gif set. Falls back to the gifs if a cut is
-     missing. */
+  /* the feedback card's Swiftie: her own animated gifs. (Review 2026-09-30: "why has Swifty changed" - the measurement
+     kit's full-body poses it used to read, mk_sw_cheer / mk_sw_guide, were a different drawing of her; gone.) */
   const swMap  = { wrong:"sw_anim_tryagain", hint:"sw_anim_teach", reveal:"sw_anim_teach" };
-  const mkPose = { wrong:MK.sw.cheer, hint:MK.sw.guide, reveal:MK.sw.explain };
   const sw = $("hintMascot");
   if(sw){
     sw.style.display = "";
-    const gif = "assets/gif/" + (swMap[theme] || "sw_anim_talk") + ".gif";
-    sw.onerror = function(){ this.onerror = null; this.src = gif; };
-    sw.src = mkPose[theme] ? mkSrc(mkPose[theme]) : gif;
+    sw.onerror = null;
+    sw.src = "assets/gif/" + (swMap[theme] || "sw_anim_talk") + ".gif";
   }
   const buddy = $("swBuddy"); if(buddy) buddy.style.visibility = "hidden";
   setSwMood(theme === "wrong" ? "tryagain" : "hint");
@@ -1019,8 +995,7 @@ const MK = {
   ghost:  "mk_block_ghost",  glow:   "mk_block_glow",
   mStart: "mk_marker_start", mEnd:   "mk_marker_end",
   errGap: "mk_err_gap",      errOver:"mk_err_overlap",
-  sparkle:"mk_sparkle",      plate:  "mk_badge_blank",
-  sw: { explain:"mk_sw_explain", guide:"mk_sw_guide", cheer:"mk_sw_cheer" }
+  sparkle:"mk_sparkle",      plate:  "badge_result",
 };
 const mkSrc = (id)=> "assets/" + id + "." + IMG_EXT;
 /* is this a measuring slide? = the card gave it an object laid along a scene object */
@@ -1052,9 +1027,9 @@ function mkAddMarkers(figEl){
   figEl.insertBefore(mk("mk-marker-s", MK.mStart), figEl.firstChild);
   figEl.appendChild(mk("mk-marker-e", MK.mEnd));
 }
-/* the result plate: "<n> \u092c\u094d\u0932\u0949\u0915\u094d\u0938" on the kit's own badge, + the sparkle burst.
-   The sheet ships the plate with "6" baked in; the text is lifted off it once
-   (mk_badge_blank) so every count 1..9 this card uses can reuse the same art. */
+/* the result plate: "<n> \u092c\u094d\u0932\u0949\u0915\u094d\u0938" on the result badge, + the sparkle burst.
+   The badge art ships with "6" baked in; the text is lifted off it once
+   (badge_result, see MDK.plate) so every count 1..9 this card uses can reuse it. */
 /* Both overlays FLOAT inside .slide-stage rather than joining the slide's flex
    column. That column is `flex:1;min-height:0` all the way down, so anything
    added to it steals height from the scene art above - which pulled the table
@@ -1154,11 +1129,12 @@ const MDK = (function(){
   const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
   const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
   /* one blue cube, s x s, at (x, y); i picks its slice of the strip (its shade of blue) */
-  function cube(parent, i, x, y, s){
+  function cube(parent, i, x, y, s, rot){
     const k = i % 10, c0 = STRIP.cuts[k], c1 = STRIP.cuts[k + 1], kx = s / (c1 - c0), ky = s / (STRIP.bot - STRIP.top);
     const b = add(parent, "div", "md-block", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(s) + ";height:" + px(s) + ";--i:" + i + ";" +
       "background-image:url(" + STRIP.src + ");background-size:" + px(STRIP.w * kx) + " " + px(STRIP.h * ky) + ";background-position:" + px(-c0 * kx) + " " + px(-STRIP.top * ky));
-    b._home = { x, y }; b._placed = false; return b;
+    b._home = { x, y }; b._placed = false; b._rot = rot || 0; if(rot) b.style.setProperty("--rot", rot + "deg");
+    return b;
   }
   const path = (dx, dy, up)=> [{ translate: "0px 0px" }, { translate: dx / 2 + "px " + (dy / 2 + up) + "px", offset: .5 }, { translate: dx + "px " + dy + "px" }];
   /* the hand (the engine's nudge hand art; fingertip at NH.TIP_X/TIP_Y of its 86x108 box), pressing a block of size s */
@@ -1172,7 +1148,10 @@ const MDK = (function(){
   function glide(el, to, ms, arc, h){
     return new Promise(res => {
       const from = pos(el), dx = to.x - from.x, dy = to.y - from.y, up = arc ? -Math.min(80, 26 + Math.hypot(dx, dy) * 0.16) : 0;
-      let fin = false; const done = ()=>{ if(fin) return; fin = true; setPos(el, to); if(h) setPos(h.el, h.grip(to)); res(); };
+      if(el._rot){ const home = el._home && Math.abs(to.x - el._home.x) < .5 && Math.abs(to.y - el._home.y) < .5;
+        el.style.setProperty("--rot", home ? el._rot + "deg" : "0deg"); }
+      let fin = false; const done = ()=>{ if(fin) return; fin = true; setPos(el, to); el.classList.remove("moving"); if(h) setPos(h.el, h.grip(to)); res(); };
+      el.classList.add("moving");                                            // (a painting's cube shows while it flies: CSS .in-art-home)
       if(reduce() || ms <= 0){ done(); return; }
       const o = { duration: ms, easing: "cubic-bezier(.45,.05,.35,1)" };
       const a = el.animate(path(dx, dy, up), o); if(h) h.el.animate(path(dx, dy, up), o);
@@ -1181,27 +1160,455 @@ const MDK = (function(){
   }
   const knock = ()=> _tone([392, 311], "sine", 0.16, 0.1);                    // a soft wooden set-down
   function land(el, quiet){ if(!reduce()) el.animate([{ scale: "1.07 .9" }, { scale: ".98 1.03" }, { scale: "1 1" }], { duration: 220, easing: "ease-out" }); if(!quiet) knock(); }
-  /* the toy box: n blocks of size s in rows of `cols`, each back row a little higher so they peek over the front
-     panel (which sits in front of the lowest row). Returns the box and the n home spots. */
-  function toybox(parent, x, y, n, s, cols){
-    cols = Math.max(1, Math.min(cols || 3, n)); const rows = Math.ceil(n / cols), gap = Math.round(s * 0.1), pad = Math.round(s * 0.2), step = Math.round(s * 0.52);
-    const w = cols * s + (cols - 1) * gap + 2 * pad, frontH = Math.round(s * 0.62), h = s + (rows - 1) * step + pad + Math.round(s * 0.3);
+  /* a correct block: its green outline flashes on, then fades (review 2026-09-30: "the green outline should disappear
+     after it is correctly placed") - it confirms the drop, like the ✓ it replaced; it is not a lasting state */
+  function okFlash(el){ el.classList.add("ok"); clearTimeout(el._okT); el._okT = setTimeout(()=> el.classList.remove("ok"), 900); }
+  /* the toy box: n blocks of size s in rows of `cols`, each back row higher so they peek over the front row, the front
+     wall in front of the lowest row. Returns the box and the n home spots. (Before the art below, T2's review "the cubes
+     inside it should be much more visible" had an `open` CSS variant; the art shows every cube nearly whole.) */
+  /* THE TOY BOX = the supplied art (review 2026-09-30: "replace image 1 asset with image 2 red box"): two layers,
+     assets/toybox_back.webp behind the blocks (the art's six painted smiling cubes removed, its inside refilled from
+     the box's own red) and assets/toybox_front.webp - the front wall: rim, starred panel, feet - over them. BOX is in
+     block units s, measured on the art (a painted cube ~345px): the box 3.97 x 2.58 s; the front row's blocks 0.458 s
+     from its left edge, 1.035 s apart, their tops 1.10 s down (the front rim hides their lowest 0.2 s); a second row
+     0.75 s higher, as painted; three rows share the room above (the top one 0.12 s down). One look for every box -
+     `open` (T2's shallower box) is kept only so its callers need not change. */
+  const BOX = { w: 3.97, h: 2.58, x0: 0.458, dx: 1.035, y0: 1.10, dy2: 0.75, top: 0.12 };
+  /* PILE (review 2026-09-30: "the cubes are too much in a straight line - a more natural way of putting them there"):
+     each block a little off its cell and askew, as if tossed in - [dx, dy] in s, tilt in degrees - by row from the
+     front, then column. Designed, not random, so every box looks the same: the front row splays out (left leans left,
+     right leans right), the back row leans on the back wall with its middle block propped higher, a third row sits
+     loosest on top. A block straightens the moment it leaves the box and lies square in the row (CSS [measure kit]). */
+  const PILE = [
+    [[-0.02,  0.04, -5], [0,  -0.02,  2], [ 0.03,  0.05,  6]],
+    [[ 0.06, -0.03,  4], [0,  -0.10, -3], [-0.05, -0.01, -7]],
+    [[ 0.10,  0.02, -6], [0,  -0.06,  5], [-0.08,  0,     8]]];
+  function toyboxGeom(n, s, cols, open){
+    cols = Math.max(1, Math.min(cols || 3, n)); const rows = Math.ceil(n / cols);
+    const step = (rows <= 2 ? BOX.dy2 : (BOX.y0 - BOX.top) / (rows - 1)) * s;
+    return { cols, rows, step, w: BOX.w * s, h: BOX.h * s };
+  }
+  function toybox(parent, x, y, n, s, cols, open){
+    const g = toyboxGeom(n, s, cols, open), { w, h } = g;
     const back = add(parent, "div", "md-box-back", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
-    const front = add(parent, "div", "md-box-front", "left:" + px(x - 6) + ";top:" + px(y + h - frontH) + ";width:" + px(w + 12) + ";height:" + px(frontH + 6));
-    const spots = [];
-    for(let j = 0; j < n; j++){ const r = Math.floor(j / cols), c = j % cols, rowsBelow = rows - 1 - r;
-      spots.push({ x: x + pad + c * (s + gap), y: y + h - frontH - s * 0.42 - rowsBelow * step }); }
+    const front = add(parent, "div", "md-box-front", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const spots = [], lead = (3 - g.cols) * BOX.dx / 2;                    // fewer than 3 in a row: centred
+    for(let j = 0; j < n; j++){ const r = Math.floor(j / g.cols), c = j % g.cols, rowsBelow = g.rows - 1 - r;
+      const L = (PILE[rowsBelow] || PILE[PILE.length - 1])[c] || [0, 0, 0];
+      spots.push({ x: x + (BOX.x0 + lead + c * BOX.dx + L[0]) * s, y: y + BOX.y0 * s - rowsBelow * g.step + L[1] * s, rot: L[2] }); }
     // the last spots are the front row: take from the top (back) first so the pile empties back to front
     return { back, front, spots, w, h };
   }
-  /* the dashed end lines and their flags. axis "x": two vertical lines at x = a and b, from y0 to y1, flags at the
-     bottom; axis "y": two horizontal lines at y = a (bottom) and b (top), from x0 to x1, flags at the right */
+  /* THE BASKET (G1, review 2026-10-01: "use this for better slide" - the supplied mock-up of the charpai and a woven
+     basket of cubes): the basket cut out of that picture, two layers like the toy box - assets/basket_back.webp (its
+     seven painted cubes removed; the inside they hid rebuilt from its own weave) behind the blocks, and
+     assets/basket_front.webp (the front rim and wall) over them. BASKET is in block units s, measured on the art (its
+     401 x 322 px = 3.9 blocks wide - a touch smaller than its painted cubes had it, so it fits beside the centred
+     object at the game's 76px cube): the opening is an ellipse, centre (xc, yc), half-width ai; the rim's inner
+     edge lies bf below the centre at the front (it hides what is below it) and bb above it at the back. The blocks lie
+     in rows from the front - 3 along the front rim, 3 higher behind them, the rest higher still, centred - each a
+     little askew (BASKET_PILE: [dx, dy] in s, tilt in degrees, by row from the front); the spots come back row first,
+     like the toy box's, so the pile empties from the top. Each spot carries its z (a row in front covers the one
+     behind). Same interface as toybox. */
+  const BASKET = { w: 3.9, h: 3.1317, xc: 1.9451, yc: 1.1257, ai: 1.7506, bf: 0.781, bb: 0.9599 };
+  const BASKET_PILE = [
+    [[-0.03,  0.03, -6], [0,  0.01,  3], [ 0.03,  0.03,  7]],
+    [[ 0.05, -0.02,  5], [0, -0.05, -4], [-0.05, -0.01, -6]],
+    [[ 0.04,  0.02, -5], [0, -0.03,  4], [-0.04,  0.01,  6]]];
+  /* ---- [rooms] the other holders (review 2026-10-01: "different tokri than the red one" on each slide): a pastel laundry
+     basket (G2, the almirah's bedroom), the cat's own round bed (G2b, the pillow's), a bamboo sabzi tokri with a carrot
+     and a tomato in it (G3, the kitchen). Each two layers like the toy box - assets/holder_<kind>_back.webp (its outside
+     back wall and inside) under the blocks, _front.webp (its front wall and rim) over them - drawn to the toy box's own
+     proportions (HOLD, in block units s), so every layout that places a toy box places these. The blocks: a front row of
+     up to 3 standing in it, the rest raised behind; the top ones (the back) are taken first. ---- */
+  const HOLD = { w: 3.97, h: 2.58, x0: .46, dx: 1.035, y0: 1.1, dy2: .75 };
+  const HOLD_TILT = [[-3, 2, -2], [4, -3, 3]];
+  function holderGeom(n, s){ return { w: HOLD.w * s, h: HOLD.h * s }; }
+  function holder(kind, parent, x, y, n, s){
+    const { w, h } = holderGeom(n, s), f = Math.min(3, n), bk = n - f;
+    const back = add(parent, "div", "md-box-back h-" + kind, "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const front = add(parent, "div", "md-box-front h-" + kind, "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h) + ";z-index:6");
+    const spots = [], row = (k, dy, cnt, z, tilt)=>{ const lead = (3 - cnt) * HOLD.dx / 2;
+      for(let c = 0; c < cnt; c++) spots.push({ x: x + (HOLD.x0 + lead + c * HOLD.dx) * s, y: y + (HOLD.y0 - dy) * s, rot: tilt[c] || 0, z }); };
+    if(bk) row(0, HOLD.dy2, bk, 4, HOLD_TILT[1]);                              // the back (top of the pile): taken first
+    row(1, 0, f, 5, HOLD_TILT[0]);
+    return { back, front, spots, w, h };
+  }
+  function basketGeom(n, s){ return { w: BASKET.w * s, h: BASKET.h * s }; }
+  function basket(parent, x, y, n, s){
+    const { w, h } = basketGeom(n, s), B = BASKET;
+    const back = add(parent, "div", "md-box-back basket", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const front = add(parent, "div", "md-box-front basket", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const rim = cx => B.yc + B.bf * Math.sqrt(Math.max(0, 1 - ((cx - B.xc) / B.ai) ** 2));   // the inner front edge at cx
+    const LIFT = [0.75, 1.35, 1.75];                                        // a block's top, above the rim at its middle
+    function layout(m){                                                     // the places of a pile of m blocks, back row first
+      const rows = []; for(let left = m; left > 0;){ const k = Math.min(3, left); rows.push(k); left -= k; }   // from the front
+      const out = [];
+      for(let r = rows.length - 1; r >= 0; r--){
+        const k = rows[r];
+        for(let c = 0; c < k; c++){
+          const cx = B.xc + (c - (k - 1) / 2), L = ((BASKET_PILE[r] || [])[k === 3 ? c : c + (k === 1 ? 1 : 0.5) | 0]) || [0, 0, 0];
+          out.push({ x: x + (cx - 0.5 + L[0]) * s, y: y + (rim(cx) - (LIFT[r] != null ? LIFT[r] : 1.75 + 0.4 * (r - 2)) + L[1]) * s,
+                     rot: L[2], z: 5 - r });                              // the front row over the one behind it
+        }
+      }
+      return out;
+    }
+    front.style.zIndex = 6;
+    /* the pile SETTLES (review 2026-10-01: "after one by one cubes going, the other cubes on the tokari should get in the
+       middle, just like the correct law of physics"): once a block has left, the ones still in the basket take the pile
+       of their own count - its lowest places first, centred - each block the place that costs it least (sideways travel,
+       and a climb costs far more than a drop, so none rises), and they DROP there under gravity (faster as they fall),
+       land with a small rebound and squash, their tilt settling; the lowest places fill first. A block grabbed while
+       it settles is put in its place at once (_settle). */
+    function settle(list){
+      if(!list.length) return;
+      const to = layout(list.length), used = to.map(()=> false), pick = [];
+      const cost = (b, p)=>{ const q = pos(b), dx = p.x - q.x, dy = p.y - q.y; return dx * dx + (dy < 0 ? 9 : 0.25) * dy * dy; };
+      let best = null, bestC = Infinity;
+      (function dfs(i, c){
+        if(c >= bestC) return;
+        if(i === list.length){ bestC = c; best = pick.slice(); return; }
+        for(let j = 0; j < to.length; j++){ if(used[j]) continue; used[j] = true; pick[i] = j; dfs(i + 1, c + cost(list[i], to[j])); used[j] = false; }
+      })(0, 0);
+      const order = list.map((b, i)=> i).sort((a, b_)=> to[best[b_]].y - to[best[a]].y);   // the lowest places first
+      order.forEach((i, k)=>{
+        const b = list[i], p = to[best[i]], q = pos(b), dx = p.x - q.x, dy = p.y - q.y;
+        b._home = { x: p.x, y: p.y }; b._rot = p.rot; b._z = p.z;
+        const fin = ()=>{ clearTimeout(b._settleT); if(b._settleA){ const a = b._settleA; b._settleA = null; setPos(b, p); a.cancel(); }
+          b._settle = null; if(!b.classList.contains("lift")) b.style.zIndex = p.z; };
+        if(reduce() || Math.hypot(dx, dy) < 1){ b.style.setProperty("--rot", p.rot + "deg"); setPos(b, p); b.style.zIndex = p.z; return; }
+        b.style.zIndex = Math.max(+b.style.zIndex || 0, p.z);                // over what it tumbles past
+        b._settle = ()=>{ b.style.setProperty("--rot", p.rot + "deg"); setPos(b, p); fin(); };   // grabbed now: in place at once
+        b._settleT = setTimeout(()=>{
+          if(!b.isConnected || b._placed) return;
+          b.style.setProperty("--rot", p.rot + "deg");
+          const drop = dy > 4, reb = Math.min(7, dy * 0.12);
+          const kf = drop ? [{ translate: "0px 0px", easing: "cubic-bezier(.5,0,.85,.45)" },                        // falling, faster and faster
+                             { translate: dx + "px " + dy + "px", offset: .78, easing: "cubic-bezier(.2,.6,.4,1)" },  // lands,
+                             { translate: dx + "px " + (dy - reb) + "px", offset: .9, easing: "cubic-bezier(.6,0,.8,.4)" },   // a small rebound,
+                             { translate: dx + "px " + dy + "px" }]                                                  // and rests
+                          : [{ translate: "0px 0px", easing: "cubic-bezier(.25,.6,.35,1)" }, { translate: dx + "px " + dy + "px" }];   // slides, friction
+          const ms = drop ? 250 + 45 * Math.sqrt(dy) + Math.abs(dx) * 0.4 : 300 + Math.abs(dx) * 0.8;
+          const a = b._settleA = b.animate(kf, { duration: ms, fill: "forwards" });
+          a.onfinish = ()=>{ fin(); if(drop) land(b, true); };
+        }, 90 * k);
+      });
+    }
+    return { back, front, spots: layout(n), w, h, settle };
+  }
+  /* ---- the painting (T3, review 2026-09-30): a framed crayon painting of a man hauling a stack of blue cubes, on the wall
+     where the rack was, shown as supplied (no cord, nothing laid over it). ITS cubes are the ones the child takes. "the
+     second I have dragged the cube from the painting it should not be visible in the painting anymore": picked up, a
+     painted cube PEELS OFF the paper - bare paper appears where it was, and the cube in hand starts exactly as the
+     painted one (its place, size and tilt: PAINT.cubes) and straightens and grows to a real cube as it lifts. In hand it
+     looks like that painted cube (painting_cubes.webp: each one cut on a smooth rounded square); placed on the door it
+     turns glossy. Sent back, it shrinks and tilts back into its place and the painting has it again.
+     "as the cubes get cleared the expression of the man should get relaxed gradually" + the relieved painting ("use
+     these expression"): with each cube PLACED he eases - the 1st: his black strain dashes fade; half of them: his face
+     cross-fades to the relieved one (from that painting, aligned on his hair); all: his sweat drops go.
+     painting_layers.webp = every layer, as frames over one box of the painting (U): 0-5 the paper under cube k, 6-11
+     painted cube k as it is (both: exactly its pixels, hard-edged - a clean partition of the stack), 12 the relieved head,
+     13 the same without sweat drops, 14 the paper over the strain dashes. They are composited 1:1 into ONE canvas over U:
+     the paper of the cubes taken, the dashes' paper, the relieved head, and over it the cubes still there - so his face
+     tucks behind the stack, taken neighbours join with no seam, and nothing of a taken cube is left. Same interface as
+     toybox ({back, front, spots, w, h}) + link(blocks), which arms all that; x, y = the frame's top-left. ---- */
+  const PAINT = { src: "assets/painting_carrier.webp", ar: 2.009,
+    // his 6 painted cubes, top row first: centre, size and tilt as painted (cx, cy, w, h: fractions of the painting's WIDTH)
+    cubes: [{ cx: .4607, cy: .121, w: .0983, h: .0843, ang: -10 }, { cx: .558, cy: .1092, w: .0978, h: .0837, ang: -8 },
+            { cx: .486, cy: .2026, w: .1039, h: .0764, ang: -8.25 }, { cx: .5826, cy: .1868, w: .0904, h: .0747, ang: -8.25 },
+            { cx: .5036, cy: .2742, w: .0826, h: .0716, ang: -9.25 }, { cx: .5894, cy: .2674, w: .0921, h: .0859, ang: -7.5 }],
+    look: "assets/painting_cubes.webp",                                     // each painted cube, straightened: a cube in hand
+    layers: { src: "assets/painting_layers.webp", box: [.30259, .07684, .3847, .59209], fw: 385, fh: 295,
+              PAPER: 0, CUBE: 6, HEAD: 12, HEAD_DRY: 13, DASHES: 14 },
+    inner: [.0231, .0418, .9545, .9164],                                   // the paper inside the wooden frame (x, y, w, h)
+    blank: "assets/painting_blank.webp",                                   // the same frame, its paper wiped clean
+    upright: "assets/painting_upright.webp",                               // the same scene, him upright holding ONE cube
+    // the answer, written in crayon (Kalam, crayon-textured; the order map: when each pixel's stroke is drawn; path: the tip)
+    answer: { src: "assets/painting_answer.webp", order: "assets/painting_answer_order.png", x: .1393, y: .3114, w: .722, h: .2972, px: [722, 148],
+              path: [[0.3493,0.4018,0.0,0],[0.3253,0.4038,0.0059,0],[0.3148,0.4469,0.0125,0],[0.3318,0.4931,0.0199,0],[0.3168,0.5313,0.0267,0],[0.2928,0.5122,0.0335,0],[0.3253,0.5222,0.0787,0],[0.4118,0.467,0.0973,0],[0.4003,0.5112,0.104,0],[0.4188,0.5293,0.1103,0],[0.4413,0.5102,0.1169,0],[0.4513,0.5484,0.1234,0],[0.4188,0.4992,0.1417,0],[0.4438,0.5052,0.1852,0],[0.4633,0.4731,0.1921,0],[0.4738,0.5082,0.1989,0],[0.4808,0.4961,0.2508,0],[0.5043,0.467,0.2579,0],[0.5028,0.4861,0.2737,0],[0.4983,0.5343,0.28,0],[0.5298,0.3957,0.2986,0],[0.5538,0.3967,0.3048,0],[0.5268,0.5504,0.3417,0],[0.5318,0.5022,0.3479,0],[0.5358,0.454,0.3541,0],[0.5853,0.5383,0.3747,0],[0.5923,0.4901,0.3812,0],[0.5588,0.5072,0.3899,0],[0.5818,0.4931,0.3972,0],[0.5618,0.5413,0.4062,0],[0.5848,0.5333,0.4127,0],[0.5653,0.5353,0.4356,0],[0.6103,0.4951,0.4626,0],[0.6338,0.465,0.4698,0],[0.6273,0.5293,0.5069,0],[0.6338,0.5273,0.5162,0],[0.6578,0.5172,0.5226,0],[0.6813,0.5082,0.5297,0],[0.6318,0.5283,0.5405,0],[0.6493,0.5072,0.5493,0],[0.6703,0.5604,0.5854,0],[0.6788,0.5152,0.5919,0],[0.3948,0.4249,0.624,0],[0.4428,0.4299,0.6355,0],[0.4908,0.4329,0.647,0],[0.5388,0.4369,0.6586,0],[0.5868,0.4419,0.6701,0],[0.6348,0.448,0.6816,0],[0.6828,0.451,0.6932,0],[0.7108,0.455,0.6999,0],[0.2206,0.3871,0.7212,1],[0.2248,0.401,0.7237,1],[0.2292,0.4149,0.7261,1],[0.2338,0.4282,0.7285,1],[0.2409,0.43,0.731,1],[0.2485,0.4278,0.7334,1],[0.2559,0.4259,0.7358,1],[0.2634,0.4251,0.7383,1],[0.26,0.4358,0.7407,1],[0.2551,0.4486,0.7431,1],[0.2502,0.4614,0.7456,1],[0.2449,0.4737,0.748,1],[0.2462,0.4886,0.7505,1],[0.2484,0.5043,0.7529,1],[0.2507,0.5203,0.7553,1],[0.2507,0.5308,0.7578,1],[0.2437,0.5252,0.7602,1],[0.2364,0.5197,0.7626,1],[0.2287,0.5144,0.7651,1],[0.2214,0.5199,0.7675,1],[0.2143,0.5284,0.7699,1],[0.2074,0.5366,0.7724,1],[0.2033,0.5338,0.7748,1],[0.2027,0.5169,0.7773,1],[0.2025,0.5002,0.7797,1],[0.2017,0.4848,0.7821,1],[0.1948,0.4757,0.7846,1],[0.1882,0.4671,0.787,1],[0.1817,0.4588,0.7894,1],[0.1787,0.4514,0.7919,1],[0.1865,0.4472,0.7943,1],[0.1945,0.4438,0.7968,1],[0.2028,0.4413,0.7992,1],[0.2095,0.4353,0.8016,1],[0.2121,0.4203,0.8041,1],[0.2147,0.4046,0.8065,1],[0.2172,0.3884,0.8089,1],[0.1848,0.4562,0.8133,1],[0.1948,0.4695,0.82,1],[0.2057,0.5316,0.8267,1],[0.2162,0.5188,0.8333,1],[0.2271,0.5057,0.84,1],[0.2372,0.5127,0.8467,1],[0.2467,0.5199,0.8533,1],[0.2572,0.4354,0.86,1],[0.7892,0.4313,0.8711,1],[0.7914,0.4465,0.8732,1],[0.7937,0.4622,0.8754,1],[0.7961,0.4783,0.8775,1],[0.8035,0.4848,0.8796,1],[0.811,0.4897,0.8818,1],[0.8182,0.4941,0.8839,1],[0.8221,0.4994,0.8861,1],[0.8158,0.5088,0.8882,1],[0.809,0.5176,0.8903,1],[0.8016,0.5263,0.8925,1],[0.799,0.54,0.8946,1],[0.7988,0.556,0.8968,1],[0.7988,0.5719,0.8989,1],[0.799,0.5877,0.901,1],[0.793,0.5798,0.9032,1],[0.7868,0.57,0.9053,1],[0.7808,0.5597,0.9075,1],[0.7746,0.552,0.9096,1],[0.7673,0.5575,0.9117,1],[0.7603,0.5635,0.9139,1],[0.7535,0.5698,0.916,1],[0.748,0.5734,0.9182,1],[0.7505,0.5588,0.9203,1],[0.753,0.5437,0.9224,1],[0.7556,0.5283,0.9246,1],[0.7579,0.513,0.9267,1],[0.7529,0.5002,0.9289,1],[0.748,0.4878,0.931,1],[0.7435,0.4755,0.9331,1],[0.7427,0.4668,0.9353,1],[0.7505,0.4668,0.9374,1],[0.7584,0.4665,0.9396,1],[0.7664,0.4665,0.9417,1],[0.7729,0.4594,0.9438,1],[0.7781,0.4467,0.946,1],[0.7833,0.4347,0.9481,1],[0.7436,0.4735,0.95,1],[0.7534,0.4724,0.9571,1],[0.7635,0.4725,0.9643,1],[0.7741,0.4612,0.9714,1],[0.7847,0.4363,0.9786,1],[0.7962,0.481,0.9857,1],[0.8067,0.4929,0.9929,1],[0.8164,0.4991,1.0,1]] } };   // path: [x, y, t, crayon 0 blue / 1 yellow]
+  function paintingGeom(n, s, cols, maxW){
+    const w = Math.min(maxW || 480, 480);
+    return { w, h: w / PAINT.ar, hang: 0 };
+  }
+  function wallPainting(parent, x, y, n, s, cols, maxW){
+    const { w, h } = paintingGeom(n, s, cols, maxW), L = PAINT.layers, NC = PAINT.cubes.length;
+    const back = add(parent, "div", "md-painting", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const front = add(parent, "div", "md-painting-front", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const im = add(back, "img", "pt-art", "width:" + px(w) + ";height:" + px(h)); im.src = PAINT.src; im.alt = "";
+    const spots = [];
+    for(let j = 0; j < n; j++){ const c = PAINT.cubes[Math.min(j, NC - 1)];   // on its painted cube's centre
+      spots.push({ x: x + w * c.cx - s / 2, y: y + w * c.cy - s / 2, rot: 0 }); }
+    // the live canvas over U: transparent wherever the painting is as supplied
+    const cv = add(back, "canvas", "pt-erase-cv", "left:" + px(w * L.box[0]) + ";top:" + px(h * L.box[1]) + ";width:" + px(w * L.box[2]) + ";height:" + px(h * L.box[3]));
+    cv.width = L.fw; cv.height = L.fh;
+    const ctx = cv.getContext("2d"), spr = new Image(), gone = new Set();
+    const cur = { dash: 0, head: 0 }, tgt = { dash: 0, head: 0 }; let tweening = false;
+    spr.src = L.src;
+    // "after the 5th box is dragged his posture should straighten a bit and he should only hold 1 box": the upright painting
+    // (the same scene - its sun and clouds land on this one's) cross-fades in over him once the last cube is placed
+    const up = add(back, "img", "pt-upright", "width:" + px(w) + ";height:" + px(h) + ";opacity:0"); up.src = PAINT.upright; up.alt = "";
+    let uprightDone = Promise.resolve();
+    const fr = (i, a)=>{ ctx.globalAlpha = a; ctx.drawImage(spr, i * L.fw, 0, L.fw, L.fh, 0, 0, L.fw, L.fh); };
+    function draw(){
+      if(!spr.complete || !spr.naturalWidth) return;
+      ctx.clearRect(0, 0, L.fw, L.fh);
+      gone.forEach(j => fr(L.PAPER + j, 1));                               // the cubes taken: paper
+      if(cur.dash > 0) fr(L.DASHES, cur.dash);                              // his strain dashes, fading
+      if(cur.head > 0){                                                     // his face, easing
+        fr(L.HEAD, Math.min(1, cur.head));
+        if(cur.head > 1) fr(L.HEAD_DRY, cur.head - 1);
+        for(let j = 0; j < NC; j++) if(!gone.has(j)) fr(L.CUBE + j, 1);     // the cubes still there, in front of him
+      }
+      ctx.globalAlpha = 1;
+    }
+    spr.addEventListener("load", draw);
+    function ease(){                                                        // cur -> tgt: .5s a step (the face .7s)
+      if(tweening) return; tweening = true; let last = performance.now();
+      (function tick(now){
+        const dt = (now - last) / 1000; last = now; let moving = false;
+        for(const [k, rate] of [["dash", 1 / .5], ["head", 1 / .7]]){
+          const d = tgt[k] - cur[k]; if(!d) continue;
+          const step = Math.sign(d) * Math.min(Math.abs(d), rate * dt); cur[k] += step; moving = true;
+        }
+        draw();
+        if(moving && cv.isConnected) requestAnimationFrame(tick); else tweening = false;
+      })(last);
+    }
+    let placedN = 0;
+    function relax(){                                                       // the cubes placed -> how eased he is
+      tgt.dash = placedN >= 1 ? 1 : 0;
+      tgt.head = placedN >= n ? 2 : placedN >= Math.ceil(n / 2) ? 1 : 0;
+      if(reduce()){ cur.dash = tgt.dash; cur.head = tgt.head; draw(); } else ease();
+    }
+    /* he stands up (the upright painting cross-fades in) the moment the LAST cube to measure leaves his arms - picked up,
+       not placed (review 2026-10-01: "when I am dragging the 2nd last cube the posture is looking weird, it should
+       smoothly change to holding 1 cube"); that cube sent back into the painting, he leans again */
+    let upOn = false, upAnim = null;
+    function upright(){
+      const on = gone.size >= n; if(on === upOn) return; upOn = on;
+      if(reduce()){ up.style.opacity = on ? 1 : 0; return; }
+      const from = parseFloat(getComputedStyle(up).opacity) || 0;
+      if(upAnim) upAnim.cancel();
+      upAnim = up.animate([{ opacity: from }, { opacity: on ? 1 : 0 }], { duration: 750 * Math.abs((on ? 1 : 0) - from) + 1, easing: "ease-in-out", fill: "forwards" });
+      if(on) uprightDone = upAnim.finished.catch(()=>{});
+    }
+    const take = j =>{ if(j < NC && !gone.has(j)){ gone.add(j); draw(); upright(); } };
+    const give = j =>{ if(gone.delete(j)){ draw(); upright(); } };
+    /* each real cube: unseen while it sits on its painted cube; lifted, it peels off (take + the painted pose -> a real
+       cube); in hand it looks like its painted cube (.pt-cube, CSS); placed, it turns glossy and he eases; back home, it
+       settles into the painting (the reverse, then give) */
+    const link = blocks => blocks.forEach((b, j)=>{
+      const k = Math.min(j, NC - 1), c = PAINT.cubes[k], S = b.offsetWidth || s;
+      const pose = { scale: (w * c.w / S).toFixed(4) + " " + (w * c.h / S).toFixed(4), rotate: c.ang + "deg" };
+      b.classList.add("pt-cube"); b.style.setProperty("--pt-x", (k * 20) + "%");   // (frame k of 6: 0 / 20 / ... / 100 %)
+      // its tap area while it waits in the painting = its painted cube (~43px): the real 76px cubes overlap there, and a tap
+      // on one painted cube used to lift its neighbour (CSS .in-art-home clip-path: clipped area is not hit)
+      b.style.setProperty("--pt-hit", "inset(" + px(Math.max(0, (S - w * c.h) / 2)) + " " + px(Math.max(0, (S - w * c.w) / 2)) + ")");
+      let lifted = false, settle = null;
+      const sync = ()=>{
+        const q = pos(b), home = Math.abs(q.x - b._home.x) < 1 && Math.abs(q.y - b._home.y) < 1;
+        const now = b.classList.contains("lift"), placed = b.classList.contains("placed");
+        b.classList.toggle("in-art-home", home);
+        if(now && !lifted){                                                  // picked up
+          if(settle){ settle.cancel(); settle = null; b.classList.remove("pt-settle"); }
+          if(home && !gone.has(j)){ take(j);                                 // off the painting: it peels away from the paper
+            if(!reduce()) b.animate([pose, { scale: "1.07", rotate: "0deg" }], { duration: 300, easing: "cubic-bezier(.3,1.25,.5,1)" }); }
+        }
+        lifted = now;
+        if(placed){ if(!b.classList.contains("glossy")){ b.classList.add("glossy"); placedN++; relax(); } return; }   // on the door
+        if(home && !now && gone.has(j) && !settle){                          // sent back: it settles into its place
+          if(reduce()){ give(j); return; }
+          b.classList.add("pt-settle");
+          settle = b.animate([{ scale: "1", rotate: "0deg" }, pose], { duration: 220, easing: "ease-in", fill: "forwards" });
+          settle.onfinish = ()=>{ if(b.classList.contains("lift")) return;   // (grabbed again meanwhile)
+            give(j); b.classList.remove("pt-settle"); settle.cancel(); settle = null; };
+        }
+      };
+      sync(); new MutationObserver(sync).observe(b, { attributes: true, attributeFilter: ["style", "class"] });
+    });
+    /* ---- the ending: the curtain and the child's crayon answer (review 2026-10-01). reveal({onWrite}) -> Promise:
+       a red velvet stage curtain drops inside the frame over the painting (a small bounce), holds while the painting is
+       swapped for blank paper (painting_blank.webp: the same frame, its paper wiped clean), rises - and the answer is
+       written in crayon, stroke by stroke, a crayon tip moving along the letters (painting_answer.webp + its order map:
+       per pixel, when its stroke is drawn). Reduced motion: straight to the written answer. */
+    function curtainSVG(cw, ch){                                            // minimal (review 2026-10-01): "keep the curtains red
+      // only, with golden borders, minimal" - red soft folds, a gold rod, a thin gold border down both sides and along the hem
+      const sv = svgEl("svg", { viewBox: "0 0 " + cw + " " + ch, width: cw, height: ch, preserveAspectRatio: "none", "aria-hidden": "true" });
+      const id = "ptc" + (++_flagN), defs = svgEl("defs", {}, sv), fw = cw / 5;
+      const fold = svgEl("linearGradient", { id: id + "f", x1: 0, x2: 1, y1: 0, y2: 0 }, defs);   // a gentle light/dark rhythm
+      [[0, "#8E1622"], [.32, "#AE1F2C"], [.5, "#BC2532"], [.68, "#AE1F2C"], [1, "#8E1622"]].forEach(q => svgEl("stop", { offset: q[0], "stop-color": q[1] }, fold));
+      const pat = svgEl("pattern", { id: id + "p", width: fw, height: ch, patternUnits: "userSpaceOnUse" }, defs);
+      svgEl("rect", { width: fw, height: ch, fill: "url(#" + id + "f)" }, pat);
+      const sh = svgEl("linearGradient", { id: id + "s", x1: 0, x2: 0, y1: 0, y2: 1 }, defs);
+      [[0, "rgba(40,0,6,.28)"], [.18, "rgba(40,0,6,0)"], [.88, "rgba(40,0,6,0)"], [1, "rgba(40,0,6,.18)"]].forEach(q => svgEl("stop", { offset: q[0], "stop-color": q[1] }, sh));
+      const gold = svgEl("linearGradient", { id: id + "g", x1: 0, x2: 0, y1: 0, y2: 1 }, defs);
+      [[0, "#F3D58A"], [.5, "#D9A93F"], [1, "#B8862A"]].forEach(q => svgEl("stop", { offset: q[0], "stop-color": q[1] }, gold));
+      const hem = ch - 7; let d = "M0 0 H" + cw + " V" + hem, e = "M" + cw + " " + hem;
+      for(let x = cw; x > 0; x -= fw){ const q = " Q" + (x - fw / 2) + " " + (hem + 6) + " " + Math.max(0, x - fw) + " " + hem; d += q; e += q; }
+      svgEl("path", { d: d + " Z", fill: "url(#" + id + "p)" }, sv);
+      svgEl("path", { d: d + " Z", fill: "url(#" + id + "s)" }, sv);
+      const G = "url(#" + id + "g)", B = 3.2;
+      svgEl("path", { d: e, fill: "none", stroke: G, "stroke-width": B, "stroke-linecap": "round" }, sv);             // the hem's border
+      svgEl("rect", { x: 0, y: 0, width: B, height: hem, fill: G }, sv);                                             // the sides'
+      svgEl("rect", { x: cw - B, y: 0, width: B, height: hem, fill: G }, sv);
+      svgEl("rect", { x: -2, y: 0, width: cw + 4, height: 6, rx: 3, fill: "#C9A046" }, sv);                          // the rod
+      svgEl("rect", { x: -2, y: 0, width: cw + 4, height: 2, rx: 1, fill: "#F0D595" }, sv);
+      return sv;
+    }
+    const CRAYON = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><g transform="rotate(-45 30 30)"><path d="M4 30 L14 25 V35 Z" fill="#1C46A8"/><rect x="14" y="25" width="10" height="10" fill="#2F66D8"/><rect x="24" y="24.5" width="26" height="11" rx="1.5" fill="#F4EBD9" stroke="#C9B89A" stroke-width=".8"/><path d="M28 24.5 V35.5 M46 24.5 V35.5" stroke="#2F66D8" stroke-width="2"/><rect x="50" y="25" width="6" height="10" rx="2" fill="#2F66D8"/></g></svg>');
+    const CRAYON_Y = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><g transform="rotate(-45 30 30)"><path d="M4 30 L14 25 V35 Z" fill="#C9800B"/><rect x="14" y="25" width="10" height="10" fill="#F2B01E"/><rect x="24" y="24.5" width="26" height="11" rx="1.5" fill="#F4EBD9" stroke="#C9B89A" stroke-width=".8"/><path d="M28 24.5 V35.5 M46 24.5 V35.5" stroke="#F2B01E" stroke-width="2"/><rect x="50" y="25" width="6" height="10" rx="2" fill="#F2B01E"/></g></svg>');
+    function reveal(opts){
+      opts = opts || {};
+      const A = PAINT.answer, IN = PAINT.inner;
+      return new Promise(res =>{
+        if(!back.isConnected) return res();
+        const blank = add(back, "img", "pt-blank", "width:" + px(w) + ";height:" + px(h) + ";opacity:0"); blank.src = PAINT.blank; blank.alt = "";
+        const acv = add(back, "canvas", "pt-answer", "left:" + px(w * A.x) + ";top:" + px(h * A.y) + ";width:" + px(w * A.w) + ";height:" + px(h * A.h));
+        acv.width = A.px[0]; acv.height = A.px[1];
+        const actx = acv.getContext("2d");
+        const ti = new Image(), oi = new Image(); ti.src = A.src; oi.src = A.order;
+        let tData = null, oData = null;
+        const ready = Promise.all([ti, oi].map(im => im.decode ? im.decode().catch(()=>{}) : Promise.resolve())).then(()=>{
+          const oc = document.createElement("canvas"); oc.width = A.px[0]; oc.height = A.px[1]; const ox = oc.getContext("2d", { willReadFrequently: true });
+          ox.drawImage(ti, 0, 0, A.px[0], A.px[1]); tData = ox.getImageData(0, 0, A.px[0], A.px[1]);
+          ox.clearRect(0, 0, A.px[0], A.px[1]); ox.drawImage(oi, 0, 0, A.px[0], A.px[1]); oData = ox.getImageData(0, 0, A.px[0], A.px[1]).data;
+        });
+        const drawTo = t =>{                                                   // the writing up to t (0..1)
+          if(!tData) return; const out = actx.createImageData(A.px[0], A.px[1]), s = tData.data, o = out.data, th = 1 + t * 254;
+          for(let i = 0; i < s.length; i += 4){ const ord = oData[i]; if(ord && ord <= th){ o[i] = s[i]; o[i + 1] = s[i + 1]; o[i + 2] = s[i + 2]; o[i + 3] = s[i + 3]; } }
+          actx.putImageData(out, 0, 0);
+        };
+        const swap = ()=>{ blank.style.opacity = 1; im.style.visibility = "hidden"; cv.style.visibility = "hidden"; };
+        if(reduce()){ ready.then(()=>{ swap(); drawTo(1); if(opts.onWrite) opts.onWrite(); res(); }); return; }
+        const box = add(back, "div", "pt-curtain-box", "left:" + px(w * IN[0]) + ";top:" + px(h * IN[1]) + ";width:" + px(w * IN[2]) + ";height:" + px(h * IN[3]));
+        const cw = w * IN[2], ch = h * IN[3], cur = curtainSVG(cw, ch); box.appendChild(cur); cur.classList.add("pt-curtain");
+        const tip = add(back, "img", "pt-crayon", "left:0;top:0;opacity:0"); tip.src = CRAYON; tip.alt = "";
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        (async ()=>{
+          await uprightDone; await wait(550);                                  // he stands up, and stays so a moment
+          // it falls, lands, its hem rebounds a little and settles (a bounce UP: a gap never opens along the top)
+          await cur.animate([{ translate: "0 -104%", easing: "cubic-bezier(.45,0,.85,.55)" }, { translate: "0 0", offset: .7, easing: "ease-out" },
+                             { translate: "0 -3.5%", offset: .85, easing: "ease-in" }, { translate: "0 0" }], { duration: 860, fill: "forwards" }).finished;
+          swap(); await ready; await wait(420);                                // behind it: blank paper
+          await cur.animate([{ translate: "0 0" }, { translate: "0 -104%" }], { duration: 820, easing: "cubic-bezier(.6,0,.4,1)", fill: "forwards" }).finished;
+          box.remove();
+          if(!back.isConnected) return res();
+          if(opts.onWrite) opts.onWrite();
+          const P = A.path, D = 3300, t0 = performance.now(); tip.style.opacity = 1; let ink = 0;
+          await new Promise(done =>{
+            (function frame(now){
+              const t = Math.min(1, (now - t0) / D); drawTo(t);
+              let j = 0; while(j < P.length - 1 && P[j + 1][2] <= t) j++;       // the tip: where the stroke is now
+              const a = P[j], b = P[Math.min(j + 1, P.length - 1)], f = b[2] > a[2] ? Math.min(1, (t - a[2]) / (b[2] - a[2])) : 0;
+              const tx = w * (a[0] + (b[0] - a[0]) * f), ty = h * (a[1] + (b[1] - a[1]) * f);
+              if((a[3] || 0) !== ink){ ink = a[3] || 0; tip.src = ink ? CRAYON_Y : CRAYON; }   // the stars: a yellow crayon
+              tip.style.left = px(tx - 4); tip.style.top = px(ty - 30);        // its point (bottom-left) on the stroke
+              if(t < 1 && back.isConnected) requestAnimationFrame(frame); else done();
+            })(t0);
+          });
+          tip.animate([{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "14px -18px" }], { duration: 380, fill: "forwards" });   // lifted away
+          res();
+        })();
+      });
+    }
+    return { back, front, spots, w, h, hang: 0, link, reveal };
+  }
+  /* ---- the end-line flags. Review 2026-09-30: "the small flags are moving very much and look Claude-generated ... keep
+     the flags still and give a wind effect on the flags (the upper part)". The old ones were a flat triangle / a flat
+     checker rect whose WHOLE flag, pole and all, rocked +-6deg forever. Now the pole never moves - a silver pole, a gold
+     ball, a small stand on the floor - and only the cloth does, the way cloth on a pole does: its hem is sewn to the pole
+     (fixed); a wave runs out along it and grows toward the free end (u^1.25); the wind comes in slow gusts (two
+     incommensurate sines, shared by every flag - one wind), and in a lull the free end sags under its own weight; a bent
+     cloth is foreshortened, so the free edge draws in on each fold. The cloth is a 6 x 4 grid of quads recomputed each
+     frame, so the checkers bend WITH it (a pattern fill would slide under the moving outline), and each cell is lit by
+     its slope - the folds read as light and shade travelling out. One rAF loop drives every flag on screen and stops when
+     none is left; reduced motion = the cloth at rest, drawn once. ---- */
+  const FLAG = { W: 40, H: 50, x0: 6, y0: 6, L: 30, CH: 19, C: 6, R: 4 };
+  const NS = "http://www.w3.org/2000/svg", _flags = new Set();
+  let _windRaf = 0, _windT0 = 0, _windLast = 0, _flagN = 0;
+  function svgEl(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); if(parent) parent.appendChild(e); return e; }
+  function clothPt(u, v, ph, g){                                            // u: pole -> free end, v: top -> bottom
+    const amp = 3.1 * g, TAU = 2 * Math.PI;
+    const dy = amp * Math.pow(u, 1.25) * Math.sin(TAU * (u / 0.95 + 0.14 * v) - ph)
+             + 0.28 * amp * u * Math.sin(TAU * 2.3 * u - 1.9 * ph + 0.7)    // a faster flutter riding on it
+             + 1.6 * (1.05 - g) * u * u;                                    // weight: the free end sags in a lull
+    const dx = -FLAG.L * 0.05 * g * u * (1 - Math.cos(TAU * u / 0.95 - ph)) / 2;   // a folded cloth is shorter
+    return [FLAG.x0 + u * FLAG.L + dx, FLAG.y0 + v * FLAG.CH + dy];
+  }
+  const mixC = (rgb, k)=> "rgb(" + rgb.map(c => Math.round(k >= 0 ? c + (255 - c) * k : c * (1 + k))).join(",") + ")";
+  function drawCloth(f, ph, g){
+    const { C, R } = FLAG, P = [], pt = p => p[0].toFixed(2) + " " + p[1].toFixed(2);
+    for(let r = 0; r <= R; r++){ const row = []; for(let c = 0; c <= C; c++) row.push(clothPt(c / C, r / R, ph, g)); P.push(row); }
+    const lit = slope => Math.max(-0.3, Math.min(0.22, -slope * 0.45));      // a fold rising toward the free end faces the light
+    for(let r = 0; r < R && f.cells.length; r++) for(let c = 0; c < C; c++){ // the checkers: each quad lit by its own slope
+      const a = P[r][c], b = P[r][c + 1], d = P[r + 1][c + 1], e = P[r + 1][c], cell = f.cells[r * C + c];
+      const col = mixC(cell.rgb, lit(((b[1] + d[1]) - (a[1] + e[1])) / 2 / (FLAG.L / C)));
+      cell.el.setAttribute("d", "M" + pt(a) + "L" + pt(b) + "L" + pt(d) + "L" + pt(e) + "Z");
+      cell.el.setAttribute("fill", col); cell.el.setAttribute("stroke", col);          // the stroke seals the hairline seams
+    }
+    if(f.stops){                                                              // a plain cloth: one smooth gradient along the wave -
+      const m = P[R >> 1];                                                    // flat-lit quads showed as facets on a solid colour
+      f.stops.forEach((s, c)=>{ const c0 = Math.max(0, c - 1), c1 = Math.min(C, c + 1);
+        s.setAttribute("stop-color", mixC(f.rgb, lit((m[c1][1] - m[c0][1]) / ((c1 - c0) * FLAG.L / C)))); });
+    }
+    let o = "M" + pt(P[0][0]); for(let c = 1; c <= C; c++) o += "L" + pt(P[0][c]);
+    for(let r = 1; r <= R; r++) o += "L" + pt(P[r][C]); for(let c = C - 1; c >= 0; c--) o += "L" + pt(P[R][c]);
+    f.outline.setAttribute("d", o + "Z");
+  }
+  function windTick(now){
+    if(!_windT0) _windT0 = _windLast = now;
+    const dt = Math.min(0.05, (now - _windLast) / 1000), t = (now - _windT0) / 1000; _windLast = now;
+    const g = 0.8 + 0.14 * Math.sin(2 * Math.PI * t / 5.7) + 0.06 * Math.sin(2 * Math.PI * t / 2.3 + 1.1);   // the gusts
+    _flags.forEach(f =>{
+      if(!f.svg.isConnected){ _flags.delete(f); return; }
+      f.ph += 2 * Math.PI * 1.15 * (0.75 + 0.35 * g) * dt;                   // a stronger gust flaps faster
+      drawCloth(f, f.ph, g);
+    });
+    if(_flags.size) _windRaf = requestAnimationFrame(windTick); else { _windRaf = 0; _windT0 = 0; }
+  }
+  function flag(parent, kind, left, top){
+    const box = add(parent, "div", "md-flag " + kind, "left:" + px(left) + ";top:" + px(top));
+    const svg = svgEl("svg", { viewBox: "0 0 " + FLAG.W + " " + FLAG.H, width: FLAG.W, height: FLAG.H, "aria-hidden": "true" }, box);
+    const id = "mdf" + (++_flagN), defs = svgEl("defs", {}, svg), end = kind === "end";
+    const gp = svgEl("linearGradient", { id: id + "p", x1: 0, x2: 1, y1: 0, y2: 0 }, defs);
+    [[0, "#FFFFFF"], [.55, "#D5DBE5"], [1, "#8F9AAD"]].forEach(s => svgEl("stop", { offset: s[0], "stop-color": s[1] }, gp));
+    const gb = svgEl("radialGradient", { id: id + "b", cx: .35, cy: .32, r: .75 }, defs);
+    [[0, "#FFF1B8"], [1, "#E2A410"]].forEach(s => svgEl("stop", { offset: s[0], "stop-color": s[1] }, gb));
+    svgEl("ellipse", { cx: 4, cy: 48.6, rx: 6.5, ry: 1.5, fill: "rgba(18,48,98,.28)" }, svg);                       // contact shadow
+    const cloth = svgEl("g", { "stroke-width": .5, "stroke-linejoin": "round" }, svg), cells = [];
+    let stops = null;
+    if(end){ for(let r = 0; r < FLAG.R; r++) for(let c = 0; c < FLAG.C; c++)
+      cells.push({ el: svgEl("path", {}, cloth), rgb: (r + c) % 2 ? [255, 255, 255] : [34, 38, 46] }); }
+    else {
+      const gc = svgEl("linearGradient", { id: id + "c", gradientUnits: "userSpaceOnUse", x1: FLAG.x0, x2: FLAG.x0 + FLAG.L, y1: 0, y2: 0 }, defs);
+      stops = []; for(let c = 0; c <= FLAG.C; c++) stops.push(svgEl("stop", { offset: c / FLAG.C }, gc));
+    }
+    const outline = svgEl("path", { fill: end ? "none" : "url(#" + id + "c)", stroke: end ? "#22262E" : "#17803A", "stroke-width": 1.1 }, cloth);
+    svgEl("rect", { x: 4.6, y: 5.2, width: 2.4, height: FLAG.CH + 1.6, rx: 1.2, fill: end ? "#22262E" : "#1E8E3C" }, svg);   // the hem round the pole
+    svgEl("rect", { x: 2.3, y: 4, width: 3.4, height: 43, rx: 1.7, fill: "url(#" + id + "p)", stroke: "#5B6474", "stroke-width": .8 }, svg);
+    svgEl("rect", { x: 0, y: 45.6, width: 8, height: 3.2, rx: 1.6, fill: "#5B6474" }, svg);                         // its stand
+    svgEl("circle", { cx: 4, cy: 3.4, r: 2.8, fill: "url(#" + id + "b)", stroke: "#9C6B00", "stroke-width": .6 }, svg);   // the gold ball
+    const f = { svg, cells, stops, rgb: [45, 184, 76], outline, ph: end ? 0 : 1.9 };   // two flags, one wind, not in lockstep
+    drawCloth(f, f.ph, 0.85);
+    if(!reduce()){ _flags.add(f); if(!_windRaf) _windRaf = requestAnimationFrame(windTick); }
+    return box;
+  }
+  /* the dashed end lines and their flags. axis "x": two vertical lines at x = a and b, from y0 to y1, flags standing at
+     the bottom (the line stops at the flag's ball; its pole carries on to the floor); axis "y": two horizontal lines at
+     y = a (bottom) and b (top), from x0 to x1, a flag standing on each at the right */
+  /* axis "x": the flags stand just BELOW the row (review 2026-10-01: "as per law of physics both flags will flow in the
+     direction of the wind only" - one wind, every cloth flies right; the start flag used to be mirrored so its cloth
+     kept off the row's first block, flying the other way): a row's bottom + FLAG_LOW is where the lines end, so the
+     flag's gold ball sits at the row's lower edge and its cloth flies under the row */
+  const FLAG_LOW = 46;
   function endLines(parent, axis, a, b, s0, s1){
     const mk = (v, kind)=>{
       const l = add(parent, "div", "md-line " + (axis === "x" ? "v" : "h"),
-        axis === "x" ? "left:" + px(v - 4) + ";top:" + px(s0) + ";height:" + px(s1 - s0) : "top:" + px(v - 4) + ";left:" + px(s0) + ";width:" + px(s1 - s0));
-      const f = add(parent, "div", "md-flag " + kind, axis === "x" ? "left:" + px(v - 3) + ";top:" + px(s1 - 40) : "left:" + px(s1 - 3) + ";top:" + px(v - 40));
-      l._flag = f; return l; };
+        axis === "x" ? "left:" + px(v - 5) + ";top:" + px(s0) + ";height:" + px(s1 - 50 - s0)   // stops just above the ball (dashes anchored at its foot, CSS)
+                     : "top:" + px(v - 5) + ";left:" + px(s0) + ";width:" + px(s1 - s0));
+      l._flag = axis === "x" ? flag(parent, kind, v - 4, s1 - 48) : flag(parent, kind, s1 - 4, v - 48);
+      return l; };
     return { start: mk(a, "start"), end: mk(b, "end") };
   }
   const show = (l, pulse)=>{ l.classList.add("show"); if(l._flag) l._flag.classList.add("show"); if(pulse) l.classList.add("pulse"); };
@@ -1221,34 +1628,162 @@ const MDK = (function(){
     if(ok) setTimeout(()=>{ m.classList.add("out"); setTimeout(()=> m.remove(), 400); }, 900);
     return m;
   }
-  /* the result plate ("6 ब्लॉक्स") - the kit's blank badge with its sparkle - centred on cx, top at y */
-  function plate(parent, text, cx, y, w){
-    w = w || 230; const h = Math.round(w * 157 / 330);
-    const p = add(parent, "div", "md-plate", "left:" + px(cx - w / 2) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
-    p.innerHTML = '<img class="md-plate-spark" src="assets/mk_sparkle.webp" alt=""><img class="md-plate-img" src="assets/mk_badge_blank.webp" alt=""><span class="md-plate-text"></span>';
-    p.querySelector(".md-plate-text").textContent = text; requestAnimationFrame(()=> p.classList.add("in")); return p;
+  /* where a mark of radius r can go beside box bx {l,t,w,h} (scene px) without touching anything (review 2026-09-30:
+     "the cross mark circle should not overlap with any other surrounding elements"): spots ring the box, nearest first
+     and the `prefer` side ("up" / "right") first at each distance; the first one clear of every number bubble, block,
+     flag, the toy box, the plate, आगे, Swiftie - and of the OBJECT's opaque pixels (its box is mostly air: the space under
+     a table is fine, the door is not) - wins. Inside the card only. None clear: the nearest preferred spot. */
+  const _alpha = new Map();                                                 // src -> canvas of its pixels (null: unreadable)
+  function opaqueUnder(img, cr){                                           // any solid pixel of img under client rect cr?
+    const ir = img.getBoundingClientRect();
+    if(cr.right <= ir.left || cr.left >= ir.right || cr.bottom <= ir.top || cr.top >= ir.bottom) return false;
+    let cv = _alpha.get(img.src);
+    if(cv === undefined){
+      cv = null;
+      try{ if(img.naturalWidth){ cv = document.createElement("canvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+        const c = cv.getContext("2d", { willReadFrequently: true }); c.drawImage(img, 0, 0); c.getImageData(0, 0, 1, 1); } }catch(e){ cv = null; }
+      _alpha.set(img.src, cv);
+    }
+    if(!cv) return true;                                                     // can't read it: treat its box as solid
+    const sx = cv.width / ir.width, sy = cv.height / ir.height;
+    const x0 = Math.max(0, Math.floor((cr.left - ir.left) * sx)), y0 = Math.max(0, Math.floor((cr.top - ir.top) * sy));
+    const x1 = Math.min(cv.width, Math.ceil((cr.right - ir.left) * sx)), y1 = Math.min(cv.height, Math.ceil((cr.bottom - ir.top) * sy));
+    if(x1 <= x0 || y1 <= y0) return false;
+    const d = cv.getContext("2d").getImageData(x0, y0, x1 - x0, y1 - y0).data;
+    for(let i = 3; i < d.length; i += 4) if(d[i] > 40) return true;
+    return false;
+  }
+  function freeSpot(scene, bx, r, prefer){
+    const sR = scene.getBoundingClientRect(), k = sR.width / (scene.offsetWidth || 1);
+    const card = scene.closest(".tut-card"), cR = card ? card.getBoundingClientRect() : null;
+    const solids = [...scene.querySelectorAll(".md-num, .md-block:not(.ghost), .md-flag, .md-box-back, .md-box-front, .md-painting, .md-plate, .md-endmark, .md-mark")]
+      .concat([...document.querySelectorAll("#navBtn, #slideHost .tut-mascot")]).map(e => e.getBoundingClientRect()).filter(b => b.width && b.height);
+    const objs = [...scene.querySelectorAll(".md-obj")];
+    const cx = bx.l + bx.w / 2, cy = bx.t + bx.h / 2, sides = prefer === "right" ? ["right", "up", "down", "left"] : ["up", "right", "left", "down"];
+    const at = (side, d)=> side === "up" ? { x: cx, y: bx.t - d } : side === "down" ? { x: cx, y: bx.t + bx.h + d }
+                         : side === "right" ? { x: bx.l + bx.w + d, y: cy } : { x: bx.l - d, y: cy };
+    let first = null;
+    for(let d = r + 6; d <= r + 6 + 14 * 8; d += 14) for(const side of sides){
+      const p = at(side, d); if(!first) first = p;
+      const cr = { left: sR.left + (p.x - r - 3) * k, top: sR.top + (p.y - r - 3) * k, right: sR.left + (p.x + r + 3) * k, bottom: sR.top + (p.y + r + 3) * k };
+      if(cR && (cr.left < cR.left + 12 || cr.right > cR.right - 12 || cr.top < cR.top + 12 || cr.bottom > cR.bottom - 12)) continue;
+      if(solids.some(b => cr.left < b.right && b.left < cr.right && cr.top < b.bottom && b.top < cr.bottom)) continue;
+      if(objs.some(o => opaqueUnder(o, cr))) continue;
+      return p;
+    }
+    return first;
+  }
+  /* the result plate ("6 ब्लॉक्स"), centred on cx, top at y. Review 2026-09-30: "change it with this" - the supplied
+     golden badge. badge_result.webp is that art with its baked "6 ब्लॉक्स" painted out (so any count can go on it)
+     and its two stars lifted off: they are badge_star.svg, drawn to the art's own stars, set back where they were so
+     they can turn on their own (.cheer, CSS); its three rays (top-left) are erased (review: "remove this"). The text
+     sits on the cream, in the art's maroon, at the art's size. */
+  const BADGE_AR = 2.1718, BADGE_TXT = 0.17;                               // the art's width / height; text px per badge px (the art's own size)
+  /* THE cube size, every measuring slide (review 2026-09-30: "the cubes size should stay same all across the game - this
+     slide [T2] has the perfect size of the cube"): T2's 76 stage px. Each slide asks for it and only goes smaller where
+     its object can't hold that many 76px cubes (the door is 9 tall: 684px - the scene is ~410) - then it takes the
+     biggest size that fits. The card's old per-slide "s" / "bh" sizes are gone. */
+  const CUBE = 76;
+  function plate(parent, text, cx, y, w, rise){
+    w = w || 230; const h = Math.round(w / BADGE_AR);
+    const p = add(parent, "div", "md-plate" + (rise ? " rise" : ""), "left:" + px(cx - w / 2) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    p.innerHTML = '<img class="md-plate-img" src="assets/badge_result.webp" alt="">' +
+      '<img class="md-plate-star s1" src="assets/badge_star.svg" alt=""><img class="md-plate-star s2" src="assets/badge_star.svg" alt="">' +
+      '<span class="md-plate-text"></span>';
+    const tx = p.querySelector(".md-plate-text"); tx.textContent = text;
+    tx.style.fontSize = px(Math.max(16, w * BADGE_TXT));                        // the text grows with the badge
+    if(!rise) requestAnimationFrame(()=> p.classList.add("in"));
+    return p;
+  }
+  /* run fn when the VO being played reaches `sec` into its clip (the count word, from its word timing), or at once if
+     sec is not given; if the clip never plays (missing / blocked), the wall clock stands in. Returns a trigger that
+     fires it now (e.g. from the VO's end) - it only ever runs once. */
+  function atVoice(sec, fn){
+    let done = false; const go = ()=>{ if(!done){ done = true; fn(); } };
+    if(!(sec >= 0)){ go(); return go; }
+    const t0 = performance.now();
+    (function tick(){
+      if(done) return;
+      const a = voEl, running = a && !a.paused && a.currentTime > 0;
+      if(running ? a.currentTime >= sec : performance.now() - t0 > sec * 1000 + 600) return go();
+      requestAnimationFrame(tick);
+    })();
+    return go;
+  }
+  /* the result plate rising OUT OF THE TOY BOX (review 2026-09-30: "this can come inside the side red box only - it
+     can animate and come from inside the box"): the box - empty now - stays; the badge sits between its two layers,
+     starts small and hidden behind the front wall, springs up and stands in the box, its foot still behind the wall.
+     At least 150px wide, so it reads even in T3's small box. */
+  function boxPlate(box, text){
+    const bx = parseFloat(box.back.style.left), by = parseFloat(box.back.style.top), W = box.w, H = box.h;
+    // its foot ON the front wall's rim (73% down the box art), not behind it: the badge's lower star sits at its foot,
+    // and it has to be seen whole when it spins (MEASURE_DEMO .cheer)
+    const w = Math.max(W * 0.72, 150), h = Math.round(w / BADGE_AR), foot = by + H * 0.72;
+    const p = plate(box.back.parentNode, text, bx + W / 2, foot - h, w, true);
+    const fz = parseInt(box.front.style.zIndex, 10) || 5; p.style.zIndex = fz; box.front.style.zIndex = fz + 1;
+    const k0 = Math.min(0.45, (H * 0.25) / h), drop = (by + H * 0.97) - foot;     // start: small, its top under the front rim
+    if(reduce()){ p.style.opacity = 1; return p; }
+    p.animate([{ translate: "0 " + px(drop), scale: k0 + "", opacity: 1, easing: "cubic-bezier(.25,.6,.35,1)" },    // up out of the box ~0.55s,
+               { translate: "0 " + px(-h * 0.1), scale: "1.05", opacity: 1, offset: 0.6, easing: "ease-in-out" },  // a little past,
+               { translate: "0 " + px(h * 0.02), scale: ".98", opacity: 1, offset: 0.82, easing: "ease-out" },     // a small dip,
+               { translate: "0 0", scale: "1", opacity: 1 }], { duration: 950, fill: "forwards" });                // and it stands
+    return p;
   }
   /* a bouncing arrow at (x, y): "down" above a tile, "left" to the right of one */
   function arrow(parent, x, y, dir){ const a = add(parent, "div", "md-arrow " + (dir || "down"), "left:" + px(x - 16) + ";top:" + px(y - 16)); return a; }
-  /* the tutorial mascot's pose (Swiftee demonstrates): "guide" / "cheer" / null = back to the card's own */
+  /* the tutorial mascot's pose: "guide" / "cheer" / null = back to the card's own. Review 2026-09-30: "why has Swifty
+     changed in this slide?" - the old kit's mk_sw_guide / mk_sw_cheer were a different drawing of her (round chick head,
+     black eyes, rosy cheeks). Only on-model art now: "guide" keeps the card's own Swiftie, "cheer" is her celebrating
+     clip (the end screen's). That clip plays once, and <img>s of one URL share one timeline, so each cheer gets its own
+     blob: URL of it - it plays from frame 0 and never uses up the end screen's play. */
+  const POSE = { cheer: "assets/gif/sw_lg_celebrating_anim.webp" };
+  const _poseBlob = {};
+  function warmPose(){ Object.values(POSE).forEach(p =>{ if(_poseBlob[p]) return; _poseBlob[p] = 1;
+    try{ fetch(p).then(r => r.ok ? r.blob() : null).then(b =>{ if(b) _poseBlob[p] = b; }).catch(()=>{}); }catch(e){} }); }
   function pose(id){
     const m = document.querySelector("#slideHost .tut-mascot"); if(!m) return;
     if(!m._src0) m._src0 = m.getAttribute("src");
-    m.setAttribute("src", id ? "assets/mk_sw_" + id + ".webp" : m._src0); m.classList.toggle("md-pose", !!id);
+    const p = id && POSE[id], b = p && _poseBlob[p], old = m._blobUrl;
+    m._blobUrl = b instanceof Blob ? URL.createObjectURL(b) : null;
+    m.setAttribute("src", p ? (m._blobUrl || p + "?r=" + Date.now()) : m._src0); m.classList.toggle("md-pose", !!p);
+    if(old) URL.revokeObjectURL(old);
+  }
+  /* THE HINT SHEET (review 2026-09-30: "for the hint part follow the excel sheet, not the slides" - the FLN hint logic
+     sheet: MCQ 2 / 3 options, Drag & Drop). Its "the wrong option / drop area shakes and returns": the kit's lateral
+     buzz (recipes 11/20: +-9px decaying, .4s), on `translate` so it never fights an element's own entrance animation. */
+  function shake(el, amp){ if(!el || reduce()) return; const a = amp || 9;
+    el.animate([{ translate: "0 0" }, { translate: -a + "px 0" }, { translate: a + "px 0" }, { translate: -a * .67 + "px 0" },
+                { translate: a * .67 + "px 0" }, { translate: "0 0" }], { duration: 400, easing: "ease-in-out" }); }
+  /* its "soft pulse/glow" on the right answer / the right drop area: the kit's hint glow (recipe 12, revealPulse's
+     green), three soft pulses. A card or an area gets a green ring (box-shadow, on top of its own shadows); a picture
+     (pic) gets the same green as a glow that follows its shape (drop-shadow) and swells a little. */
+  function softGlow(el, pic){
+    if(!el) return null;
+    const cs = getComputedStyle(el), own = pic ? cs.filter : cs.boxShadow, b = own && own !== "none" ? own + (pic ? " " : ", ") : "";
+    const off = "drop-shadow(0 0 0 rgba(0,177,50,0)) drop-shadow(0 0 0 rgba(0,177,50,0))";
+    const kf = pic
+      ? [{ filter: b + off, scale: "1" }, { filter: b + "drop-shadow(0 0 3px rgba(0,177,50,.8)) drop-shadow(0 0 14px rgba(0,177,50,.65))", scale: "1.04" },
+         { filter: b + off, scale: "1" }]
+      : [{ boxShadow: b + "0 0 0 0 rgba(0,177,50,0), 0 0 0 0 rgba(0,177,50,0)" }, { boxShadow: b + "0 0 0 8px rgba(0,177,50,.32), 0 10px 26px rgba(0,177,50,.34)" },
+         { boxShadow: b + "0 0 0 0 rgba(0,177,50,0), 0 0 0 0 rgba(0,177,50,0)" }];
+    return el.animate(kf, { duration: 1100, iterations: reduce() ? 1 : 3, easing: "ease-in-out" });
   }
   /* the child's measuring turn, shared by every slide where the child lays the blocks: drag each next block from the
      box onto the next tile. A drop on the next tile snaps flush (onHit(n, tile) - may return a Promise, e.g. a counting
-     VO); anywhere else - a gap, an overlap, off the row - it bounces back to the box (then the ghost drag, if
-     cfg.ghostAfterWrong). Idle cfg.idleMs - the ghost drag. After the last one, onAll(). cfg: { scene, slide, alive,
-     blocks, slots, slotXY(k), S, hand, placed0, idleMs, ghostAfterWrong, showTiles (the next tile's outline while a
-     block is carried), onHit, onAll, onWrong } */
+     VO); anywhere else - a gap, an overlap, off the row - it bounces back to the box. The hint sheet's Drag & Drop
+     ladder, counted per tile (cfg.hints): attempt 1 - it returns + hints.say(1) (think again, nothing shown); attempt 2
+     on - it returns, the tile glows and the hand shows the drag (the ghost) + hints.say(2) (the rule). Idle cfg.idleMs -
+     the ghost drag (the sheet has no inactivity row; the decks' idle ghost stays). After the last one, onAll(). cfg:
+     { scene, slide, alive, blocks, slots, slotXY(k), S, hand, placed0, idleMs, hints:{say(attempt)}, showTiles (the
+     next tile's outline while a block is carried), onHit, onAll, onWrong(attempt) } */
   function childMeasure(cfg){
     const { scene, blocks, slots, slotXY, S, hand } = cfg, N = slots.length, STOP = {};
     let placed = cfg.placed0 || 0, drag = null, idleT = 0, tok = 0, on = false;
+    const misses = [];                                                       // wrong drops per tile - the hint ladder
     const live = ()=> on && cfg.alive();
     const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
     const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : (b._z || 3); };
-    async function ghost(){
+    async function ghost(keep){                                              // keep: the tile stays lit after it (hint attempt 2)
       const t = ++tok, src = blocks.find(b => !b._placed); if(!src || placed >= N || !hand) return;
       const g = src.cloneNode(false); g.classList.add("ghost"); g.classList.remove("lift"); g.style.zIndex = 31; scene.appendChild(g); setPos(g, pos(src));
       const slot = slots[placed];
@@ -1258,7 +1793,7 @@ const MDK = (function(){
         await glide(g, slotXY(placed), 1100, true, hand); if(t !== tok) throw STOP;
         await wait(260);
       } catch(e){ if(e !== STOP) throw e; }
-      g.remove(); if(t === tok){ hand.off(); if(!drag) slot.classList.remove("show", "target"); }
+      g.remove(); if(t === tok){ hand.off(); if(!drag && !keep) slot.classList.remove("show", "target"); }
     }
     const cancelGhost = ()=>{ tok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); if(hand) hand.off(); };
     const armIdle = ()=>{ clearTimeout(idleT); if(!cfg.idleMs) return;
@@ -1267,6 +1802,7 @@ const MDK = (function(){
       b.addEventListener("pointerdown", ev =>{
         if(!live() || b._placed || drag || placed >= N) return;
         ev.preventDefault(); clearTimeout(idleT); cancelGhost();
+        if(b._settle) b._settle();                                         // (a basket's block still settling: in its place first)
         const p = local(scene, ev), bp = pos(b);
         drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false };
         try{ b.setPointerCapture(ev.pointerId); }catch(e){}
@@ -1285,17 +1821,22 @@ const MDK = (function(){
         slot.classList.remove("show", "target");
         if(hit){                                                            // flush against the last one
           b._placed = true; b.classList.add("placed"); drop(b);
-          glide(b, to, reduce() ? 0 : 120, false).then(()=> land(b));
+          glide(b, to, reduce() ? 0 : 120, false).then(()=>{ land(b); okFlash(b); });   // correct: a green outline flash (no ✓)
           placed++; const n = placed;
           GameBus.emit("measure_unit_placed", { slide_id: cfg.slide.id, phase: cfg.slide.phase, count: n, of: N });
           Promise.resolve(cfg.onHit ? cfg.onHit(n, to) : null).then(()=>{ if(!live()) return; if(n >= N){ on = false; clearTimeout(idleT); if(cfg.onAll) cfg.onAll(); } else armIdle(); });
         } else {                                                            // a gap / an overlap / off the row: back to the box
           sfxWrongSoft(); drop(b); b.style.zIndex = 30;
+          const k = placed, m = misses[k] = (misses[k] || 0) + 1;
           GameBus.emit("answer_wrong", { slide_id: cfg.slide.id, phase: cfg.slide.phase, attempts: ++state.attempts });
-          if(cfg.onWrong) cfg.onWrong();
+          if(cfg.onWrong) cfg.onWrong(m);
           glide(b, b._home, reduce() ? 0 : 420, true).then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3;
             if(!reduce()) b.animate([{ translate: "0 -10px" }, { translate: "0 0" }, { translate: "0 -4px" }, { translate: "0 0" }], { duration: 360, easing: "ease-out" });
-            if(cfg.ghostAfterWrong) setTimeout(()=>{ if(live() && !drag) ghost().then(()=>{ if(live()) armIdle(); }); }, 350); else armIdle(); });
+            if(!live() || drag || placed !== k) return;
+            if(cfg.hints) cfg.hints.say(m >= 2 ? 2 : 1);
+            if(m >= 2 && hand) setTimeout(()=>{ if(!live() || drag || placed !== k) return;   // attempt 2: the tile glows + the hand shows the drag
+              slots[k].classList.add("show", "target"); ghost(true).then(()=>{ if(live()) armIdle(); }); }, 350);
+            else armIdle(); });
         }
       };
       b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
@@ -1307,7 +1848,7 @@ const MDK = (function(){
   }
   /* pointer -> scene px (the stage is scaled by --scale) */
   function local(scene, ev){ const r = scene.getBoundingClientRect(), k = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; }
-  return { STRIP, px, wait, add, pos, setPos, cube, hand, glide, land, knock, toybox, endLines, show, unpulse, digit, mark, plate, arrow, pose, local, reduce, childMeasure };
+  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, arrow, pose, warmPose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow };
 })();
 
 const SlideModules = {
@@ -1916,7 +2457,7 @@ const SlideModules = {
     mount(host, slide){
       const d = slide.data, N = d.n || 6, DEMO = Math.max(1, Math.min(d.demo || 2, N - 1)), AX = d.axis === "y" ? "y" : "x";
       const K = MDK, reduce = K.reduce(), px = K.px;
-      state.ownsAudio = true; setNavActive(false); setSwMood("teach");
+      state.ownsAudio = true; setNavActive(false); setSwMood("teach"); K.warmPose();   // her cheer clip, in memory well before the end
       const scene = document.createElement("div"); scene.className = "md-stage"; host.appendChild(scene);
       const card = host.closest(".tut-card"); if(card) card.classList.add("tc-measure", "tc-floor");
       const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
@@ -1925,29 +2466,65 @@ const SlideModules = {
       const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
       const W = scene.offsetWidth || 1053, navR = $("navBtn").getBoundingClientRect(), sR = scene.getBoundingClientRect();
       let avail = Math.max(300, (navR.top - sR.top) / kS - 10); const PLATE_H = 72;
-      let OX, OY, OW, OH, S, A0, A1, slotXY, lines, plateAt, boxAt, floorY;
+      let OX, OY, OW, OH, S, A0, A1, slotXY, lines, plateAt, boxAt, floorY, plateH = PLATE_H - 2;
       const ar = d.obj.ar || 1, f0 = d.obj.a0 || 0, f1 = d.obj.a1 != null ? d.obj.a1 : 1;
-      if(AX === "x"){                                                        // T2: the table on top, the row below it
-        OW = Math.min(d.obj.w || 400, (avail - 16 - 6 - PLATE_H) / (ar + (f1 - f0) / N)); OH = OW * ar; S = OW * (f1 - f0) / N;
-        const boxW = 3.6 * S + 12, cx = (W - boxW - 48) / 2 + 10;
-        OX = cx - OW / 2; OY = 2; A0 = OX + OW * f0; A1 = OX + OW * f1;
-        const RY = OY + OH + 16; slotXY = k => ({ x: A0 + k * S, y: RY });
-        lines = K.endLines(scene, "x", A0, A1, OY + 12, RY + S + 14);
-        plateAt = { cx: (A0 + A1) / 2, y: RY + S + 6 };
-        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)); boxAt = { x: A1 + 58, y: RY + S - bh + S * 0.3 };
-        floorY = OY + OH - 26;
+      const BOX_COLS = 3, BOX_OPEN = AX === "x";
+      /* [t3-room] review 2026-09-30 (T3): "replace the red box with some interior hanging wall thing in which the cubes are
+         placed ... better floor in this particular slide ... light comes from inside of door in down vacant space between
+         floor and door" - per slide, from the card: data.holder "painting" (MDK.wallPainting instead of the toy box), data.floor
+         "wood" (the card's floor: planks + a skirting board, CSS), data.obj.light [x0, x1, y0] (the gap under the door leaf,
+         as fractions of the picture: a warm light in it, spilling onto the floor) */
+      const PAINTING = d.holder === "painting"; let paintMaxW = 0;
+      const PCOLS = Math.min(3, Math.ceil(Math.sqrt(N)));                   // his stack: 2 x 2 for 4, 3 x 3 for 9
+      if(card && d.floor) card.classList.add("floor-" + d.floor);
+      if(card && d.wall) card.classList.add("wall-" + d.wall);               // data.wall "paint": plain painted wall, not graph paper
+      if(AX === "x"){
+        /* [t2-layout] T2: the table centred, the row on the floor IN FRONT of it, the open toy box on its right. Review
+           2026-09-30: "the table should be bigger and kind of in the center ... the box is really short and in the middle
+           ... I have this width changed, it's not able to shift width". The table used to be sized by the height left
+           after the table, a separate row BELOW it and 72px kept for the plate, so raising obj.w changed nothing. Now the
+           blocks stand in front of its feet (their tops RISE x S above the foot line), the plate appears under the top,
+           between the legs, and ✓ pops on the block itself - the height only holds the table + (1 - RISE) x S, and obj.w
+           is reachable. The table stays centred, or within OFF_MAX of it - it gives up size before it gives up the
+           centre; the box may use the card's side padding (RIGHT = W + 18, the card's inner edge is at W + 30). */
+        const RISE = 0.55, fr = (f1 - f0) / N, GAP_B = 38, OFF_MAX = 40, LEFT_MIN = 170, M = 8, RIGHT = W + 18;
+        const boxW = ow => K.toyboxGeom(N, ow * fr, BOX_COLS, true).w + 12;   // + the front rim's 6px each side
+        const place = ow => Math.min((W - ow) / 2, RIGHT - boxW(ow) - GAP_B - ow);
+        const DROP = K.FLAG_LOW - 14;                                        // the flags below the row (the kit's FLAG_LOW)
+        OW = Math.min(d.obj.w || 400, (avail - 2 - M - DROP) / (ar + (1 - RISE) * fr), K.CUBE / fr);   // its cube: the game's one size
+        while(OW > 240 && ((W - OW) / 2 - place(OW) > OFF_MAX || place(OW) < LEFT_MIN)) OW -= 4;
+        OH = OW * ar; S = OW * fr; OX = place(OW);
+        OY = Math.max(2, (avail - M - OH - (1 - RISE) * S - DROP) / 2);
+        A0 = OX + OW * f0; A1 = OX + OW * f1;
+        const RY = OY + OH - RISE * S; slotXY = k => ({ x: A0 + k * S, y: RY });
+        lines = K.endLines(scene, "x", A0, A1, OY + 12, RY + S + K.FLAG_LOW);
+        const under = OY + OH * 0.43, room = RY - 22 - under;                  // below the apron, above the row's digits
+        plateH = Math.max(48, Math.min(PLATE_H - 2, room - 4));
+        plateAt = { cx: (A0 + A1) / 2, y: under + (room - plateH) / 2 };
+        boxAt = { x: A1 + GAP_B + 6, y: RY + S + 6 - K.toyboxGeom(N, S, BOX_COLS, true).h };   // its rim a little in front of the row
+        floorY = OY + OH * 0.84;                                             // above where the back legs end
       } else {                                                               // T3: the door, the column beside it (on its right)
         const cR0 = card ? card.getBoundingClientRect() : null;
         const bottom = cR0 ? (cR0.bottom - sR.top) / kS - 10 - 8 : avail, navL = (navR.left - sR.left) / kS, navRt = (navR.right - sR.left) / kS;
-        S = Math.min(d.bh || 44, (bottom - 6 - PLATE_H) / N / (f1 - f0)) * (f1 - f0); OH = N * S / (f1 - f0); OW = OH / ar;
+        // the game's cube (MDK.CUBE) - but N of them stand as tall as the door, so here it is as big as the height allows.
+        // The rack's badge pops over the rack, so the floor band under the door (FLOOR) no longer holds a plate.
+        const FLOOR = PAINTING ? 24 : PLATE_H;                              // (24: room for 5 x 76px cubes - "increase the size of door")
+        S = Math.min(K.CUBE, (bottom - 6 - FLOOR) * (f1 - f0) / N); OH = N * S / (f1 - f0); OW = OH / ar;
         const gW = OW + 14 + S + 40;
-        OX = Math.min(W - gW - 12, Math.max(navRt + 24, W * 0.62 - gW / 2)); OY = bottom - PLATE_H - OH;
+        OX = Math.min(W - gW - 12, Math.max(navRt + 24, W * 0.62 - gW / 2)); OY = bottom - FLOOR - OH;
         A0 = OY + OH * f1; A1 = OY + OH * f0;                                // A0 = bottom, A1 = top
         const CX = OX + OW + 14; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
         lines = K.endLines(scene, "y", A0, A1, OX - 8, CX + S + 40);
         plateAt = { cx: OX + (OW + 14 + S) / 2, y: A0 + 8 };
-        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)), bw = 3.6 * S + 12;
-        boxAt = { x: Math.max(250, Math.min(navL - bw - 30, W * 0.3 - bw / 2)), y: Math.min(A0 - bh - 4, (navR.top - sR.top) / kS - bh - 24) };
+        if(PAINTING){                                                        // [t3-room] the painting hangs on the wall between Swiftie and the door
+          const xL = 150, xR = OX - 44; paintMaxW = xR - xL; const G = K.paintingGeom(N, S, PCOLS, paintMaxW);
+          boxAt = { x: xL + (paintMaxW - G.w) / 2, y: Math.max(G.hang + 4, (A0 - G.hang - G.h) * 0.42 + G.hang) };
+          // the result pops where his erased cubes were (upper right, over the cloud) - he and his last cubes stay in view
+          plateAt = { cx: boxAt.x + G.w * .74, y: boxAt.y + G.h * .22 };
+        } else {
+          const BG = K.toyboxGeom(N, S, BOX_COLS), bh = BG.h, bw = BG.w + 12;
+          boxAt = { x: Math.max(250, Math.min(navL - bw - 30, W * 0.3 - bw / 2)), y: Math.min(A0 - bh - 4, (navR.top - sR.top) / kS - bh - 24) };
+        }
         floorY = A0; avail = Math.max(avail, bottom);
       }
       scene.style.height = px(avail);
@@ -1955,18 +2532,25 @@ const SlideModules = {
       const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
       K.add(scene, "div", "md-shadow", AX === "x" ? "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92)
                                                      : "left:" + px(OX - 6) + ";top:" + px(A0 - 13) + ";width:" + px(OW + 12));
-      if(AX === "x") lines.start._flag.classList.add("flip");                // the start flag points away from the row
       const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(scene, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
-      const box = K.toybox(scene, boxAt.x, boxAt.y, N, S, 3);
-      const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S); b.style.zIndex = 3 + Math.floor(j / 3); b._z = b.style.zIndex; return b; });
-      box.front.style.zIndex = 3 + Math.ceil(N / 3);
+      if(d.obj.light){                                                       // the light under the door (its gap, as fractions)
+        const [lx0, lx1, ly0] = d.obj.light, gy = OY + OH * ly0, gh = Math.max(3, OY + OH - gy);
+        const lt = K.add(scene, "div", "md-doorlight", "left:" + px(OX + OW * lx0) + ";top:" + px(gy) + ";width:" + px(OW * (lx1 - lx0)) + ";height:" + px(gh));
+        lt.style.setProperty("--spill", px(Math.max(40, (avail - (OY + OH)) * 0.9)));
+      }
+      const box = PAINTING ? K.wallPainting(scene, boxAt.x, boxAt.y, N, S, PCOLS, paintMaxW) : K.toybox(scene, boxAt.x, boxAt.y, N, S, BOX_COLS, BOX_OPEN);
+      const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S, p.rot); b.style.zIndex = 3 + Math.floor(j / BOX_COLS); b._z = b.style.zIndex; return b; });
+      if(box.link) box.link(blocks);                                         // the painting: its cubes wait, unseen, on the painted ones
+      box.front.style.zIndex = 3 + Math.ceil(N / BOX_COLS);
       const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
       const side = AX === "x" ? "top" : "right";
       const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
       const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : b._z; };
-      const placeMark = (p, n)=>{ K.digit(scene, p, S, n, side); K.mark(scene, AX === "x" ? p.x + S / 2 : p.x + S + 30, AX === "x" ? p.y + S + 22 : p.y + S / 2, true); };
+      // a correct block: its number + a green outline on the block itself (review 2026-09-30: "I don't want a tick mark ...
+      // it should be a green outline boundary around that cube") - the child's blocks get .ok in MDK.childMeasure
+      const placeMark = (p, n)=>{ K.digit(scene, p, S, n, side); };
       async function handDrag(el, to){                                      // Swiftee's hand picks a block up and sets it down
         hand.on(K.pos(el)); await K.wait(320); guard();
         hand.press(); sfxTap(); lift(el); await K.wait(120);
@@ -1977,18 +2561,45 @@ const SlideModules = {
       const target = n =>{ if(arrowEl){ arrowEl.remove(); arrowEl = null; } if(phase !== "child" || n >= N) return;
         const p = slotXY(n); arrowEl = AX === "x" ? K.arrow(scene, p.x + S / 2, p.y - 30, "down") : K.arrow(scene, p.x + S + 30, p.y + S / 2, "left"); };
       /* ---- the child's turn: MDK.childMeasure ---- */
-      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, placed0: DEMO, idleMs: 6000, ghostAfterWrong: true,
+      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, placed0: DEMO, idleMs: 6000,
+        hints: { say: a => say(a === 1 ? "block_try" : "block_hint") },   // the hint sheet's Drag & Drop ladder (MDK.childMeasure)
         onHit: (n, tile)=>{ placeMark(tile, n); target(n); return sayNum(n); }, onAll: finish });
+      /* the result, on the VO's word (review 2026-09-30: "when VO says 6 blocks the word should pop up, after that
+         immediately the stars on the border rotate in inner direction to represent celebration"): the badge rises out
+         of the box the moment the conclusion line says the count - d.count_at, that word's start in the clip (word
+         timing of vo_p3_done / vo_p4_done) - and as it stands up its two stars spin inward (.cheer, CSS) */
+      let plateEl = null;
+      const cheer = ()=>{ if(!plateEl) return; plateEl.classList.remove("cheer"); void plateEl.offsetWidth; plateEl.classList.add("cheer"); };
       function finish(){
         phase = "done"; target(N);
-        box.back.classList.add("empty"); box.front.classList.add("empty");                 // every block is used: the box bows out
-        K.plate(scene, devNumeral(N) + " " + (d.unit_hi || "ब्लॉक्स"), plateAt.cx, plateAt.y, Math.round((PLATE_H - 2) * 330 / 157));
+        if(PAINTING && box.reveal){
+          /* the painting's own ending (review 2026-10-01: "after that curtains will come and the painting will hide, and then
+             5 blocks written with a crayon by a child will come"): a curtain drops over it, rises on blank paper, and the
+             answer is written in crayon - instead of the badge. The line plays as the writing starts; confetti when done. */
+          setSwMood("happy");
+          box.reveal({ onWrite: ()=>{ if(alive()) play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); }); } })
+            .then(()=>{ if(!alive()) return; K.pose("cheer"); try{ confettiCannon(); }catch(e){} });
+          return;
+        }
         setSwMood("happy"); K.pose("cheer"); try{ confettiCannon(); }catch(e){}
-        play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); });
+        let pop = null;
+        play(audioFor(slide, "conclude") || null, ()=>{ if(pop) pop(); if(alive()) setNavActive(true); });
+        pop = K.atVoice(d.count_at, ()=>{
+          if(!alive()) return;
+          const txt = devNumeral(N) + " " + (d.unit_hi || "ब्लॉक्स");
+          if(PAINTING){ const pw = Math.min(220, box.w * .5);                // pops up where his erased cubes were
+            plateEl = K.plate(scene, txt, plateAt.cx, plateAt.y - pw / K.BADGE_AR / 2, pw); plateEl.style.zIndex = 20; }
+          else plateEl = K.boxPlate(box, txt);                                                  // rises out of the emptied box
+          setTimeout(()=>{ if(alive()) cheer(); }, reduce ? 0 : 600);                    // ~its peak: it stands, the stars spin
+        });
       }
       state.replayAudio = ()=>{
         if(phase === "child"){ run.cancelGhost(); say("child").then(()=>{ if(alive() && phase === "child") run.armIdle(); }); run.ghost(); }
-        else if(phase === "done") play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); });
+        else if(phase === "done"){                                           // the line again - and the stars again, on its count
+          let again = null;
+          play(audioFor(slide, "conclude") || null, ()=>{ if(again) again(); if(alive()) setNavActive(true); });
+          again = K.atVoice(d.count_at, ()=>{ if(alive()) cheer(); });
+        }
       };
       /* ---- the script ---- */
       (async ()=>{
@@ -2001,7 +2612,7 @@ const SlideModules = {
           K.pose("guide"); await say("demo"); guard();
           for(let k = 0; k < DEMO; k++){                                     // एक... दो...
             await handDrag(blocks[k], slotXY(k)); guard();
-            blocks[k]._placed = true; blocks[k].classList.add("placed"); drop(blocks[k]); placeMark(slotXY(k), k + 1);
+            blocks[k]._placed = true; blocks[k].classList.add("placed"); drop(blocks[k]); K.okFlash(blocks[k]); placeMark(slotXY(k), k + 1);
             await sayNum(k + 1); guard();
           }
           // the rule: start where the last one ends ...
@@ -2019,7 +2630,8 @@ const SlideModules = {
             const bx = AX === "x" ? (kind === "gap" ? { l: e0.x + 2, t: e0.y - 8, w: GAP - 4, h: S + 16 } : { l: e0.x - GAP, t: e0.y - 8, w: GAP, h: S + 16 })
                                   : (kind === "gap" ? { l: e0.x - 8, t: e0.y + S - GAP + 2, w: S + 16, h: GAP - 4 } : { l: e0.x - 8, t: e0.y + S, w: S + 16, h: GAP });
             const boxEl = K.add(scene, "div", "md-err", "left:" + px(bx.l) + ";top:" + px(bx.t) + ";width:" + px(bx.w) + ";height:" + px(bx.h));
-            const x = K.mark(scene, AX === "x" ? bx.l + bx.w / 2 : bx.l + bx.w + 26, AX === "x" ? bx.t - 24 : bx.t + bx.h / 2, false);
+            const sp = K.freeSpot(scene, bx, 22, AX === "x" ? "up" : "right");  // clear of the bubbles, blocks, flag, door ...
+            const x = K.mark(scene, sp.x, sp.y, false);
             if(!reduce) g.animate([{ rotate: "0deg" }, { rotate: "-6deg" }, { rotate: "6deg" }, { rotate: "-4deg" }, { rotate: "0deg" }], { duration: 600, easing: "ease-in-out" });
             await v; guard(); await K.wait(1000); guard();
             boxEl.classList.add("out"); x.classList.add("out"); await handDrag(g, g._home); guard(); boxEl.remove(); x.remove();
@@ -2042,14 +2654,18 @@ const SlideModules = {
                                   the row bounces back; idle 6s - the ghost drag from the box to the next tile
          then ................... every block stays; the OST becomes the question (data.ask_hi) and its VO plays
                                   (audio.ask); three options, "<k> ब्लॉक्स"
-         a tap .................. correct - SFX + confetti + the correct VO, then on;
-                                  wrong #1 - the option wiggles, the blocks glow, "ब्लॉक्स को एक बार फिर गिनिए।";
-                                  wrong #2 - each block lights up in turn with the counting VO, एक ... N;
-                                  wrong #3 - a counting digit below (a row) / beside (a column) each block, then the hand
-                                             on the correct option;
-                                  wrong #4 - the correct option is shown, its VO, and the slide moves on (never stuck).
+         a tap .................. correct - the card locks (green) + SFX + confetti + the correct VO, then on.
+                                  HINTS = the FLN hint logic sheet, MCQ - 3 options (review 2026-09-30: "for the hint
+                                  part follow the excel sheet, not the slides"):
+                                  wrong #1 - the card shakes (red) and returns, nothing shown: audio.try_again ("फिर से
+                                             सोचिए और विकल्पों को ध्यान से देखिए।");
+                                  wrong #2 - it shakes; after a moment the right card glows softly: audio.hint ("चित्र को
+                                             ध्यान से देखिए और सही उत्तर पहचानिए।");
+                                  wrong #3 - (the sheet stops at 2) the right card is shown, its VO, on (never stuck).
+                                  Laying the blocks: the sheet's Drag & Drop ladder (MDK.childMeasure).
        axis "x": the tiles in a row below the object; "y": a column beside it, from its foot up.
-       data: { n, axis, obj:{src, ar, a0, a1}, s, ask_hi, options:[..], unit_hi }  audio: prompt, ask, correct, try_again */
+       data: { n, axis, obj:{src, ar, a0, a1}, s, ask_hi, options:[..], unit_hi }
+       audio: prompt, ask, correct, try_again, hint, block_try, block_hint */
     mount(host, slide){
       const d = slide.data, N = d.n, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2059,39 +2675,70 @@ const SlideModules = {
       const W = scene.offsetWidth || 1033, H = Math.max(420, host.getBoundingClientRect().height / kS - 6);
       scene.style.height = px(H);
       const OPT_H = 100, ar = d.obj.ar || 1, f0 = d.obj.a0 || 0, f1 = d.obj.a1 != null ? d.obj.a1 : 1;
-      let S, OX, OY, OW, OH, A0, A1, slotXY, lines, boxAt, side;
+      let S, OX, OY, OW, OH, A0, A1, slotXY, lines, boxAt;
+      /* [centre] review 2026-10-01: "place all the main objects in the center" - the measured object is centred on the
+         screen (it used to be the object + box group, which pushed the object aside); the box, the row / column and the
+         flags go round it, and may use the stage's margin beyond the scene (ROOM_L / ROOM_R, less 10px) */
+      const ST = (scene.closest(".slide-stage") || host).getBoundingClientRect(), SR0 = scene.getBoundingClientRect();
+      const ROOM_L = Math.max(0, (SR0.left - ST.left) / kS - 10), ROOM_R = Math.max(0, (ST.right - SR0.right) / kS - 10);
+      const FLAG = 44;                                                       // a flag's reach beyond its line
+      /* the holder: the toy box, or (data.holder "basket", G1 - review 2026-10-01: "use this for better slide") the woven
+         basket of the supplied mock-up (MDK.basket) */
+      const BASKET = d.holder === "basket", ART = ["laundry", "catbed", "tokri"].indexOf(d.holder) >= 0;   // [rooms] the other holders
+      const hold = s_ => BASKET ? K.basketGeom(N, s_) : ART ? K.holderGeom(N, s_) : K.toyboxGeom(N, s_, 3);
       if(AX === "x"){
-        S = Math.min(d.s || 64, (H - OPT_H - 44) / (N * ar / (f1 - f0) + 1)); OW = N * S / (f1 - f0); OH = OW * ar;
-        const boxW = 3.6 * S + 12, gW = OW + 60 + boxW; OX = (W - gW) / 2; OY = Math.max(4, (H - OPT_H - 30 - OH - S - 14) / 2);
+        const DROP = K.FLAG_LOW - 12;                                        // the flags below the row (the kit's FLAG_LOW)
+        S = Math.min(88, (H - OPT_H - 44 - DROP) / (N * ar / (f1 - f0) + 1));       // larger focus group on G1-G3
+        // ... or the width: half the object + the box beside it (a gap no smaller than the end flag) within the half-stage
+        while(S > 24 && N * S / (f1 - f0) / 2 + FLAG + hold(S).w + 12 > W / 2 + ROOM_R) S -= 1;
+        OW = N * S / (f1 - f0); OH = OW * ar;
+        const boxW = hold(S).w + 12; OX = (W - OW) / 2; OY = Math.max(4, (H - OPT_H - 30 - OH - S - 14 - DROP) / 2);
+        // on a backdrop's ground (data.bg, G1) the object and its row sit low, the row just above the answers' place
+        if(d.bg) OY = Math.max(OY, H - OPT_H - 24 - DROP - (OH + 14 + S));
+        const GAP = Math.max(FLAG, Math.min(60, W + ROOM_R - (OX + OW) - boxW));
         A0 = OX + OW * f0; A1 = OX + OW * f1; const RY = OY + OH + 14; slotXY = k => ({ x: A0 + k * S, y: RY });
-        lines = K.endLines(scene, "x", A0, A1, OY + 10, RY + S + 12); lines.start._flag.classList.add("flip");
-        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)); boxAt = { x: OX + OW + 60, y: RY + S - bh + S * 0.3 }; side = "bottom";
+        lines = K.endLines(scene, "x", A0, A1, OY + 10, RY + S + K.FLAG_LOW);
+        const bh = hold(S).h; boxAt = { x: OX + OW + GAP, y: RY + S - bh + S * 0.3 };
       } else {
-        S = Math.min(d.s || 50, (H - OPT_H - 34) / N * (f1 - f0)); OH = N * S / (f1 - f0); OW = OH / ar;
-        const boxW = 3.6 * S + 12, gW = boxW + 70 + OW + 14 + S + 40; OX = (W - gW) / 2 + boxW + 70; OY = H - OPT_H - 22 - OH;
+        // the game's cube, unless the height can't take it - the height less 48px for the top line's flag, which stands ON
+        // that line (it used to rise into the header and lose its cloth there)
+        S = Math.min(88, (H - OPT_H - 34 - 48) / N * (f1 - f0));                    // larger focus group on G2/G3
+        const half = s_ => N * s_ / (f1 - f0) / ar / 2;                      // ... or the width: each side of the centred object
+        while(S > 24 && (half(S) + 14 + S + 40 + FLAG > W / 2 + ROOM_R || half(S) + 40 + hold(S).w + 12 > W / 2 + ROOM_L)) S -= 1;
+        OH = N * S / (f1 - f0); OW = OH / ar;
+        const boxW = hold(S).w + 12; OX = (W - OW) / 2; OY = H - OPT_H - 22 - OH;
+        const GAP = Math.max(40, Math.min(70, OX + ROOM_L - boxW));
         A0 = OY + OH * f1; A1 = OY + OH * f0; const CX = OX + OW + 14; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
         lines = K.endLines(scene, "y", A0, A1, OX - 8, CX + S + 40);
-        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)); boxAt = { x: OX - 70 - boxW, y: A0 - bh + S * 0.3 }; side = "right";
+        const bh = hold(S).h; boxAt = { x: OX - GAP - boxW, y: A0 - bh + S * 0.3 };
       }
       const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
       K.add(scene, "div", "md-shadow", "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92));
       const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(scene, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
-      const box = K.toybox(scene, boxAt.x, boxAt.y, N, S, 3);
-      const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S); b.style.zIndex = 3 + Math.floor(j / 3); b._z = b.style.zIndex; return b; });
-      box.front.style.zIndex = 3 + Math.ceil(N / 3);
+      /* data.bg (G1 "yard"): the stage's plain two-tone backdrop (CSS .stage[data-bg]) - its wall meets the ground behind the
+         object, half-way up it, in stage px (review 2026-10-01: "keep the background minimal only - non distracting,
+         so that the main focus is on the main gameplay") */
+      if(d.bg){ const st = $("stage"), stR = st.getBoundingClientRect(), kSt = stR.width / (st.offsetWidth || 1) || 1;
+        st.style.setProperty("--horizon", px((SR0.top - stR.top) / kSt + (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6))); }
+      const box = BASKET ? K.basket(scene, boxAt.x, boxAt.y, N, S) : ART ? K.holder(d.holder, scene, boxAt.x, boxAt.y, N, S) : K.toybox(scene, boxAt.x, boxAt.y, N, S, 3);
+      const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S, p.rot); b.style.zIndex = p.z != null ? p.z : 3 + Math.floor(j / 3); b._z = b.style.zIndex; return b; });
+      if(!BASKET && !ART) box.front.style.zIndex = 3 + Math.ceil(N / 3);   // (the basket and the other holders set their own)
+      /* [rooms] data.gag: a little joke ON the object - e.g. a sock caught in the almirah's doors: {src, x, y, w, rot}, x / y /
+         w as fractions of the object's box; over the object, under everything that moves */
+      if(d.gag){ const gg = K.add(scene, "img", "md-gag", "left:" + px(OX + OW * d.gag.x) + ";top:" + px(OY + OH * d.gag.y) + ";width:" + px(OW * d.gag.w) + ";rotate:" + (d.gag.rot || 0) + "deg");
+        gg.src = d.gag.src; gg.alt = ""; }
       const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
-      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      const inRow = []; let phase = "measure";
+      let phase = "measure";
       /* ---- measure ---- */
-      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, idleMs: 6000, ghostAfterWrong: false,
-        onHit: (n)=>{ inRow.push(blocks.find(b => b._placed && !inRow.includes(b))); }, onAll: ask });
+      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, idleMs: 6000,
+        hints: { say: a => say(a === 1 ? "block_try" : "block_hint") }, onAll: ask,
+        onHit: ()=>{ if(box.settle) box.settle(blocks.filter(b => !b._placed)); } });   // the basket's pile settles
       /* ---- ask ---- */
       const opts = K.add(scene, "div", "mq-opts", "top:" + px(H - OPT_H + 8));
       const optEls = d.options.map(v =>{ const o = K.add(opts, "button", "mq-opt"); o.type = "button"; o.textContent = devNumeral(v) + " " + (d.unit_hi || "ब्लॉक्स"); o._v = v; return o; });
       const right = optEls.find(o => o._v === N);
       let wrong = 0, busy = false;
-      const rowOrder = ()=> inRow.slice().sort((a, b)=> AX === "x" ? K.pos(a).x - K.pos(b).x : K.pos(b).y - K.pos(a).y);
       function ask(){
         phase = "ask"; run.stop();
         box.back.classList.add("empty"); box.front.classList.add("empty");
@@ -2104,18 +2751,11 @@ const SlideModules = {
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e){}
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
         sfxWrongSoft(); setSwMood("tryagain");
-        o.classList.add("wrong"); if(!reduce) o.animate([{ rotate: "0deg" }, { rotate: "-5deg" }, { rotate: "5deg" }, { rotate: "-3deg" }, { rotate: "0deg" }], { duration: 520, easing: "ease-in-out" });
-        setTimeout(()=> o.classList.remove("wrong"), 900);
-        const blocksNow = rowOrder();
-        if(wrong === 1){                                                    // wiggle + the blocks glow + "count them again"
-          blocksNow.forEach(b => b.classList.add("glow")); await say("try_again"); blocksNow.forEach(b => b.classList.remove("glow"));
-        } else if(wrong === 2){                                             // each block in turn, counted aloud
-          for(let k = 0; k < blocksNow.length && alive(); k++){ const b = blocksNow[k]; b.classList.add("hl"); await sayNum(k + 1); b.classList.remove("hl"); }
-        } else if(wrong === 3){                                             // the digits, then the hand on the right option
-          blocksNow.forEach((b, k)=> K.digit(scene, K.pos(b), S, k + 1, side === "bottom" ? "bottom" : "right"));
-          await K.wait(700); if(alive()) placeNudge(right);
-        } else { reveal(); return; }
-        if(alive()) busy = false;
+        o.classList.add("wrong"); K.shake(o, 9); setTimeout(()=> o.classList.remove("wrong"), 900);   // shakes and returns
+        if(wrong === 1){ await say("try_again"); }                                                  // the sheet's attempt 1: think again
+        else if(wrong === 2){ setTimeout(()=>{ if(alive() && !state.locked) K.softGlow(right); }, 600); await say("hint"); }   // attempt 2: the right card glows softly
+        else { reveal(); return; }                                                                  // after the sheet's last attempt: shown, on
+        if(alive() && !state.locked){ busy = false; setSwMood("point"); }
       }
       function onRight(o, revealed){
         state.locked = true; busy = true; stopNudge();
@@ -2145,16 +2785,18 @@ const SlideModules = {
     /* G4 the mats, P1 the chairs - SME deck pages 8-9 (review 2026-09-30: "follow the ppt slides instructions"). Two
        objects side by side, each ALREADY measured: its blocks laid flush along it, from one end to the other (no
        numbers yet). The child taps the longer / taller one.
-         correct ...... it lights up (green glow) + SFX; "<k> ब्लॉक्स" below (a row) / beside (a column) each one - why
-                        it is longer; the correct VO; then on
-         wrong #1 ..... the tapped one wiggles; the blocks of BOTH light up one by one, a digit appearing below / beside
-                        each, with the counting VO (first object 1..n1, then the second 1..n2); then the question only
-                        (audio.reask)
-         wrong #2 ..... the hand on the correct object; tapping it plays the correct-response SFX (as above)
-         wrong #3 ..... the correct one is shown and the slide moves on (never stuck)
+         correct ...... it lights up (green glow) + SFX + confetti; "<k> ब्लॉक्स" below (a row) / beside (a column) each
+                        one - why it is longer; the correct VO; then on
+         HINTS = the FLN hint logic sheet, MCQ - 2 options (review 2026-09-30: "for the hint part follow the excel sheet,
+         not the slides"):
+         wrong #1 ..... the tapped one shakes and returns, nothing shown: audio.try_again ("दोनों विकल्पों को ध्यान से
+                        देखिए और सोचिए।")
+         wrong #2 ..... it shakes; after a moment the right one glows softly: audio.hint ("ध्यान से देखिए और सही विकल्प
+                        चुनिए।")
+         wrong #3 ..... (the sheet stops at 2) the right one is shown, its counts + VO, on (never stuck)
        axis "x" (the mats): each n·S long, its row of blocks under it, both rows on one line. axis "y" (the chairs):
        each n·S tall on one floor, its column of blocks beside it. data: { axis, s, unit_hi, items:[{src, ar, n,
-       correct}] } (items in the deck's order - its "first" and "second"). audio: prompt, correct, reask. */
+       correct}] } (items in the deck's order - its "first" and "second"). audio: prompt, correct, try_again, hint. */
     mount(host, slide){
       const d = slide.data, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2162,20 +2804,28 @@ const SlideModules = {
       const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
       const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
       const W = scene.offsetWidth || 1033, H = Math.max(420, host.getBoundingClientRect().height / kS - 6); scene.style.height = px(H);
-      const items = d.items, unit = d.unit_hi || "ब्लॉक्स", GAP = 70, PW = 170, PH = Math.round(PW * 157 / 330), NUM = 44, CG = 12;
+      // Tighter secondary spacing gives the compared objects and their block rulers
+      // more of the stage without changing any measurement or answer logic.
+      const items = d.items, unit = d.unit_hi || "ब्लॉक्स", GAP = 56, PW = 148, PH = Math.round(PW / MDK.BADGE_AR), NUM = 44, CG = 10;
       /* the block size: the two (plus, for columns, their digits and count plates) across the width; the taller one
          (plus, for rows, its blocks, the digits and the plate) down the height */
-      let S = d.s || 64;
+      let S = 88;                                                            // larger focus group on G4/P1, as far as the two fit
       if(AX === "x") S = Math.min(S, (W - GAP - 40) / items.reduce((a, it)=> a + it.n, 0),
                                      (H - 24 - 8 - NUM - PH) / (Math.max(...items.map(it => it.n * it.ar)) + 1));
       else S = Math.min(S, (H - 40) / Math.max(...items.map(it => it.n)),
                            (W - GAP - 40 - items.length * (CG + 36 + PW)) / items.reduce((a, it)=> a + it.n / it.ar + 1, 0));
       const geo = items.map(it => AX === "x" ? { w: it.n * S, h: it.n * S * it.ar } : { w: it.n * S / it.ar, h: it.n * S });
       const gw = g => AX === "x" ? g.w : g.w + CG + S + 36 + PW;
-      let x = (W - geo.reduce((a, g)=> a + gw(g), 0) - GAP * (items.length - 1)) / 2;
+      // [centre] the objects (and their columns) centred - not with the space kept for the last one's count plate
+      let x = (W - geo.reduce((a, g)=> a + gw(g), 0) - GAP * (items.length - 1) + (AX === "x" ? 0 : 36 + PW)) / 2;
       const maxH = Math.max(...geo.map(g => g.h));
       const base = AX === "x" ? (H - (maxH + 8 + S + NUM + PH)) / 2 + maxH     // the mats' lower edge (their rows under it)
                               : H - 30;                                        // the floor the chairs stand on
+      /* [rooms] a slide's backdrop (data.bg, CSS #stage[data-bg]): the line where its wall meets the floor, in stage px -
+         the chairs' floor; for the mats (seen from above, lying on it) the floor fills the scene: its far edge above them */
+      if(d.bg){ const st = $("stage"), stR = st.getBoundingClientRect(), kSt = stR.width / (st.offsetWidth || 1) || 1;
+        const sTop = (scene.getBoundingClientRect().top - stR.top) / kSt;
+        st.style.setProperty("--horizon", px(sTop + (AX === "x" ? base - maxH - 22 : base - 8))); }
       let shade = 0;
       const els = items.map((it, i)=>{
         const g = geo[i], ox = x, oy = base - g.h, e = { it, blocks: [] };
@@ -2186,30 +2836,18 @@ const SlideModules = {
           const p = AX === "x" ? { x: ox + k * S, y: base + 8 } : { x: ox + g.w + CG, y: base - (k + 1) * S };
           const b = K.cube(scene, shade++, p.x, p.y, S); b.classList.add("placed"); b.style.zIndex = 4; e.blocks.push(b);
         }
-        /* one tap area over the object and its blocks; the hand's anchor at the object's middle (placeNudge puts the
-           fingertip 8px under its target's lower edge) */
+        /* one tap area over the object and its blocks */
         e.hit = K.add(scene, "div", "cm-hit", AX === "x"
           ? "left:" + px(ox - 8) + ";top:" + px(oy - 8) + ";width:" + px(g.w + 16) + ";height:" + px(g.h + 8 + S + 16)
           : "left:" + px(ox - 8) + ";top:" + px(Math.min(oy, base - it.n * S) - 8) + ";width:" + px(g.w + CG + S + 16) + ";height:" + px(Math.max(g.h, it.n * S) + 16));
         e.hit.setAttribute("role", "button");
-        e.anchor = K.add(scene, "div", "cm-anchor", "left:" + px(ox + g.w / 2 - 1) + ";top:" + px(oy + g.h * .5 - 10));
         e.plateAt = AX === "x" ? { cx: ox + g.w / 2, y: base + 8 + S + NUM } : { cx: ox + g.w + CG + S + 36 + PW / 2, y: base - it.n * S / 2 - PH / 2 };
         x += gw(g) + GAP;
         return e;
       });
       const right = els.find(e => e.it.correct) || els[els.length - 1];
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
-      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      let wrong = 0, busy = true, counted = false;
-      async function countBoth(){                          // the blocks of both, one by one, a digit at each, counted aloud
-        for(const e of els){
-          for(let k = 0; k < e.blocks.length; k++){ if(!alive()) return; const b = e.blocks[k];
-            b.classList.add("hl"); if(!counted) K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right");
-            await sayNum(k + 1); b.classList.remove("hl"); }
-          await K.wait(300);
-        }
-        counted = true;
-      }
+      let wrong = 0, busy = true;
       function onRight(e, revealed){
         state.locked = true; busy = true; stopNudge();
         e.img.classList.add("cm-right"); els.forEach(o =>{ if(o !== e) o.img.classList.add("cm-dim"); });
@@ -2227,9 +2865,9 @@ const SlideModules = {
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e2){}
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
         sfxWrongSoft(); setSwMood("tryagain");
-        if(!reduce) e.img.animate([{ rotate: "0deg" }, { rotate: "-3deg" }, { rotate: "3deg" }, { rotate: "-2deg" }, { rotate: "1deg" }, { rotate: "0deg" }], { duration: 620, easing: "ease-in-out" });
-        if(wrong === 1){ await K.wait(700); await countBoth(); if(!alive()) return; await say("reask"); }
-        else if(wrong === 2){ await K.wait(450); if(alive()) placeNudge(right.anchor); }
+        K.shake(e.img, 10);                                                                         // shakes and returns
+        if(wrong === 1){ await K.wait(250); await say("try_again"); }                              // the sheet's attempt 1: think again
+        else if(wrong === 2){ setTimeout(()=>{ if(alive() && !state.locked) K.softGlow(right.img, true); }, 600); await K.wait(250); await say("hint"); }   // attempt 2: the right one glows softly
         else { GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" }); onRight(right, true); return; }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); }
       }
@@ -2237,7 +2875,7 @@ const SlideModules = {
         if(busy || state.locked || !alive()) return;
         if(e === right) onRight(e, false); else { stopNudge(); onWrong(e); }
       }));
-      state.replayAudio = ()=>{ if(!busy) say(wrong ? "reask" : "prompt"); };
+      state.replayAudio = ()=>{ if(!busy) say("prompt"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
       say("prompt").then(()=>{ if(alive() && !state.locked && !wrong) busy = false; });
       setTimeout(()=>{ if(alive() && busy && !state.locked && !wrong) busy = false; }, 1600);   // a tap may come while the question plays
@@ -2249,16 +2887,19 @@ const SlideModules = {
        (review 2026-09-30: "follow the ppt slides instructions"). Left: the three objects, each in its own card and
        ALREADY measured - its blocks laid flush along it (a row on top of a long one, a column beside a tall one) with
        dashed lines at its two ends. Right: the three measurement boxes, "<k> ब्लॉक्स", in the deck's shuffled order.
-       The child drags a box onto an object:
-         right ........ the box snaps into that card's slot and locks (green, ✓) + the positive SFX; after all three,
-                        the VO (audio.correct), then on
-         wrong #1 ..... (counted per object) the box bounces back
-         wrong #2 ..... it bounces back; that object's blocks light up one by one, a digit at each, counted aloud
-         wrong #3 ..... it bounces back; the hand on the correct box
-         wrong #4 ..... the correct box moves in by itself (never stuck)
+       The child drags a box onto an object. HINTS = the FLN hint logic sheet, Drag & Drop (review 2026-09-30: "for the
+       hint part follow the excel sheet, not the slides"), counted per box:
+         right ........ the box snaps into that card's slot and locks (green, ✓) + SFX + confetti + audio.item_ok ("शाबाश!
+                        सही जगह पर रखा।"); the third one - audio.correct (the deck's all-matched line), then on
+         wrong #1 ..... the card it was dropped on shakes, the box returns: audio.try_again ("फिर से सोचिए। ध्यान से देखिए
+                        और सही जगह चुनिए।")
+         wrong #2 ..... it shakes, the box returns; the box's right card glows softly and the hand points at its slot:
+                        audio.hint ("ब्लॉक्स को ध्यान से गिनिए और सही जगह पर रखिए।")
+         wrong #3 ..... (the sheet stops at 2) the box moves in by itself (never stuck)
        A drop on no card / on a card already matched just goes back. The cards are laid out in data.rows (one card in a
-       row: its slot at its right; several: each slot below). data: { s, unit_hi, rows:[[id..]..], items:[{id, src,
-       ar, n, axis}], boxes:[n..] }  audio: prompt, correct. */
+       row: its slot at its right; several: each slot below). data: { unit_hi, rows:[[id..]..], items:[{id, src, ar, n,
+       axis}], boxes:[n..], strip } (strip: the boxes in a row under the cards, not a column beside them) audio: prompt,
+       correct, item_ok, try_again, hint. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2267,12 +2908,36 @@ const SlideModules = {
       const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
       const W = scene.offsetWidth || 1033, H = Math.max(420, host.getBoundingClientRect().height / kS - 6); scene.style.height = px(H);
       const unit = d.unit_hi || "ब्लॉक्स", TONES = ["yellow", "blue", "green"], BTONES = ["green", "blue", "yellow"];
-      const BW = 184, BH = 74, PAD = 16, GUT = 14, DIG = 34;                 // a box; card padding; gutter; the digits' room
-      const COLW = BW + 44, AX0 = 8, AW = W - COLW - AX0 - 8;               // the boxes' column; the objects' area
+      /* data.strip (review 2026-09-30: every cube the game's 76px - three measured objects + the boxes' column can't hold
+         that): the objects in ONE row across the whole width, the boxes in a row UNDER them, a little tighter */
+      const STRIP = !!d.strip;
+      /* [photos] review 2026-10-01: "redesign these slides for better relatable visuality and adding meaning". data.look:
+           "board"  (P2) photos of the class's furniture pinned on the class notice board; the sizes are brown paper
+                    tags, pinned on under the right photo with a swing
+           "fridge" (P3) photos from home held on the fridge door by fruit magnets; the sizes are Mummy's sticky notes -
+                    the size to buy - and once all three are matched each photo shows what the size was for: a curtain on
+                    the window, a cover on the TV, a sleeve on the bottle (item.fit)
+         Each card is a white photo: its picture a little scene of the object's own place (item.scene: "floor" / "wall" /
+         "shelf" / "table", in the look's colours, item.wall to vary it), its broad bottom margin the label's place. */
+      const LOOK = d.look || "";
+      const PALS = { board: { wall: ["#FBF1D6", "#F3E3BF"], floor: ["#DDB27B", "#C99762"], edge: "#B58149" },
+                     fridge: { wall: ["#F1EBE2", "#E8DFD2"], floor: ["#D8B48A", "#C29A6C"], edge: "#A67A4B" } };
+      const picBg = (kind, base, pal, wall)=>{                               // the photo's little scene; base = the object's foot
+        const w0 = wall || pal.wall[0], w1 = pal.wall[1], b = Math.round(base);
+        if(kind === "wall") return "linear-gradient(180deg," + w0 + "," + w1 + ")";
+        if(kind === "shelf") return "linear-gradient(180deg," + w0 + " 0," + w1 + " " + b + "px," + pal.edge + " " + b + "px," + pal.floor[0] + " " + (b + 3) + "px," + pal.floor[1] + " " + (b + 12) + "px," +
+          "rgba(70,40,15,.28) " + (b + 12) + "px,rgba(70,40,15,0) " + (b + 22) + "px," + w1 + " " + (b + 22) + "px," + w1 + " 100%)";
+        if(kind === "table") return "linear-gradient(180deg," + w0 + " 0," + w1 + " " + b + "px," + pal.edge + " " + b + "px," + pal.floor[0] + " " + (b + 3) + "px," + pal.floor[0] + " " + (b + 10) + "px," +
+          pal.edge + " " + (b + 10) + "px," + pal.floor[1] + " " + (b + 13) + "px," + pal.floor[1] + " 100%)";
+        return "linear-gradient(180deg," + w0 + " 0," + w1 + " " + b + "px,#FFFFFF " + b + "px,#FFFFFF " + (b + 6) + "px," + pal.floor[0] + " " + (b + 6) + "px," + pal.floor[1] + " 100%)";   // floor, a skirting
+      };
+      const MAGNETS = ["mango", "strawberry", "sunflower"];
+      const BW = 184, BH = STRIP ? 64 : 74, PAD = STRIP ? 12 : 16, GUT = 14, DIG = 14;   // a box; card padding; gutter; room for the end lines
+      const COLW = STRIP ? 0 : BW + 44, AX0 = 8, AW = W - COLW - AX0 - 8;   // the boxes' column; the objects' area
+      const HC = STRIP ? H - BH - 22 : H;                                    // the cards' height (the strip is below them)
       const items = d.items, byId = {}; items.forEach((it, i)=>{ byId[it.id] = it; it._k = i; });
       const rows = d.rows || items.map(it => [it.id]);
-      /* an object's content at block size S: a row on top of a long one (digits above it), a column left of a tall one
-         (digits left of it) */
+      /* an object's content at block size S: a row on top of a long one, a column left of a tall one */
       const need = (it, S)=> it.axis === "y" ? { w: DIG + S + 10 + it.n * S / it.ar, h: it.n * S }
                                              : { w: it.n * S, h: DIG + S + it.n * S * it.ar };
       function plan(S){                                                       // the rows at block size S, or null
@@ -2288,24 +2953,29 @@ const SlideModules = {
             const h = Math.max(...ns.map(n => n.h)) + BH + 3 * PAD; out.push({ ids: r, y, h, ws: ws.map(w => w * free / sum), slot: "below" }); y += h + GUT;
           }
         }
-        return y - GUT <= H - 8 ? { rows: out, h: y - GUT } : null;
+        return y - GUT <= HC - 8 ? { rows: out, h: y - GUT } : null;
       }
-      let S = d.s || 50, P = plan(S); while(!P && S > 20) P = plan(--S);
+      let S = K.CUBE, P = plan(S); while(!P && S > 20) P = plan(--S);         // the game's cube, as far as the cards fit
       if(!P){ console.warn("[MATCH_MEASURE] the cards do not fit"); P = { rows: [], h: 0 }; }
-      const Y0 = (H - P.h) / 2;
+      const Y0 = (HC - P.h) / 2;
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
-      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      /* ---- the cards: each object with its blocks and end lines, its slot ---- */
+      /* ---- the cards: each object with its blocks and end lines, its slot (+ the hand's anchor at its centre) ---- */
       const cards = []; let shade = 0;
       P.rows.forEach(r =>{
         let x = AX0;
         r.ids.forEach((id, j)=>{
-          const it = byId[id], w = r.ws[j], y = Y0 + r.y, h = r.h, n = need(it, S), c = { it, x, y, w, h, wrong: 0, done: false, blocks: [] };
-          c.el = K.add(scene, "div", "mm-card t-" + TONES[it._k % 3], "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h) + ";--k:" + it._k);
+          const it = byId[id], w = r.ws[j], y = Y0 + r.y, h = r.h, n = need(it, S), c = { it, x, y, w, h, done: false, blocks: [] };
+          c.el = K.add(scene, "div", "mm-card " + (LOOK ? "mm-ph look-" + LOOK : "t-" + TONES[it._k % 3]), "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h) + ";--k:" + it._k);
           let ax, ay, aw, ah;
           if(r.slot === "right"){ c.slot = { x: x + w - PAD - BW, y: y + (h - BH) / 2 }; ax = x + PAD; ay = y + PAD; aw = w - BW - 3 * PAD; ah = h - 2 * PAD; }
           else { c.slot = { x: x + (w - BW) / 2, y: y + h - PAD - BH }; ax = x + PAD; ay = y + PAD; aw = w - 2 * PAD; ah = h - BH - 3 * PAD; }
-          K.add(scene, "div", "mm-slot", "left:" + px(c.slot.x) + ";top:" + px(c.slot.y) + ";width:" + px(BW) + ";height:" + px(BH));
+          if(LOOK){                                                          // the photo's picture (its scene is set once the object is placed)
+            c.pic = K.add(c.el, "div", "mm-pic", "left:" + px(ax - x) + ";top:" + px(ay - y) + ";width:" + px(aw) + ";height:" + px(ah));
+            const dc = K.add(c.el, "img", "mm-deco " + (LOOK === "board" ? "pin" : "magnet"), "");
+            dc.src = "assets/" + (LOOK === "board" ? "prop_pushpin" : "prop_" + MAGNETS[it._k % MAGNETS.length]) + ".webp"; dc.alt = "";
+          }
+          K.add(scene, "div", "mm-slot" + (LOOK ? " at-" + LOOK : ""), "left:" + px(c.slot.x) + ";top:" + px(c.slot.y) + ";width:" + px(BW) + ";height:" + px(BH));
+          c.anchor = K.add(scene, "div", "md-anchor", "left:" + px(c.slot.x + BW / 2 - 1) + ";top:" + px(c.slot.y + BH / 2 - 10));
           const x0 = ax + (aw - n.w) / 2, y0 = ay + (ah - n.h) / 2;
           let ox, oy, ow, oh;
           if(it.axis === "y"){                                               // a column from its foot to its top, on its left
@@ -2314,30 +2984,35 @@ const SlideModules = {
             const gw = S + 10 + ow * .6 + 8;
             K.add(scene, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy - 1) + ";width:" + px(gw));
             K.add(scene, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy + oh - 1) + ";width:" + px(gw));
-            c.side = "left";
           } else {                                                           // a row on top, from one end to the other
             ow = it.n * S; oh = ow * it.ar; ox = x0; oy = y0 + DIG + S;
             for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(scene, shade++, ox + k * S, oy - S, S));
             const gh = S + 8 + Math.min(oh * .4, 40);
             K.add(scene, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S - 8) + ";height:" + px(gh));
             K.add(scene, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S - 8) + ";height:" + px(gh));
-            c.side = "above";
           }
           c.blocks.forEach(b =>{ b.classList.add("placed"); b.style.zIndex = 4; });
           c.img = K.add(scene, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh)); c.img.src = it.src; c.img.alt = "";
+          c.obox = { x: ox, y: oy, w: ow, h: oh };
+          if(c.pic) c.pic.style.background = picBg(it.scene || "floor", oy + oh - ay, PALS[LOOK] || PALS.board, it.wall);
           cards.push(c); x += w + GUT;
         });
       });
       /* ---- the boxes ---- */
-      /* spaced so the hand (wrong #3: its fingertip 8px under the box, 100px of hand below that) never covers the next box */
       const BX = W - COLW + 26, BG = Math.min(110, (H - d.boxes.length * BH - 24) / Math.max(1, d.boxes.length - 1)), tot = d.boxes.length * BH + (d.boxes.length - 1) * BG;
+      const SG = 40, stripW = d.boxes.length * BW + (d.boxes.length - 1) * SG;   // the strip: side by side, centred, at the foot
       const boxes = d.boxes.map((v, i)=>{
-        const home = { x: BX, y: (H - tot) / 2 + i * (BH + BG) };
-        const b = K.add(scene, "div", "mm-box b-" + BTONES[i % 3], "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(BW) + ";height:" + px(BH) + ";--k:" + i);
-        b.textContent = devNumeral(v) + " " + unit; b.setAttribute("role", "button");
-        b._v = v; b._home = home; b._done = false; return b;
+        const home = STRIP ? { x: (W - stripW) / 2 + i * (BW + SG), y: H - BH - 10 } : { x: BX, y: (H - tot) / 2 + i * (BH + BG) };
+        const b = K.add(scene, "div", "mm-box " + (LOOK ? "lb-" + LOOK : "b-" + BTONES[i % 3]), "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(BW) + ";height:" + px(BH) + ";--k:" + i);
+        if(LOOK){                                                            // a paper tag (its hole, its string) / a sticky note (its curl)
+          b.innerHTML = '<span class="mm-shape"></span>' + (LOOK === "board" ? '<span class="mm-str"></span><span class="mm-hole"></span>' : '<span class="mm-curl"></span>') + '<span class="mm-txt"></span>';
+          b.querySelector(".mm-txt").textContent = devNumeral(v) + " " + unit;
+          if(LOOK === "fridge") b.style.rotate = [-2.5, 1.8, -1.2][i % 3] + "deg";   // torn off the pad by hand
+        } else b.textContent = devNumeral(v) + " " + unit;
+        b.setAttribute("role", "button");
+        b._v = v; b._home = home; b._done = false; b._wrong = 0; return b;
       });
-      const boxFor = c => boxes.find(b => b._v === c.it.n);
+      const cardFor = b => cards.find(c => c.it.n === b._v);                // where a box belongs
       const cardAt = p => cards.find(c => p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h);
       let drag = null, busy = false, wrongAll = 0, revealed = false, matched = 0;
       const goHome = (b, bounce)=> K.glide(b, b._home, reduce ? 0 : 380, true).then(()=>{ b.style.zIndex = "";
@@ -2347,37 +3022,76 @@ const SlideModules = {
         return K.glide(b, c.slot, reduce ? 0 : (rev ? 800 : 160), !!rev).then(()=>{
           if(!alive()) return;
           b.classList.add("ok"); c.el.classList.add("ok"); K.land(b, true);
-          if(!rev) sfxCorrect();
-          GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: c.it.id, value: c.it.n, attempts: c.wrong + 1, revealed: !!rev });
-          if(matched === cards.length) finish();
+          if(LOOK === "board"){                                            // pinned on through its hole: it swings on the pin, settles
+            const pn = K.add(b, "img", "mm-tagpin", ""); pn.src = "assets/prop_pushpin.webp"; pn.alt = "";
+            if(!reduce) b.animate([{ rotate: "-10deg" }, { rotate: "7deg" }, { rotate: "-4deg" }, { rotate: "2deg" }, { rotate: "0deg" }], { duration: 1150, easing: "ease-out" });
+          } else if(LOOK === "fridge" && !reduce) b.animate([{ scale: "1.1" }, { scale: ".97" }, { scale: "1" }], { duration: 300, easing: "ease-out" });   // pressed on
+          if(!rev){ sfxCorrect(); try{ confettiCannon(); }catch(e){} setSwMood("happy"); }      // the sheet: locks + sparkle/confetti...
+          GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: c.it.id, value: c.it.n, attempts: b._wrong + 1, revealed: !!rev });
+          if(matched === cards.length) finish(); else if(!rev) say("item_ok");                        // ...+ "शाबाश! सही जगह पर रखा।"
         });
       }
-      async function miss(c, b){
-        c.wrong++; wrongAll++; busy = true;
-        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: c.it.id, attempts: c.wrong });
+      async function miss(c, b){                                               // the sheet's Drag & Drop ladder, per box
+        const m = ++b._wrong, home = cardFor(b); wrongAll++; busy = true;
+        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: c.it.id, box: b._v, attempts: m });
         sfxWrongSoft(); setSwMood("tryagain");
-        c.el.classList.add("no"); setTimeout(()=> c.el.classList.remove("no"), 700);
-        await goHome(b, true); if(!alive()) return;
-        if(c.wrong === 2){                                                   // its blocks, one by one, a digit at each, counted
-          await K.wait(250);
-          for(let k = 0; k < c.blocks.length; k++){ if(!alive()) return; const bl = c.blocks[k];
-            bl.classList.add("hl"); if(!c.counted) K.digit(scene, K.pos(bl), S, k + 1, c.side); await sayNum(k + 1); bl.classList.remove("hl"); }
-          c.counted = true;
-        } else if(c.wrong === 3){ placeNudge(boxFor(c)); }
-        else if(c.wrong >= 4){
+        K.shake(c.el, 8);                                                    // the wrong drop area shakes...
+        await goHome(b, true); if(!alive()) return;                          // ...and the box returns
+        if(m === 1) await say("try_again");                                  // attempt 1: think again
+        else if(m === 2){ K.softGlow(home.el); placeNudge(home.anchor); await say("hint"); }   // attempt 2: its right card glows + the hand on it
+        else {                                                               // after the sheet's last attempt: it moves in by itself
           revealed = true; stopNudge();
-          GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, object: c.it.id, attempts: c.wrong, reason: "wrong" });
-          await settle(c, boxFor(c), true);
+          GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, object: home.it.id, box: b._v, attempts: m, reason: "wrong" });
+          await settle(home, b, true);
         }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); }
+      }
+      /* [photos] what the sizes were for (data.look "fridge", item.fit {kind: "curtain" | "cover" | "sleeve", src?, x, y, w,
+         h}): over each photo's object, in turn - a curtain slides down its rod over the window, a cover drops onto the TV, a
+         knitted sleeve slides up the bottle. A generated picture (fit.src) replaces the drawn one; x / y / w / h are its box
+         as fractions of the object's (defaults per kind). */
+      const FITBOX = { curtain: { x: -.17, y: -.13, w: 1.34, h: 1.15 }, cover: { x: -.05, y: -.05, w: 1.1, h: .52 }, sleeve: { x: -.09, y: .34, w: 1.18, h: .64 } };
+      function fitSVG(kind){
+        const V = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">';
+        if(kind === "curtain") return V + '<defs><linearGradient id="fcF" x1="0" x2="1"><stop offset="0" stop-color="#E4735F"/><stop offset=".5" stop-color="#F5A08C"/><stop offset="1" stop-color="#E4735F"/></linearGradient>' +
+          '<pattern id="fcP" width="8" height="100" patternUnits="userSpaceOnUse"><rect width="8" height="100" fill="url(#fcF)"/><circle cx="4" cy="20" r="1.1" fill="#FFF1D6" opacity=".8"/><circle cx="4" cy="52" r="1.1" fill="#FFF1D6" opacity=".8"/><circle cx="4" cy="84" r="1.1" fill="#FFF1D6" opacity=".8"/></pattern></defs>' +
+          '<path d="M1 6 L34 6 C30 30 23 50 16 60 C22 71 27 86 29 99 L1 99 Z" fill="url(#fcP)"/><path d="M99 6 L66 6 C70 30 77 50 84 60 C78 71 73 86 71 99 L99 99 Z" fill="url(#fcP)"/>' +
+          '<rect x="1" y="57" width="17" height="5" rx="2" fill="#F2C94C"/><rect x="82" y="57" width="17" height="5" rx="2" fill="#F2C94C"/>' +
+          '<rect x="0" y="2" width="100" height="4" rx="2" fill="#C9A046"/><circle cx="1.5" cy="4" r="2.4" fill="#B88A2E"/><circle cx="98.5" cy="4" r="2.4" fill="#B88A2E"/></svg>';
+        if(kind === "cover"){ let hem = "M99 72"; for(let i = 0; i < 10; i++){ const x0 = 99 - i * 9.8, x1 = x0 - 9.8; hem += " Q" + ((x0 + x1) / 2) + " 86 " + x1 + " 72"; }
+          return V + '<defs><pattern id="fvP" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="#F7D6E0"/><circle cx="3" cy="3" r="1.6" fill="#E98AA8"/><circle cx="9" cy="9" r="1.6" fill="#8CC7A1"/></pattern>' +
+          '<linearGradient id="fvS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF" stop-opacity=".3"/><stop offset="1" stop-color="#7A3050" stop-opacity=".18"/></linearGradient></defs>' +
+          '<path d="M6 2 H94 Q99 2 99 8 V72 ' + hem.slice(7) + ' L1 72 V8 Q1 2 6 2 Z" fill="url(#fvP)"/><path d="M6 2 H94 Q99 2 99 8 V72 ' + hem.slice(7) + ' L1 72 V8 Q1 2 6 2 Z" fill="url(#fvS)"/>' +
+          '<path d="' + hem + '" fill="none" stroke="#FFFFFF" stroke-width="2.2"/></svg>'; }
+        return V + '<defs><pattern id="fsP" width="100" height="16" patternUnits="userSpaceOnUse"><rect width="100" height="8" fill="#7CC9A0"/><rect y="8" width="100" height="8" fill="#F5CF63"/></pattern>' +   // sleeve
+          '<pattern id="fsK" width="6" height="100" patternUnits="userSpaceOnUse"><path d="M3 0 V100" stroke="#000" stroke-opacity=".08" stroke-width="1.4"/></pattern></defs>' +
+          '<rect x="2" y="6" width="96" height="92" rx="14" fill="url(#fsP)"/><rect x="2" y="6" width="96" height="92" rx="14" fill="url(#fsK)"/>' +
+          '<rect x="0" y="0" width="100" height="12" rx="6" fill="#4FA97A"/><rect x="0" y="0" width="100" height="12" rx="6" fill="url(#fsK)"/></svg>';
+      }
+      function showFits(){
+        const withFit = cards.filter(c => c.it.fit && c.obox);
+        return new Promise(done =>{
+          if(!withFit.length) return done();
+          withFit.forEach((c, i)=> setTimeout(()=>{
+            if(!alive()) return;
+            const f = c.it.fit, fb = Object.assign({}, FITBOX[f.kind] || FITBOX.cover, f), B = c.obox;
+            const el = K.add(scene, "div", "mm-fit fit-" + f.kind, "left:" + px(B.x + B.w * fb.x) + ";top:" + px(B.y + B.h * fb.y) + ";width:" + px(B.w * fb.w) + ";height:" + px(B.h * fb.h));
+            if(f.src){ const im = K.add(el, "img", "", "width:100%;height:100%;display:block"); im.src = f.src; im.alt = ""; } else el.innerHTML = fitSVG(f.kind);
+            _tone([520, 660], "sine", .18, .05);                               // a soft swish
+            if(!reduce) el.animate(f.kind === "curtain" ? [{ clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0 0)" }]
+                                 : f.kind === "sleeve" ? [{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0 0 0 0)" }]
+                                 : [{ translate: "0 -34px", opacity: 0 }, { translate: "0 4px", opacity: 1, offset: .7 }, { translate: "0 0", opacity: 1 }],
+                                 { duration: 650, easing: "cubic-bezier(.3,.8,.4,1)", fill: "both" });
+            if(i === withFit.length - 1) setTimeout(done, reduce ? 0 : 750);
+          }, reduce ? 0 : 550 + i * 700));
+        });
       }
       function finish(){
         state.locked = true; busy = true; stopNudge();
         const first = wrongAll === 0 && !revealed;
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongAll + 1, score: first ? 1 : 0 }); }catch(e){}
-        recordResult(slide, first);
-        try{ confettiCannon(); }catch(e){} setSwMood("happy");
-        setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 700)); }, 450);
+        recordResult(slide, first); setSwMood("happy");                    // (the last right drop already threw its confetti)
+        showFits().then(()=> setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 700)); }, 450));
       }
       boxes.forEach(b =>{
         b.addEventListener("pointerdown", ev =>{
@@ -2415,16 +3129,22 @@ const SlideModules = {
        of faint blocks along it and "<k> ब्लॉक्स (लंबाई / ऊँचाई)". At the bottom, a tray with the four objects.
          intro ....... the VO (audio.intro); the child picks ANY object (idle 8s: the hand on the tray - flow only)
          measure ..... the object enlarges in the centre, the classroom fades out; its blocks wait in the tray (two
-                       more than it needs). The child lays them from one end to the other on its own: no ghost drag, no
-                       start pulse, no counting VO, no hints, no target outlines (a block not flush just goes back).
-                       The first object, if it is the one the VO names (data.vo_object, the bench): audio.measure
+                       more than it needs). The child lays them from one end to the other: no idle ghost, no start pulse,
+                       no counting VO, no target outlines; a block not flush goes back (the hint sheet's Drag & Drop
+                       ladder, MDK.childMeasure). The first object, if it is the one the VO names (data.vo_object, the
+                       bench): audio.measure
          place ....... the blocks stay on it; the classroom comes back and its spaces pulse; the measured object waits
-                       in the tray and the child drags it into a space - the right one: it snaps in and stays, the
-                       correct SFX; any other: it goes back to the tray (nothing else - the child reconsiders). The
-                       first object, if the bench: audio.place
-         ...then the next object, without any VO; after the fourth, a cheer and on.
+                       in the tray and the child drags it into a space - the right one: it snaps in and stays, SFX +
+                       confetti + audio.item_ok ("शाबाश! सही जगह पर रखा।"). HINTS = the FLN hint logic sheet, Drag &
+                       Drop (review 2026-09-30: "for the hint part follow the excel sheet, not the slides"), per object:
+                       wrong #1 - the space shakes, the object returns to the tray, audio.try_again; wrong #2 - the same,
+                       then its right space glows softly and the hand points at it, audio.hint; wrong #3 - it moves in by
+                       itself (never stuck). The first object, if the bench: audio.place
+         ...then the next object (the deck's instructions without VO; the hints and praise still speak); after the
+         fourth, on.
        data: { sc (the classroom's block px), unit_hi, vo_object, items:[{id, name_hi, src, ar, n, axis, space:{x, y,
-       markers, label:[cx, top]}}] } in the room's px (1033 x 340). audio: intro, measure, place. */
+       markers, label:[cx, top]}}] } in the room's px (1033 x 340). audio: intro, measure, place, item_ok, try_again, hint,
+       block_try, block_hint. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2444,6 +3164,7 @@ const SlideModules = {
         it._r = { x: s.x, y: s.y, w, h };
         it._hit = it.axis === "y" ? { x: s.x - SC - 18, y: s.y - 14, w: w + SC + 32, h: h + 28 } : { x: s.x - 14, y: s.y - SC - 18, w: w + 28, h: h + SC + 32 };
         it._sp = K.add(room, "div", "cf-space", "left:" + px(s.x) + ";top:" + px(s.y) + ";width:" + px(w) + ";height:" + px(h));
+        it._anchor = K.add(room, "div", "md-anchor", "left:" + px(s.x + w / 2 - 1) + ";top:" + px(s.y + h / 2 - 10));   // the hint hand's target
         it._strip = K.add(room, "div", "cf-strip");
         for(let k = 0; k < it.n; k++){
           const p = it.axis === "y" ? { x: s.x - SC - 4, y: s.y + h - (k + 1) * SC } : { x: s.x + k * SC, y: s.y - SC - 4 };
@@ -2464,15 +3185,19 @@ const SlideModules = {
         t.addEventListener("click", ()=> pick(it)); it._t = t;
       });
       /* ---- the game ---- */
-      let phase = "pick", first = true, cur = null, run = null, wrongs = 0, placedN = 0, idleT = 0;
+      let phase = "pick", first = true, cur = null, run = null, wrongs = 0, placedN = 0, idleT = 0, pending = null;
       const voFor = it => first && it && it.id === d.vo_object;
       function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
         const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, 8000); }
       function toPick(idle){
         phase = "pick"; cur = null; setHead(slide.prompt_hi || ""); scene.classList.remove("cf-measuring", "cf-placing");
         items.forEach(it =>{ it._t.disabled = !!it._done; }); if(idle) armIdle();
+        if(pending){ const q = pending; pending = null; pick(q); }            // a tap made while the room came back
       }
       function pick(it){
+        /* (QA 2026-10-01) a tap in the 2.3s after a right drop - the praise, the room coming back - used to be dropped
+           silently though its button looked ready: it is kept, and that object opens the moment the room is back */
+        if(phase === "fit" && !it._done && alive()){ pending = it; sfxTap(); return; }
         if(phase !== "pick" || it._done || !alive()) return;
         clearTimeout(idleT); stopNudge(); sfxTap();
         cur = it; phase = "measure"; scene.classList.add("cf-measuring");
@@ -2486,14 +3211,14 @@ const SlideModules = {
         const N = it.n, M = N + 2, TOP = RH - 10, layer = K.add(scene, "div", "cf-mv");
         let S, slotXY, ox, oy, ow, oh;
         if(it.axis === "y"){
-          S = Math.min(64, (TOP - 40) / N, (W - 80) / (M + (M - 1) * .16));
+          S = Math.min(K.CUBE, (TOP - 40) / N, (W - 80) / (M + (M - 1) * .16));   // the game's cube, as far as it fits
           oh = N * S; ow = oh / it.ar; const gx = (W - (S + 12 + ow)) / 2; ox = gx + S + 12; oy = (TOP - oh) / 2 + 10;
           slotXY = k => ({ x: gx, y: oy + oh - (k + 1) * S });
           const gw = S + 12 + ow * .6 + 16;
           K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy - 1) + ";width:" + px(gw));
           K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy + oh - 1) + ";width:" + px(gw));
         } else {
-          S = Math.min(64, (W - 120) / N, (TOP - 40) / (1 + N * it.ar), (W - 80) / (M + (M - 1) * .16));
+          S = Math.min(K.CUBE, (W - 120) / N, (TOP - 40) / (1 + N * it.ar), (W - 80) / (M + (M - 1) * .16));
           ow = N * S; oh = ow * it.ar; ox = (W - ow) / 2; oy = (TOP - (S + oh)) / 2 + S + 10;
           slotXY = k => ({ x: ox + k * S, y: oy - S });
           const gh = S + 12 + Math.min(oh * .4, 50);
@@ -2504,8 +3229,9 @@ const SlideModules = {
         const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(layer, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
         const gap = Math.round(S * .16), bx = (W - (M * S + (M - 1) * gap)) / 2, by = TY + (TH - S) / 2;
         const blocks = []; for(let j = 0; j < M; j++){ const b = K.cube(layer, j, bx + j * (S + gap), by, S); b._z = 3; b.style.zIndex = 3; blocks.push(b); }
-        run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: null,
-          idleMs: 0, ghostAfterWrong: false, showTiles: false, onAll: ()=> setTimeout(()=> measured(it, layer), 650) });
+        run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: K.hand(layer, S),
+          idleMs: 0, showTiles: false, hints: { say: a => say(a === 1 ? "block_try" : "block_hint") },
+          onAll: ()=> setTimeout(()=> measured(it, layer), 650) });
         run.start();
       }
       function measured(it, layer){
@@ -2537,7 +3263,7 @@ const SlideModules = {
         let drag = null, busy = false;
         const spaceAt = p =>{ const x = p.x - RX, y = p.y; return items.find(o => !o._done && x >= o._hit.x && x <= o._hit.x + o._hit.w && y >= o._hit.y && y <= o._hit.y + o._hit.h) || null; };
         const hover = sp => items.forEach(o => o._sp.classList.toggle("hover", o === sp));
-        const back = ()=>{ busy = true; K.glide(c, home, reduce ? 0 : 420, true).then(()=>{ busy = false; }); };
+        const back = ()=>{ busy = true; return K.glide(c, home, reduce ? 0 : 420, true).then(()=>{ busy = false; }); };
         c.addEventListener("pointerdown", ev =>{
           if(phase !== "place" || busy || drag || !alive()) return;
           ev.preventDefault(); stopNudge();
@@ -2554,17 +3280,24 @@ const SlideModules = {
           drag = null; c.classList.remove("lift"); hover(null);
           const sp = spaceAt(K.local(scene, ev));
           if(!sp){ back(); return; }
-          if(sp === it){ busy = true; fit(it, c); return; }
-          wrongs++; it._wrong = (it._wrong || 0) + 1;                       // the wrong space: back to the tray, nothing else
-          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: it.id, space: sp.id, attempts: it._wrong });
-          sfxWrongSoft(); sp._sp.classList.add("no"); setTimeout(()=> sp._sp.classList.remove("no"), 700);
-          back();
+          if(sp === it){ busy = true; fit(it, c, false); return; }
+          const m = it._wrong = (it._wrong || 0) + 1; wrongs++;                // the hint sheet's Drag & Drop ladder, per object
+          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: it.id, space: sp.id, attempts: m });
+          sfxWrongSoft(); setSwMood("tryagain"); K.shake(sp._sp, 8);           // the wrong space shakes...
+          back().then(()=>{                                                    // ...and the object returns to the tray
+            if(!alive() || phase !== "place" || cur !== it) return;
+            if(m === 1) say("try_again");                                      // attempt 1: think again
+            else if(m === 2){ K.softGlow(it._sp); placeNudge(it._anchor); say("hint"); }   // attempt 2: its space glows + the hand on it
+            else { busy = true; stopNudge();                                   // after the sheet's last attempt: it moves in by itself
+              GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, object: it.id, attempts: m, reason: "wrong" });
+              fit(it, c, true); }
+          });
         };
         c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
       }
-      function fit(it, c){
-        phase = "fit"; it._done = true; placedN++; first = false;
-        sfxCorrect(); stopAudio();
+      function fit(it, c, revealed){
+        phase = "fit"; it._done = true; placedN++; first = false; stopNudge();
+        stopAudio(); if(!revealed){ sfxCorrect(); try{ confettiCannon(); }catch(e){} setSwMood("happy"); say("item_ok"); }   // the sheet: locks + sparkle/confetti + "शाबाश! सही जगह पर रखा।"
         c.classList.add("gone"); setTimeout(()=> c.remove(), 320);
         const r = it._r, o = K.add(room, "img", "cf-placed", "left:" + px(r.x) + ";top:" + px(r.y) + ";width:" + px(r.w) + ";height:" + px(r.h));
         o.src = it.src; o.alt = "";
@@ -2572,7 +3305,7 @@ const SlideModules = {
         it._t.classList.add("done"); it._t.disabled = true;
         GameBus.emit("classroom_placed", { slide_id: slide.id, phase: slide.phase, object: it.id, value: it.n, attempts: (it._wrong || 0) + 1 });
         scene.classList.remove("cf-placing");
-        setTimeout(()=>{ if(!alive()) return; if(placedN >= items.length) finish(); else toPick(false); }, 900);
+        setTimeout(()=>{ if(!alive()) return; if(placedN >= items.length) finish(); else { setSwMood("point"); toPick(false); } }, revealed ? 900 : 2300);
       }
       function finish(){
         phase = "done"; state.locked = true; stopNudge(); clearTimeout(idleT); setHead(slide.prompt_hi || "");
@@ -2580,8 +3313,8 @@ const SlideModules = {
         recordResult(slide, wrongs === 0);
         const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "classroom_done";
         GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrongs === 0, wrong_drops: wrongs, latency_ms: Date.now() - state.slideStart });
-        try{ confettiCannon(); }catch(e){} setSwMood("happy");
-        setTimeout(()=>{ if(alive()) completeSlide(true); }, 2400);
+        setSwMood("happy");                                                    // (the last right drop already threw its confetti)
+        setTimeout(()=>{ if(alive()) completeSlide(true); }, 1200);
       }
       state.replayAudio = ()=>{ if(phase === "pick") say("intro"); else if(phase === "measure" && voFor(cur)) say("measure"); else if(phase === "place" && voFor(cur)) say("place"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
@@ -3304,9 +4037,11 @@ const SlideModules = {
     // PICTURE OPTIONS (MTG2A04 T1 "कौन-सी टेबल ज़्यादा लंबी है?", review 2026-09-30): an option may carry its own
     // asset path + display width, {src, w} - the picture keeps its own aspect instead of the square magnitude box,
     // with a light glint across it; data.look names a CSS look for the row ("tables": no tile, the pictures stand
-    // on one floor line, CSS [T1 tables]); data.wrong_cue:"show_correct" = the deck's "Incorrect: pulsate / hand
-    // nudge on the right one" - on a wrong tap the right picture pulses and the hand points at it (the spoken
-    // line is the slide's try_again audio, via the usual scaffold).
+    // on one floor line, CSS [T1 tables]). data.wrong_cue:"sheet" = the FLN hint logic sheet, MCQ - 2 options (review
+    // 2026-09-30: "for the hint part follow the excel sheet, not the slides"): every wrong tap - the tapped picture
+    // shakes and returns; #1 - nothing else shown (VO: audio.try_again, via mountTapOptions); #2 - after a moment the
+    // right picture glows softly (VO: audio.hint); #3 - the engine shows the answer (audio.reveal) and the hand taps it
+    // (o.tap: its leg), then on. The right option's own audio is the praise ("शाबाश! आपने सही चुना।").
     mount(host, slide){
       const d = slide.data;
       mountTapOptions({
@@ -3314,22 +4049,27 @@ const SlideModules = {
         options: d.options,
         optionRenderer: (o)=>{ const cell = document.createElement("div"); cell.className = "ord-pick";
           if(o.correct === true) cell.dataset.right = "1";
+          /* the picture carries the kit's object outline (recipe 21, `ol ol-alpha`: green on the right answer); o.tap =
+             [x, y] of the picture = where the hand taps it (T1: the long table's front leg), outside .pk-in so the pulse
+             never moves it */
+          const tap = o.tap ? `<i class="pk-tap" style="left:${o.tap[0] * 100}%;top:${o.tap[1] * 100}%"></i>` : "";
           const pic = o.src
-            ? `<span class="pk-pic"><span class="pk-in"><img class="pk-img" src="${o.src}" alt="" style="width:${o.w || 240}px">` +
-              `<span class="pk-shine" style="-webkit-mask-image:url(${o.src});mask-image:url(${o.src})"></span></span></span>`
+            ? `<span class="pk-pic"><span class="pk-in"><img class="pk-img ol ol-alpha" src="${o.src}" alt="" style="width:${o.w || 240}px">` +
+              `<span class="pk-shine" style="-webkit-mask-image:url(${o.src});mask-image:url(${o.src})"></span></span>${tap}</span>`
             : renderOrdObj(o, d.by);
           cell.innerHTML = pic + (o.label ? `<span class="lbl">${o.label}</span>` : ""); return cell; },
         isCorrect: (o)=> o.correct === true,
         mastery: slide.phase === "mastery",
         columnsHint: d.options.length,
         nudgeTarget: null,
-        onWrong: d.wrong_cue === "show_correct" ? (opt, cell)=>{
+        onWrong: d.wrong_cue === "sheet" ? (opt, cell)=>{
+          MDK.shake(cell.querySelector(".pk-in") || cell, 10);                                         // shakes and returns
           const right = host.querySelector('.opt-cell[data-right="1"]'); if(!right || right === cell) return;
-          right.classList.remove("pk-pulse"); void right.offsetWidth; right.classList.add("pk-pulse");   // restart the pulse
-          clearTimeout(right._pkT); right._pkT = setTimeout(()=> right.classList.remove("pk-pulse"), 2600);
-          setTimeout(()=>{ if(!state.locked && right.isConnected) placeNudge(right); }, 450);             // ...and the hand points at it
+          const n = state.attempts;                                                                     // this wrong tap's number
+          if(n === 2) setTimeout(()=>{ if(!state.locked && right.isConnected) MDK.softGlow(right.querySelector(".pk-in") || right, true); }, 600);
+          else if(n >= 3) setTimeout(()=>{ if(right.isConnected) placeNudge(right.querySelector(".pk-tap") || right); }, 450);   // the answer shown: the hand taps its leg
         } : undefined,
-        reask: d.wrong_cue === "show_correct" ? false : undefined   // deck: "Incorrect: ... play VO: <that line>" - no re-ask after it
+        reask: d.wrong_cue === "sheet" ? false : undefined   // the sheet's attempt line only - no re-ask of the question after it
       });
       if(d.look){ const g = host.querySelector(".opt-grid"); if(g) g.classList.add("pk-" + d.look);
         const card = host.closest(".tut-card"); if(card) card.classList.add("tc-" + d.look); }   // the card's own look (CSS [T1 tables]: the floor)
@@ -4341,6 +5081,8 @@ function mountSlide(idx){
   const isTut = (slide.phase === "tutorial" && slide.type !== "PHASE_TRANSITION" && slide.type !== "CELEBRATION");
   $("stage").classList.toggle("tut", isTut);
   document.body.classList.toggle("tut-page", isTut);
+  // a slide's own backdrop (data.bg, CSS .stage[data-bg]) - only while that slide is up; its module sets --horizon
+  $("stage").dataset.bg = (slide.data && slide.data.bg) || ""; $("stage").style.removeProperty("--horizon");
   let mountHost = $("slideHost");
   if(isTut){
     const card = document.createElement("div"); card.className = "tut-card";
@@ -4426,35 +5168,81 @@ const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", pra
 const ANIM_ASSETS = ["loader.gif", "new_landing_swiftee_anim.webp", "peeking.webp", "sw_anim_talk.gif", "sw_anim_teach.gif", "sw_anim_tryagain.gif", "sw_head_celebrate_anim.webp", "sw_head_hint_anim.webp", "sw_head_tryagain_anim.webp", "sw_lg_celebrating_anim.webp"];
 const PG_CLIP_MS = 9720;  // peeking.webp: hands arrive, peek, blink, come out, talk with blinks, duck back; 9.72s, plays once.
 const PG_EXIT_MS = 520;    // .phase-gate.leaving / @keyframes pgDuck - a FALLBACK bound only; animationend is what actually closes the gate
+/* [peek-5] review 2026-09-30: the headline and VO came up the instant the gate opened, while
+   Swiftie was still peeking over the ledge - she "spoke" 4s before her mouth moved. They now
+   wait for her: PG_TALK_MS is peeking.webp's first open-mouth frame (frame 58 of 84, measured
+   from the clip's ANMF frame durations). Until then the gate is Swiftie alone. */
+const PG_TALK_MS = 4140;
+const PG_TAIL_MS = 450;    // a VO that ends while her clip is still talking: hold this long after it, then duck
+const PG_LOAD_CAP_MS = 2500;   // never wait longer than this for the clip to decode
+/* [peek-6] review 2026-09-30: "Swifty is glitching very much in the transition screen". Three causes:
+   1. peeking.webp's ANIM loop count was 0 (= loop forever; the kit builds it as a play-once GIF and
+      the webp conversion dropped that). Every gate that outlived the clip's 9.72s snapped her back to
+      frame 0 - hands only - and she re-peeked while ducking. The file now says 1: play once, then hold
+      the last frame, which is what PG_CLIP_MS and the park-on-her-smile logic always assumed.
+   2. (asset only) At 1500x1500 the clip's frame decode stalled the whole page ~45 times per gate on an
+      Intel UHD laptop; it now ships at 900x900 - same 84 frames, same durations - and stalls ~6 times.
+   3. Each gate restarted her with a fresh ?r= URL, i.e. a new 3.7MB download - a blank blurred beat
+      before her hands appeared, seconds long on a school connection. The clip is now fetched ONCE and
+      each gate gets a new blob: URL of it; a new URL is a new image, so she starts from frame 0 with
+      no network. Where fetch() can't read the file (file:// hosts) the cache-bust remains the fallback. */
+let _peekBlob = null, _peekUrl = "";
+/* after window load: the gate's own <img src> has pulled the file by then, so this is a cache read, not a second download */
+window.addEventListener("load", ()=>{
+  try{ fetch("assets/gif/peeking.webp").then(r => r.ok ? r.blob() : null)
+         .then(b => { if(b) _peekBlob = new Blob([b], { type:"image/webp" }); }).catch(()=>{}); }catch(e){}
+});
+function restartPeek(img){
+  if(!_peekBlob){ img.src = "assets/gif/peeking.webp?r=" + Date.now(); return; }
+  const old = _peekUrl;
+  img.src = _peekUrl = URL.createObjectURL(_peekBlob);
+  if(old) URL.revokeObjectURL(old);
+}
 const _gatedPhases = new Set();   // each phase gate plays ONCE (Start→tutorial, →guided, →practice)
 let _gateToken = 0;
 function phaseBlurTransition(cb, toPhase){
   const tok = ++_gateToken;
   stopNudge(); stopAudio();
   const gate = $("phaseGate"), img = $("phaseGateImg");
-  if(img) img.src = "assets/gif/peeking.webp?r=" + Date.now();   // restart the loop each time (cache-bust)
+  gate.classList.remove("talking");   // headline stays hidden until she talks
+  if(img) restartPeek(img);           // from frame 0, every gate
   const title = $("phaseGateTitle"); if(title) title.textContent = PHASE_GATE_TITLE[toPhase] || "";
   $("stage").classList.add("blurred", "gating");
   document.body.classList.add("gating");
   gate.classList.remove("leaving");   // a gate interrupted mid-exit would open her already off-screen
   gate.classList.add("show");
   GameBus.emit("phase_transition", { to: toPhase });
-  const closeGate = ()=>{ gate.classList.remove("show", "leaving"); $("stage").classList.remove("blurred", "gating"); document.body.classList.remove("gating"); };
-  // VO only if the card actually ships it; else a silent beat — the 2s min-hold keeps the peek visible.
+  const closeGate = ()=>{ gate.classList.remove("show", "leaving", "talking"); $("stage").classList.remove("blurred", "gating"); document.body.classList.remove("gating"); };
+  // VO only if the card actually ships it; else a silent beat — the clip floor keeps the peek visible.
   const voId = PHASE_GATE_VO[toPhase];
   const voSrc = (voId && CARD.assets && CARD.assets.audio && CARD.assets.audio[voId]) || null;
-  const openedAt = Date.now();
-  play(voSrc, ()=>{
+  /* The clip's clock starts when it can actually paint, NOT when the gate opens: decoding a
+     fresh 1500px clip (or downloading it, on the ?r= fallback) takes a moment, and timing from
+     the open would put the VO ahead of her mouth by however long that took. */
+  let clipAt = 0;
+  const startClock = ()=>{
+    if(clipAt || tok !== _gateToken) return;
+    clipAt = Date.now();
+    setTimeout(talk, PG_TALK_MS);
+  };
+  if(img && img.decode) img.decode().then(startClock, startClock); else startClock();
+  setTimeout(startClock, PG_LOAD_CAP_MS);   // a stalled download never strands the gate
+  function talk(){
+    if(tok !== _gateToken) return;          // a newer gate superseded us
+    gate.classList.add("talking");          // headline pops in (CSS) on the same tick the VO starts
+    play(voSrc, afterVo);
+  }
+  function afterVo(){
     if(tok !== _gateToken){ closeGate(); return; }               // a newer gate superseded us
-    /* peeking.webp now plays ONCE: rise, talk, then park on her smile (PG_CLIP_MS).
-       The floor is that clip plus the duck-down, so the beat always completes even
-       with no VO or a short one - the old 3100ms floor was cut to the 3.03s looping
-       clip and closed the gate mid-rise on a silent card. If a future VO is LONGER
-       than the clip, the VO still governs: play()'s callback is what starts this
-       timer, and Swiftie holds her parked smile until it fires. */
-    const hold = Math.max(0, PG_CLIP_MS - (Date.now() - openedAt));
+    /* peeking.webp plays ONCE: rise, talk, then park on her smile (PG_CLIP_MS).
+       A line that outlasts the clip still governs - she holds the parked smile until
+       it ends, then ducks at once. A line that ends while she is still talking (the
+       2.3s practice line against 4.4s of mouth) ducks her PG_TAIL_MS after it, so her
+       beak is not flapping in silence. With no VO at all the whole clip plays out. */
+    const clipLeft = Math.max(0, PG_CLIP_MS - (Date.now() - clipAt));
+    const hold = voSrc ? Math.min(clipLeft, PG_TAIL_MS) : clipLeft;
     const finish = ()=>{
-      gate.classList.remove("show", "leaving");
+      gate.classList.remove("show", "leaving", "talking");
       $("stage").classList.remove("blurred");
       if(cb) cb();                              // mounts the next slide
       $("stage").classList.remove("gating");    // header returns once the slide is in
@@ -4480,7 +5268,7 @@ function phaseBlurTransition(cb, toPhase){
       // reduced-motion, a missing clip, a backgrounded tab: nothing to end, so close anyway
       fallback = setTimeout(once, PG_EXIT_MS + 500);
     }, hold);
-  });
+  }
 }
 
 function completeSlide(success){
@@ -4744,7 +5532,7 @@ function boot(){
       });
       auds.push("assets/voiceover/sfx_celebrate." + ext);   /* [QA 02] the celebration sting (playSfx), not in the VO map */
       [ "loader.gif","startnew_bg_plain.webp","start_card.webp","background_1st_screen.webp","pencil_purple.webp","pencil_face_rig.webp","cubes_blue_row.webp","new_landing_swiftee_anim.webp",
-        "end_screen.webp","peeking.webp","nudge_hand_new.svg","mascot.webp",
+        "end_screen.webp","peeking.webp","nudge_hand_new.svg","nudge_fx_ring_outer.svg","nudge_fx_ring_inner.svg","nudge_fx_sparks.svg","mascot.webp",
         "bgdeco_star.svg","bgdeco_star_o.svg","bgdeco_spark.svg",
         "sw_head_talking.webp","sw_head_celebrate.webp","sw_head_celebrate_anim.webp",
         "sw_head_hint.webp","sw_head_hint_anim.webp","sw_head_neutral.webp",
@@ -4757,9 +5545,18 @@ function boot(){
         "btn-next-default.svg","btn-next-deactive.svg","btn-continue-default.svg","btn-continue-deactive.svg"
       ].forEach(f => imgs.push("assets/" + (ANIM_ASSETS.indexOf(f) >= 0 ? "gif/" : "") + f));
       /* the deck's object art (the tables, the door ... the classroom) is CARD.assets.image, pushed above [QA 02] */
-      /* [measure kit] the result plate + its sparkle, and the two Swiftie poses of the T2/T3 demos (MDK.pose) */
-      ["mk_sparkle","mk_badge_blank","mk_sw_guide","mk_sw_cheer"   /* [QA 01] only the ones a slide shows */
+      /* [measure kit] the result badge + its star (the T2/T3 cheer pose is sw_lg_celebrating_anim, preloaded above - MDK.pose) */
+      ["badge_result",                                               /* [QA 01] only the ones a slide shows */
+       "toybox_back","toybox_front",                                 /* the toy box (MDK.toybox) */
+       "basket_back","basket_front",                                 /* G1's basket (MDK.basket) */
+       "bg_yard_top"                                                 /* G1's outdoor scene: the trees (CSS #stage[data-bg]) */
       ].forEach(f => imgs.push("assets/" + f + "." + IMG_EXT));
+      imgs.push("assets/badge_star.svg", "assets/floor_planks.svg", "assets/painting_carrier.webp", "assets/painting_layers.webp", "assets/painting_cubes.webp",
+        "assets/painting_blank.webp", "assets/painting_answer.webp", "assets/painting_answer_order.png", "assets/painting_upright.webp",
+        "assets/bg_bedroom.webp", "assets/bg_dusk.webp", "assets/bg_kitchen.webp", "assets/bg_terrace.webp", "assets/bg_veranda.webp", "assets/prop_sock.webp",   /* [rooms] */
+        "assets/holder_laundry_back.webp", "assets/holder_laundry_front.webp", "assets/holder_catbed_back.webp", "assets/holder_catbed_front.webp",
+        "assets/holder_tokri_back.webp", "assets/holder_tokri_front.webp",
+        "assets/bg_corkboard.webp", "assets/bg_fridge.webp", "assets/prop_pushpin.webp", "assets/prop_mango.webp", "assets/prop_strawberry.webp", "assets/prop_sunflower.webp");   /* [photos] */   /* + the curtain ending */   /* + T3's wooden floor (a CSS background) */
       return { imgs: imgs, auds: auds, total: imgs.length + auds.length };
     })();
 
@@ -6225,8 +7022,11 @@ boot();
     if(!pen || !pen.complete || !pen.offsetWidth) return false;
     const x0 = pen.offsetLeft + pen.offsetWidth * TIP, x1 = pen.offsetLeft + pen.offsetWidth * END;
     const yTop = pen.offsetTop + pen.offsetHeight * INK_TOP, yBot = pen.offsetTop + pen.offsetHeight * INK_BOT;
-    const C = ROW.cuts, k = (x1 - x0) / (C[N] - C[0]);                 // strip px -> stage px: cube span = pencil span
-    const top = yBot + GAP - ROW.top * k, h = ROW.h * k, cubeBot = yBot + GAP + (ROW.bot - ROW.top) * k;
+    /* every cube EXACTLY square and all the same (review 2026-09-30: "same size length and breadth of cubes in all the
+       slides strictly"): CW = the pencil's span / N - the pencil is sized (CSS [one cube]) so that is MDK.CUBE - and each
+       cube's slice of the strip is stretched to CW x CW (the strip's cubes are 205-213 px wide as drawn), as MDK.cube does */
+    const C = ROW.cuts, CW = (x1 - x0) / N, ky = CW / (ROW.bot - ROW.top);
+    const top = yBot + GAP, cubeBot = yBot + GAP + CW;
     const box = document.createElement("div"); box.className = "sg-measure"; box.setAttribute("aria-hidden", "true");
     /* SHADOWS on the table (review 2026-09-29: "make it look like the cubes are placed on the table ... and the cubes
        making shadow on the table"): the cubes' bases stand on the tabletop, ~27px in front of its back edge, so each
@@ -6236,7 +7036,7 @@ boot();
        its own cube lands (same delay: CSS .sgm-shadow). */
     const SH_UP = 5, SH_H = 21, SH_DX = 3, SH_TAIL = 16;              // stage px
     for(let i = 0; i < N; i++){
-      const l = x0 + (C[i] - C[0]) * k + SH_DX, wd = (C[i + 1] - C[i]) * k + (i === N - 1 ? SH_TAIL : 0);
+      const l = x0 + i * CW + SH_DX, wd = CW + (i === N - 1 ? SH_TAIL : 0);
       const sh = document.createElement("div"); sh.className = "sgm-shadow" + (i === 0 ? " first" : "") + (i === N - 1 ? " last" : "");
       sh.style.cssText = "left:" + l.toFixed(2) + "px;top:" + (cubeBot - SH_UP).toFixed(2) + "px;width:" + wd.toFixed(2) + "px;height:" + SH_H + "px;--d:" + (FIRST + i * STEP) + "ms";
       box.appendChild(sh);
@@ -6250,8 +7050,9 @@ boot();
     box.appendChild(row);
     for(let i = 0; i < N; i++){
       const b = document.createElement("div"); b.className = "sgm-block";
-      b.style.cssText = "left:" + (x0 + (C[i] - C[0]) * k).toFixed(2) + "px;top:" + top.toFixed(2) + "px;width:" + ((C[i + 1] - C[i]) * k).toFixed(2) + "px;height:" + h.toFixed(2) + "px;--d:" + (FIRST + i * STEP) + "ms;" +
-        "background-image:url(" + ROW.src + ");background-size:" + (ROW.w * k).toFixed(2) + "px " + h.toFixed(2) + "px;background-position:" + (-C[i] * k).toFixed(2) + "px 0";
+      const kx = CW / (C[i + 1] - C[i]);                                // this slice, stretched to exactly CW wide
+      b.style.cssText = "left:" + (x0 + i * CW).toFixed(2) + "px;top:" + top.toFixed(2) + "px;width:" + CW.toFixed(2) + "px;height:" + CW.toFixed(2) + "px;--d:" + (FIRST + i * STEP) + "ms;" +
+        "background-image:url(" + ROW.src + ");background-size:" + (ROW.w * kx).toFixed(2) + "px " + (ROW.h * ky).toFixed(2) + "px;background-position:" + (-C[i] * kx).toFixed(2) + "px " + (-ROW.top * ky).toFixed(2) + "px";
       box.appendChild(b);
     }
     /* dashed end lines, centred on the tip and on the eraser end. Length as marked on the review screenshot

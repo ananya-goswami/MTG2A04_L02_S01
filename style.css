@@ -1635,8 +1635,9 @@ body,body.is-start{background:#F2F7FA;}
 .tut-prompt{min-height:118px;font-size:64px;font-weight:800;color:#012F76;
   white-space:nowrap;line-height:1;}
 
-/* --- [09] prompt / header text: SemiBold 32px / 100% / #012F76 --- */
-.prompt-band .prompt-text{font-size:32px;font-weight:600;line-height:1;color:#012F76;}
+/* --- [09] prompt / header text: no override here - it is HI01's own rule (the top of this file): Baloo 2 ExtraBold
+       800 / 30px (--band-font) / 1.15 / navy #0B3D8C (review 2026-10-01: "this is not the correct font, use it exactly
+       from the game HI01H01_L02_S04"). The checklist's SemiBold 32px / #012F76 stood here. --- */
 
 /* --- [09] option and box labels: SemiBold 23.84px / 100% / #012F76 --- */
 .opt-cell .lbl,.dd-zone .lbl,.seq-slot .lbl,.ms-label{
@@ -1683,15 +1684,17 @@ body,body.is-start{background:#F2F7FA;}
        the chip. style.css:43 had a drop-shadow that reads as a blue crescent. --- */
 .audio-chip{filter:none;background:transparent;}
 
-/* --- [13] confetti to the approved system: 10x10px, radius 2, 3s ease-out.
-       This retimes the kit's recipe 7, which is linear terminal-velocity by
-       design; the checklist gauge wins. Count (100), stagger (0-0.5s), palette
-       and host are passed as options at the call site in app.js. --- */
-.fx-confetti .p{animation-duration:3s;animation-timing-function:ease-out;}
-.fx-confetti .f,
-.fx-confetti .sq,.fx-confetti .rc,.fx-confetti .ln,.fx-confetti .st{
-  width:10px;height:10px;border-radius:2px;}
-.fx-confetti .st::before,.fx-confetti .st::after{clip-path:none;}
+/* --- [13] confetti = the FLN animation kit's recipe 7 AS BUILT (review 2026-09-30: "these are all square-shaped
+       and not covering the full horizontal space - take the correct confetti of all types of shapes from the FLN
+       animation tool"): stars, rectangles, lines and squares, two-faced, fluttering / tumbling at terminal velocity.
+       The old override here forced every piece to a 10x10 square, took the stars' outline off and retimed the fall
+       to 3s ease-out; it is gone. The pieces fall in .fx-layer (index.html), which covers the whole window; they are
+       sized with the stage (--scale), so they look the same next to the game at any window size. --- */
+/* --fx-size (review 2026-09-30: "increase the size of confetti"): every piece 1.5x the kit's size - same shapes, same
+   aspect ratios; the slower fall is the `fall` option at the call site (app.js confettiCannon) */
+.fx-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:5000;--fx-size:1.5;}
+.fx-layer .fx-confetti .f{width:calc(var(--w) * var(--z) * var(--scale, 1) * var(--fx-size, 1));
+  height:calc(var(--h) * var(--z) * var(--scale, 1) * var(--fx-size, 1));}
 
 /* --- [08] celebration screen carries NO headline text - star burst, mascot
        and the CTA only. --- */
@@ -2207,6 +2210,15 @@ body.is-start .sg-sky{
   --pg-f:max(32px,min(96px,calc((100vw - 48px) / 7.2),calc(var(--pg-crest) - 40px)));
   font-size:var(--pg-f);top:min(271px,calc(var(--pg-crest) - 16px - var(--pg-f)));
   -webkit-text-stroke:calc(var(--pg-f) * 10 / 96) #FFFFFF;}
+/* [peek-5] the headline waits for Swiftie: hidden while she peeks and rises, pops in when app.js adds .talking (her
+   first open-mouth frame, the same tick the VO starts), and fades as she ducks. The keyframes carry the
+   translateX(-50%) centring so the pop scales about the headline's own centre. Under the reduced-motion kill the
+   animation is dropped and the end state stays, so the headline still appears on cue. */
+.phase-gate .pg-title{opacity:0;}
+.phase-gate.talking .pg-title{opacity:1;animation:pgTitleIn .38s cubic-bezier(.34,1.5,.6,1) both;}
+.phase-gate.talking.leaving .pg-title{animation:pgTitleOut .3s ease-in both;}
+@keyframes pgTitleIn{from{opacity:0;transform:translateX(-50%) scale(.6);}to{opacity:1;transform:translateX(-50%) scale(1);}}
+@keyframes pgTitleOut{to{opacity:0;transform:translateX(-50%) scale(.92);}}
 
 /* [10] WRONG card: the shake never played. A wrong tap carries BOTH .crossed and .wg-wrong, and
    `.opt-cell.crossed{animation:none}` (same specificity, later) beat `.opt-cell.wg-wrong{animation:wgNo}`.
@@ -2225,19 +2237,40 @@ body.is-start .sg-sky{
 .audio-chip:hover{transform:none;}
 .makeset-frame.shake{animation:shake .4s;}   /* [QA 05] gentle wrong-submit shake on the MAKE_SET row */
 
-/* [12] two-layer clipped nudge hand (kit recipe 3, treatment A: clip-path split, ring at contact).
-   Split at 36% of the box height - just below the index finger's base in nudge_hand_new.svg.
-   The finger layer is painted over the palm, so when it presses down it overlaps, never gaps. */
-#nudgeHand img.nh-palm,#nudgeHand img.nh-finger{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
-#nudgeHand img.nh-palm{clip-path:inset(34% 0 0 0);animation:nhPalm 1.3s ease-in-out infinite;}
-#nudgeHand img.nh-finger{clip-path:inset(0 0 62% 0);animation:nhFinger 1.3s ease-in-out infinite;}
-@keyframes nhFinger{0%,100%{transform:translateY(0);}45%,62%{transform:translateY(6px);}}
-@keyframes nhPalm{0%,100%{transform:translateY(0);}45%,62%{transform:translateY(3px);}}
-/* contact ring, centred on the fingertip (34.2, 15.8) */
-#nudgeHand .nh-ring{position:absolute;left:14.2px;top:-4.2px;width:40px;height:40px;border-radius:50%;
-  border:3px solid rgba(255,255,255,.9);box-shadow:0 0 0 2px rgba(25,135,252,.35);
-  opacity:0;animation:nhFx 1.3s ease-out infinite;pointer-events:none;}
-@media (prefers-reduced-motion:reduce){ #nudgeHand img.nh-palm,#nudgeHand img.nh-finger,#nudgeHand .nh-ring{animation:none;} }
+/* [12] the nudge hand = FLN animation kit recipe 3, treatment C (the plain press, `nhTapNew` in the kit's nudge-press
+   block above: contact held 45->62%) + recipe 4, the TAP RIPPLE (review 2026-09-30: "the hand nudge doesn't have the
+   correct tapping effect, it has a circular one - use the toolkit's hand nudge with the tapping ripple"). The old
+   two-layer clipped hand and its plain white contact ring are gone. */
+/* ===== FLN ANIMATION KIT: nudge-ripple BEGIN ===== */
+/* Each layer is on a 120-unit square canvas centred on the ripple origin, so
+   background-size:contain + transform-origin:50% 50% scales it about the fingertip.
+   GEOMETRY: #nudgeHand is 86x108; nudge_hand_new.svg (75x94, viewBox 33 24 75 94)
+   renders at object-fit:contain scale 1.1467 -> fingertip at (34.2, 15.8).
+   The 94.6px FX square is offset to centre exactly there. The layers sit BEHIND the hand (the span comes first)
+   and run the SAME 1.3s as nhTapNew, so the ripple breaks on the frame the finger touches. Assets: the kit's own
+   nudge_fx_ring_outer / _inner / _sparks.svg (from MTKGA02_L01_S01, byte-identical), kept flat in assets/. */
+#nudgeHand .nh-tapfx{position:absolute;width:94.6px;height:94.6px;
+  left:-13.08px;top:-31.48px;pointer-events:none;}
+#nudgeHand .nh-tapfx i{position:absolute;inset:0;display:block;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  transform-origin:50% 50%;opacity:0;}
+#nudgeHand .nh-tapfx .fx-ro{background-image:url(assets/nudge_fx_ring_outer.svg);
+  animation:nhRippleOuter 1.3s ease-out infinite;}
+#nudgeHand .nh-tapfx .fx-ri{background-image:url(assets/nudge_fx_ring_inner.svg);
+  animation:nhRippleInner 1.3s ease-out infinite;}
+#nudgeHand .nh-tapfx .fx-sp{background-image:url(assets/nudge_fx_sparks.svg);
+  animation:nhSparkPop 1.3s ease-out infinite;}
+
+/* inner leads, outer trails - one ripple rolling out */
+@keyframes nhRippleInner{0%,38%{opacity:0;transform:scale(.30);}47%{opacity:1;transform:scale(.74);}
+  70%{opacity:.5;transform:scale(1.10);}90%,100%{opacity:0;transform:scale(1.34);}}
+@keyframes nhRippleOuter{0%,45%{opacity:0;transform:scale(.55);}56%{opacity:.95;transform:scale(.88);}
+  78%{opacity:.4;transform:scale(1.20);}96%,100%{opacity:0;transform:scale(1.46);}}
+@keyframes nhSparkPop{0%,42%{opacity:0;transform:scale(.55);}52%{opacity:1;transform:scale(1);}
+  68%{opacity:1;transform:scale(1.06);}86%,100%{opacity:0;transform:scale(1.18);}}
+/* ===== FLN ANIMATION KIT: nudge-ripple END ===== */
+#nudgeHand img{position:relative;display:block;}   /* over the ripple (the span is absolute and comes first) */
+@media (prefers-reduced-motion:reduce){ #nudgeHand img,#nudgeHand .nh-tapfx i{animation:none;} }
 
 /* [03] landing mascot = EXACTLY HI01H01_L02_S04's first screen (review 2026-09-29: "take exactly the
    size from the 1st screen of HI01H01"): 208px wide, left -24, bottom -12, and its VO chip at
@@ -2359,6 +2392,11 @@ body.is-start .sg-sky{
        283px tall vs 249: at 480px that is +9.84px, taken back with equal negative margins so the
        pencil keeps the purple one's layout slot and centre and the title/CTA do not move. --- */
 .sg-art img[src*="pencil_purple"]{margin:-4.92px 0;}
+/* [one cube] review 2026-09-30: every cube in the game exactly the same (MDK.CUBE = 76 stage px) - the landing's too. Its
+   seven cubes span the pencil's ink (x 7..1650 of its 1658 px), so the pencil is 7 x 76 / (1643 / 1658) = 536.87px wide
+   (was 480: 68px cubes); its framing margin scales with it */
+.sg-art img[src*="assets/pencil"]{width:536.87px;max-width:none;}
+.sg-art img[src*="pencil_purple"]{margin:-5.5px 0;}
 
 /* --- [landing measure] reference visual "blocks (cube) appear one by one" under the pencil - an ADDITION only:
        the pencil, title, CTA and Swifty are untouched. #sgHero only becomes a positioned, isolated box so the row
@@ -2416,8 +2454,10 @@ body.is-start .sg-sky{
    - no tile: both tables stand on ONE floor line (grid aligned to the bottom), each on its own soft floor shadow;
    - they drop in one after the other and land with a small squash (the picture moves, the shadow stays and grows);
    - a light glint runs across each table now and then (masked to the table's own shape);
-   - hover lifts, a press squashes; right = a green glow on the table, wrong = a red glow + the kit's shake;
-   - the deck's "Incorrect: pulsate / hand nudge on the long table" = .pk-pulse (+ the engine's hand).
+   - hover lifts, a press squashes; right = the kit's green object outline (recipe 21) + its pop;
+   - wrong = the FLN hint logic sheet, MCQ - 2 options (app.js PICK_EXTREME, MDK.shake / MDK.softGlow): the tapped table
+     shakes and returns (no red); at the 2nd wrong tap the long table glows softly; after the 3rd the answer is shown
+     and the kit's tap hand taps its front leg.
    The checklist's tile borders/backgrounds (!important) are switched off here: the tables are the targets. */
 /* ON THE GROUND (review 2026-09-30: "place the tables a little more down, they should look like they are on ground",
    + "a non-distracting background"): the card gets a floor - the bottom third, a light wood floor under the
@@ -2463,19 +2503,26 @@ body.is-start .sg-sky{
 .pk-tables .opt-cell:nth-child(2) .pk-shine::before{animation-delay:2.3s;}
 @media (hover:hover){ .pk-tables .opt-cell:hover .pk-in{transform:translateY(-6px);} }
 .pk-tables .opt-cell:active .pk-in{transform:scale(1.02,.95);}
-.pk-tables .opt-cell.pk-pulse .pk-in{animation:pkPulse .78s ease-in-out 3;}
-.pk-tables .opt-cell.correct .pk-img,.pk-tables .opt-cell.ck-correct .pk-img{
-  filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 16px rgba(0,177,50,.75));}
-.pk-tables .opt-cell.wg-wrong .pk-img{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 12px rgba(249,53,68,.7));}
+/* RIGHT = FLN animation kit recipe 21, engine A (review 2026-09-30: "the green outline is very bad - a better green
+   outline of the element"): a clean green stroke computed from the table's own alpha - the kit's `.ol-alpha` four
+   zero-blur passes + a soft glow - and its olYes pop from the table's feet. At rest the stroke is see-through (no idle
+   white outline on the tutorial card). WRONG shows no red on the tables - no red box, no red glow (review: "a red box
+   appears, which shouldn't happen"): the kit's tile layers (the .wg-fx pulse box, the .ck-fx crown) are off here. */
+.pk-tables .pk-img.ol{--ol-idle:rgba(0,177,50,0);--ol-w:4px;--ol-soft:6px;cursor:inherit;transition:filter calc(var(--olT) * .175) linear;}
+.pk-tables .opt-cell.correct .pk-img.ol-alpha,.pk-tables .opt-cell.ck-correct .pk-img.ol-alpha{
+  --ol-c:var(--correct,#00B132);animation:olYes calc(var(--olT) * 1.35) ease-in-out both;}
+.pk-tables .wg-fx,.pk-tables .ck-fx{display:none !important;}
+/* the hand's anchor (the answer shown after the last wrong tap) = the tap point on the right table's front leg
+   (data: options[].tap = [x, y], fractions of the picture). placeNudge puts the fingertip 8px under its target's
+   lower edge, so this 2px dot sits 10px above it. */
+.pk-tables .pk-tap{position:absolute;width:2px;height:2px;margin:-10px 0 0 -1px;pointer-events:none;}
 .pk-tables .opt-cell.faded .pk-pic{opacity:.45;transition:opacity .3s;}
 @keyframes pkDrop{0%{opacity:0;transform:translateY(-54px);}55%{opacity:1;transform:translateY(0) scale(1.03,.94);}
   76%{transform:translateY(-7px) scale(.99,1.02);}100%{opacity:1;transform:none;}}
 @keyframes pkShadow{0%{opacity:0;transform:scaleX(.45);}55%{opacity:1;transform:scaleX(1.04);}100%{opacity:1;transform:none;}}
 @keyframes pkShine{0%{transform:translateX(0);}34%,100%{transform:translateX(960%);}}
-@keyframes pkPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);filter:drop-shadow(0 0 12px rgba(255,190,30,.9));}}
 @media (prefers-reduced-motion:reduce){
   .pk-tables .pk-pic,.pk-tables .opt-cell::before,.pk-tables .pk-shine::before{animation:none;}
-  .pk-tables .opt-cell.pk-pulse .pk-in{animation:none;filter:drop-shadow(0 0 12px rgba(255,190,30,.9));}
 }
 
 /* ==================== [measure kit] MDK + MEASURE_DEMO and the other measuring slides (review 2026-09-30) ====================
@@ -2499,35 +2546,129 @@ body.is-start .sg-sky{
 .md-shadow{position:absolute;height:26px;border-radius:50%;z-index:0;opacity:0;
   background:radial-gradient(closest-side,rgba(18,48,98,.28),rgba(18,48,98,.12) 58%,rgba(18,48,98,0));}
 .md-stage.in .md-shadow{animation:pkShadow .7s ease-out forwards;}
-/* the toy box */
-.md-box-back,.md-box-front{position:absolute;box-sizing:border-box;opacity:0;pointer-events:none;}
-.md-box-back{z-index:2;border:4px solid #F6C343;border-bottom:0;border-radius:18px 18px 6px 6px;
-  background:linear-gradient(180deg,#B8262E,#8E1B22);box-shadow:inset 0 12px 16px rgba(0,0,0,.28);}
-.md-box-front{border:4px solid #F6C343;border-radius:10px 10px 18px 18px;
-  background:repeating-linear-gradient(90deg,rgba(0,0,0,0) 0 44px,rgba(0,0,0,.09) 44px 46px),linear-gradient(180deg,#F2545A,#C82F37);
-  box-shadow:0 10px 14px rgba(20,50,100,.20),inset 0 3px 0 rgba(255,255,255,.35);}
-.md-box-front::after{content:"\2605";position:absolute;left:50%;top:50%;translate:-50% -54%;font-size:30px;line-height:1;color:#F6C343;
-  text-shadow:0 2px 0 rgba(120,30,20,.35);}
+/* the toy box = the supplied art, two layers of one rect (app.js MDK.toybox; review 2026-09-30: "replace image 1
+   asset with image 2 red box"): the empty box behind the blocks, its front wall (rim, starred panel, feet) over them */
+.md-box-back,.md-box-front{position:absolute;opacity:0;pointer-events:none;background:center / 100% 100% no-repeat;}
+.md-box-back{z-index:2;background-image:url(assets/toybox_back.webp);filter:drop-shadow(0 8px 10px rgba(20,50,100,.18));}
+.md-box-front{background-image:url(assets/toybox_front.webp);}
 .md-stage.in .md-box-back,.md-stage.in .md-box-front{animation:mdPopIn .5s cubic-bezier(.3,1.5,.5,1) .3s forwards;}
+/* G1's basket (MDK.basket, review 2026-10-01: "use this for better slide"): the same two layers, the mock-up's woven
+   basket - behind the blocks its emptied inside, over them its front rim and wall; a soft warm shadow on the ground */
+.md-box-back.basket{background-image:url(assets/basket_back.webp);filter:drop-shadow(0 9px 9px rgba(122,74,24,.22));}
+.md-box-front.basket{background-image:url(assets/basket_front.webp);}
+/* on G1's sand (data.bg "yard") the place a block is dragged to keeps the light blue it has on the plain slides (the
+   plain pulse's half-white turns grey on the sand); it pulses to a stronger blue. Only that one place shows, as on every
+   other slide (review 2026-10-01: "all the white boxes all together are looking odd - only the dotted one should come
+   when I drag") */
+#stage[data-bg="yard"] .md-slot{background:rgba(228,240,255,.92);border-color:rgba(47,130,222,.82);}
+#stage[data-bg="yard"] .md-slot.target{animation:mdSlotYard .9s ease-in-out infinite;}
+@keyframes mdSlotYard{0%,100%{border-color:rgba(47,130,222,.82);background:rgba(228,240,255,.92);}50%{border-color:#2F82DE;background:rgba(184,218,255,.96);}}
+@media (prefers-reduced-motion:reduce){#stage[data-bg="yard"] .md-slot.target{animation:none;background:rgba(200,226,255,.96);}}
+/* a slide's own backdrop (data.bg; mountSlide sets it, the slide sets --horizon, stage px). "yard" (G1) = the mock-up's
+   outdoor scene (review 2026-10-01: "this should have outdoor background scene, also the mango one I want" - after
+   "keep the background minimal, non distracting"): a strip of sky, the plain sand wall with its darker plinth, the sand
+   ground; over them assets/bg_yard_top.webp - the mock-up's leafy canopy top-left, its mango tree top-right with the
+   dappled shade of its leaves on the wall, two soft bricks. Nothing moves; the wall meets the ground half-way up the
+   charpai, where the mock-up has it (the sky's join hides behind the header bar). */
+#stage[data-bg="yard"]{background:url(assets/bg_yard_top.webp) left top / 100% auto no-repeat,
+  linear-gradient(180deg,#7AD2FB 0,#93DAF9 42px,#FDE2AB 44px,#FDE1A8 calc(var(--horizon,55%) - 27px),
+    #F9C382 calc(var(--horizon,55%) - 26px),#F7BA77 calc(var(--horizon,55%) - 1px),#FCD296 calc(var(--horizon,55%) + 1px),#FCD59B 100%);}
+#stage[data-bg="yard"] .md-shadow{background:radial-gradient(closest-side,rgba(112,70,26,.26),rgba(112,70,26,.1) 58%,rgba(112,70,26,0));}
+/* [rooms] review 2026-10-01: "relatable backgrounds for these slides ... not too distracting, on the theme of the main
+   elements, funny, relatable, eye-pleasing". G2 a bedroom (a school bag, a teddy, a calendar), G2b the same at dusk (the
+   moon; the cat glaring at its own bed, full of blocks), G3 a kitchen (a counter, dabbas, a teapot, tulsi on the sill, a
+   mouse), G4 a sunny terrace seen from above (a kite, papads drying, a pigeon eyeing them), P1 a veranda (a grille window,
+   a clock, a plant, a curious dog, a red-oxide floor). Each is one image drawn in stage px with 60px more wall above and
+   floor below; its wall meets its floor at the horizon it was drawn for (H0: 516 / 424 / 516 / 168 / 606) and it shifts
+   with the slide's own --horizon, so the object always stands on its floor. Props: Fluent 3D emoji (MIT). */
+#stage[data-bg="bedroom"]{background:url(assets/bg_bedroom.webp) 0 calc(var(--horizon,516px) - 576px) / 100% auto no-repeat,#D9B07D;}
+#stage[data-bg="dusk"]{background:url(assets/bg_dusk.webp) 0 calc(var(--horizon,424px) - 484px) / 100% auto no-repeat,#DDC7A8;}
+#stage[data-bg="kitchen"]{background:url(assets/bg_kitchen.webp) 0 calc(var(--horizon,516px) - 576px) / 100% auto no-repeat,#EDDFCA;}
+#stage[data-bg="terrace"]{background:url(assets/bg_terrace.webp) 0 calc(var(--horizon,168px) - 228px) / 100% auto no-repeat,#E2D6C0;}
+#stage[data-bg="veranda"]{background:url(assets/bg_veranda.webp) 0 calc(var(--horizon,606px) - 666px) / 100% auto no-repeat,#BC7361;}
+/* [photos] P2 the class notice board, P3 the fridge door - full-stage, no floor line */
+#stage[data-bg="corkboard"]{background:url(assets/bg_corkboard.webp) 0 0 / 100% 100% no-repeat,#C99A62;}
+#stage[data-bg="fridge"]{background:url(assets/bg_fridge.webp) 0 0 / 100% 100% no-repeat,#EFEBE3;}
+#stage[data-bg="bedroom"] .md-shadow,#stage[data-bg="kitchen"] .md-shadow,#stage[data-bg="veranda"] .md-shadow{background:radial-gradient(closest-side,rgba(96,62,28,.28),rgba(96,62,28,.1) 58%,rgba(96,62,28,0));}
+#stage[data-bg="dusk"] .md-shadow{background:radial-gradient(closest-side,rgba(78,56,88,.26),rgba(78,56,88,.1) 58%,rgba(78,56,88,0));}
+/* the other holders (MDK.holder): the same two layers as the toy box */
+.md-box-back.h-laundry{background-image:url(assets/holder_laundry_back.webp);filter:drop-shadow(0 8px 9px rgba(150,70,110,.2));}
+.md-box-front.h-laundry{background-image:url(assets/holder_laundry_front.webp);}
+.md-box-back.h-catbed{background-image:url(assets/holder_catbed_back.webp);filter:drop-shadow(0 8px 9px rgba(120,80,20,.22));}
+.md-box-front.h-catbed{background-image:url(assets/holder_catbed_front.webp);}
+.md-box-back.h-tokri{background-image:url(assets/holder_tokri_back.webp);filter:drop-shadow(0 8px 9px rgba(110,70,20,.24));}
+.md-box-front.h-tokri{background-image:url(assets/holder_tokri_front.webp);}
+/* a joke ON the object (data.gag - a pair of socks caught in the almirah's doors) */
+.md-gag{position:absolute;height:auto;pointer-events:none;z-index:2;opacity:0;transform-origin:50% 0;filter:drop-shadow(0 2px 2px rgba(60,40,20,.25));}
+.md-stage.in .md-gag{animation:mdFade .4s ease-out .5s forwards;}
 .md-stage.in .md-box-back.empty,.md-stage.in .md-box-front.empty{animation:mdFadeOut .5s ease-in forwards;}
+/* ==== [t3-room] T3, the door's room (review 2026-09-30): the cubes in the arms of a man in a painting on the wall (MDK.wallPainting), a wooden
+   floor with a skirting board, a warm light in the gap under the door spilling onto the floor ==== */
+.md-painting{position:absolute;z-index:2;pointer-events:none;opacity:0;}
+.md-painting img{position:absolute;left:0;top:0;display:block;filter:drop-shadow(0 8px 10px rgba(20,50,100,.2));}
+/* its cubes: a real cube is unseen while it sits on its painted one (not lifted, not flying, not a hint's ghost) */
+.md-block.in-art-home:not(.lift):not(.moving):not(.ghost):not(.pt-settle){opacity:0 !important;clip-path:var(--pt-hit,none);}
+/* the painting's ending (MDK.wallPainting reveal): the curtain drops inside the frame, the paper behind it goes blank, the
+   answer is written in crayon with a crayon tip moving along the strokes */
+.md-painting .pt-blank{transition:opacity .15s linear;}
+.md-painting .pt-answer{position:absolute;display:block;pointer-events:none;}
+.md-painting .pt-curtain-box{position:absolute;overflow:hidden;pointer-events:none;z-index:4;}
+.md-painting .pt-curtain{display:block;translate:0 -104%;filter:drop-shadow(0 5px 6px rgba(40,0,6,.3));}
+.md-painting .pt-crayon{width:34px;height:34px;z-index:5;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));}
+/* in hand, a painting's cube looks like ITS painted cube (MDK.wallPainting: its frame of painting_cubes.webp); placed on the
+   door it turns glossy - the cube's own art shows and the crayon look fades off it */
+.md-block.pt-cube::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:url("assets/painting_cubes.webp") var(--pt-x,0) 0 / 600% 100% no-repeat;transition:opacity .35s ease;}
+.md-block.pt-cube:not(.glossy){background-image:none !important;}
+.md-block.pt-cube.glossy::before{opacity:0;}
+/* the painted cubes erased once their real cubes are on the door (MDK.wallPainting erase): one canvas over his stack,
+   paper only where cubes are gone (drawn 1:1 per cube, so erased neighbours join with no seam); no shadow of its own */
+.md-painting .pt-erase-cv{position:absolute;pointer-events:none;display:block;}
+.md-painting-front{position:absolute;pointer-events:none;}
+.md-stage.in .md-painting{animation:mdHangIn .45s ease-out .1s forwards;}         /* settles onto its nail before the cubes appear */
+
+@keyframes mdHangIn{0%{opacity:0;translate:0 -12px;}100%{opacity:1;translate:0 0;}}
+/* the light under the door (review 2026-09-30: "the light coming out of the door is very loud"): a quiet, steady sliver
+   of warm light in the gap - brightest mid-door, dying out toward the jambs - its glow falling only down, and a short,
+   soft warm patch on the floor in front of it. No halo (light does not shine through the door's wood) and no pulse. */
+.md-doorlight{position:absolute;z-index:1;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,rgba(255,196,60,0),rgba(255,204,80,.95) 12%,#FFD965 50%,rgba(255,204,80,.95) 88%,rgba(255,196,60,0));
+  box-shadow:0 3px 7px -2px rgba(255,180,40,.65);}                     /* warm yellow (review: "the light should be yellow warm light") */
+.md-doorlight::after{content:"";position:absolute;left:-4%;right:-4%;top:100%;height:calc(var(--spill,40px) * .7);filter:blur(3px);
+  background:radial-gradient(50% 100% at 50% 0,rgba(255,196,70,.55),rgba(255,196,70,.2) 45%,rgba(255,196,70,0));}
+.md-stage.in .md-doorlight{animation:mdFade .6s ease-out .7s forwards;}   /* once the door has landed; then it holds still */
+.tut-card.tc-floor.floor-wood::before{top:calc(var(--floor-top,65%) - 10px);   /* 10px higher: the skirting board is on the WALL */
+  background:
+    linear-gradient(180deg,#FFFFFF 0,#F3EADD 7px,#D8C8B2 9.5px,rgba(80,45,18,.34) 10px,rgba(80,45,18,.12) 16px,rgba(80,45,18,0) 26px),
+    linear-gradient(180deg,rgba(60,30,10,.09),rgba(60,30,10,0) 40%) 0 10px / 100% calc(100% - 10px) no-repeat,
+    url("assets/floor_planks.svg") 0 10px / 240px calc(100% - 10px) repeat-x,
+    #DFC098;}
+/* the room's wall (review 2026-09-30: "wall painting in minimal way"): plain warm paint instead of the graph paper, a
+   touch lighter up top - nothing on it to look at but the door, the rack and the cubes */
+.tut-card.wall-paint{background-color:#F4EBDF;background-image:linear-gradient(180deg,#FAF5EE 0%,#F5ECE0 55%,#EFE3D3 100%);background-size:auto;}
 /* the blocks */
 .md-block{position:absolute;z-index:3;background-repeat:no-repeat;cursor:grab;touch-action:none;user-select:none;opacity:0;
-  filter:drop-shadow(0 3px 3px rgba(12,46,92,.22));transition:filter .15s;}
+  filter:drop-shadow(0 3px 3px rgba(12,46,92,.22));rotate:var(--rot, 0deg);transition:filter .15s,rotate .22s ease-out;}
+/* a block lies askew in the box (--rot, MDK.toybox's PILE) - picked up, a ghost, or laid in the row it is square */
+.md-block.lift,.md-block.placed,.md-block.ghost{rotate:0deg;}
 .md-stage.in .md-block{animation:mdFade .35s ease-out forwards;animation-delay:calc(.55s + var(--i,0) * 60ms);}
 .md-block.lift{cursor:grabbing;filter:drop-shadow(0 14px 10px rgba(12,46,92,.30));scale:1.07;}
-.md-block.placed{cursor:default;}
+.md-block.placed{cursor:default;transition:filter .35s ease;}   /* its green outline flash (MDK.okFlash) fades out */
+/* a correctly placed block: a green outline on its own shape (review 2026-09-30: "not a tick mark ... a green outline boundary
+   around that cube") - the kit's ENGINE A (.ol-alpha: four axis passes of a zero-blur drop-shadow) in its correct green */
+.md-block.ok{filter:drop-shadow(3px 0 0 #00B132) drop-shadow(-3px 0 0 #00B132) drop-shadow(0 3px 0 #00B132) drop-shadow(0 -3px 0 #00B132) drop-shadow(0 3px 3px rgba(12,46,92,.22));}
 .md-block.ghost{opacity:.5 !important;animation:none !important;pointer-events:none;filter:none;}
 /* the dashed end lines + flags */
 .md-line{position:absolute;z-index:2;opacity:0;pointer-events:none;}
-.md-line.v{width:8px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='19'%3E%3Crect width='8' height='12' rx='4' fill='%23F03C8C'/%3E%3C/svg%3E") center top/8px 19px repeat-y;transform-origin:50% 0;}
-.md-line.h{height:8px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='8'%3E%3Crect width='12' height='8' rx='4' fill='%23F03C8C'/%3E%3C/svg%3E") left center/19px 8px repeat-x;transform-origin:0 50%;}
-.md-line.show{animation:mdFade .45s ease-out forwards;}
-.md-line.v.show.pulse{animation:mdFade .45s ease-out forwards,mdPulseV .8s ease-in-out .45s 4;}
-.md-line.h.show.pulse{animation:mdFade .45s ease-out forwards,mdPulseH .8s ease-in-out .45s 4;}
-.md-flag{position:absolute;width:34px;height:42px;z-index:6;opacity:0;scale:.3;transform-origin:4px 40px;pointer-events:none;}
-.md-flag.start{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='42'%3E%3Crect x='2' y='2' width='4' height='40' rx='2' fill='%236B4A2B'/%3E%3Cpath d='M6 4 L32 11 L6 19 Z' fill='%232DB84C' stroke='%231C7F33' stroke-width='1.6' stroke-linejoin='round'/%3E%3Ccircle cx='4' cy='3' r='3' fill='%23F6C343'/%3E%3C/svg%3E") center/contain no-repeat;}
-.md-flag.end{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='42'%3E%3Crect x='2' y='2' width='4' height='40' rx='2' fill='%236B4A2B'/%3E%3Crect x='6' y='4' width='26' height='17' rx='2' fill='%23fff' stroke='%23222' stroke-width='1.4'/%3E%3Cg fill='%23222'%3E%3Crect x='6' y='4' width='6.5' height='5.7'/%3E%3Crect x='19' y='4' width='6.5' height='5.7'/%3E%3Crect x='12.5' y='9.7' width='6.5' height='5.7'/%3E%3Crect x='25.5' y='9.7' width='6.5' height='5.7'/%3E%3Crect x='6' y='15.3' width='6.5' height='5.7'/%3E%3Crect x='19' y='15.3' width='6.5' height='5.7'/%3E%3C/g%3E%3Ccircle cx='4' cy='3' r='3' fill='%23F6C343'/%3E%3C/svg%3E") center/contain no-repeat;}
-.md-flag.show{animation:mdFlag .55s cubic-bezier(.3,1.6,.5,1) forwards,mdWave 2.4s ease-in-out .6s infinite;}
+.md-line.v{width:10px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='16'%3E%3Crect x='.5' y='.5' width='9' height='13' rx='4.5' fill='%23fff' fill-opacity='.92'/%3E%3Crect x='3' y='3' width='4' height='8' rx='2' fill='%232458C6'/%3E%3C/svg%3E") center bottom/10px 16px repeat-y;}
+.md-line.h{height:10px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Crect x='.5' y='.5' width='13' height='9' rx='4.5' fill='%23fff' fill-opacity='.92'/%3E%3Crect x='3' y='3' width='8' height='4' rx='2' fill='%232458C6'/%3E%3C/svg%3E") left center/16px 10px repeat-x;}
+.md-line.v.show{animation:mdDrawV .5s ease-out forwards;}
+.md-line.h.show{animation:mdDrawH .5s ease-out forwards;}
+.md-line.v.show.pulse{animation:mdDrawV .5s ease-out forwards,mdLineGlow .8s ease-in-out .5s 4;}
+.md-line.h.show.pulse{animation:mdDrawH .5s ease-out forwards,mdLineGlow .8s ease-in-out .5s 4;}
+.md-flag{position:absolute;width:40px;height:50px;z-index:7;opacity:0;transform-origin:4px 50%;pointer-events:none;}
+.md-flag svg{display:block;overflow:visible;}
+.md-flag.show{animation:mdPlant .5s cubic-bezier(.3,1.2,.5,1) forwards;}
 /* tiles, the arrow, digits, marks */
 .md-slot{position:absolute;z-index:2;box-sizing:border-box;border:3px dashed rgba(47,130,222,.75);border-radius:12px;
   background:rgba(255,255,255,.55);opacity:0;transition:opacity .2s;pointer-events:none;}
@@ -2558,22 +2699,34 @@ body.is-start .sg-sky{
   transform-origin:34px 16px;}
 .md-hand.on{opacity:1;}
 .md-hand.press{scale:.9;}
-/* the result plate */
+/* the result plate - the supplied golden badge (review 2026-09-30: "change it with this"; MDK.plate). The text sits on
+   the badge's cream (its box, measured on badge_result.webp) in the art's own maroon; MDK.plate sizes it with the badge */
 .md-plate{position:absolute;z-index:14;pointer-events:none;opacity:0;scale:.5;}
 .md-plate-img{position:absolute;inset:0;width:100%;height:100%;}
-.md-plate-spark{position:absolute;left:-10%;top:-22%;width:120%;height:144%;object-fit:contain;opacity:.75;animation:mdSparkle 1.6s ease-in-out infinite;}
-.md-plate-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-hi);
-  font-weight:800;font-size:26px;color:#012F76;white-space:nowrap;padding-bottom:3px;}
+.md-plate-text{position:absolute;inset:26.4% 5.86% 16.46% 11.71%;display:flex;align-items:center;justify-content:center;font-family:var(--font-hi);
+  font-weight:800;font-size:26px;line-height:1;color:#6F1203;white-space:nowrap;}
+/* its two stars, lifted off the art (badge_star.svg) and set back where they were, at the art's tilt. On .cheer - the
+   moment the VO has said the count (MEASURE_DEMO) - each spins once INWARD, its top point sweeping toward the badge's
+   middle (top-right anticlockwise, bottom-left clockwise), swelling a little mid-turn */
+.md-plate-star{position:absolute;height:auto;pointer-events:none;}
+.md-plate-star.s1{left:79.08%;top:4.44%;width:19.06%;rotate:22deg;}
+.md-plate-star.s2{left:1.67%;top:56.69%;width:20.2%;rotate:-14deg;}
+.md-plate.cheer .md-plate-star.s1{animation:bsSpinIn1 1.1s cubic-bezier(.45,.05,.25,1) both;}
+.md-plate.cheer .md-plate-star.s2{animation:bsSpinIn2 1.1s cubic-bezier(.45,.05,.25,1) both;}
+@keyframes bsSpinIn1{0%{rotate:22deg;scale:1;}45%{scale:1.32;}100%{rotate:-338deg;scale:1;}}
+@keyframes bsSpinIn2{0%{rotate:-14deg;scale:1;}45%{scale:1.32;}100%{rotate:346deg;scale:1;}}
 .md-plate.in{animation:mdPop .55s cubic-bezier(.3,1.6,.5,1) forwards;}
+/* rising out of the toy box (MDK.boxPlate animates it): from its foot, no pop-in */
+.md-plate.rise{scale:1;transform-origin:50% 100%;filter:drop-shadow(0 6px 8px rgba(20,50,100,.22));}
 .tut-mascot.md-pose{height:176px;}
 @keyframes mdFade{from{opacity:0;}to{opacity:1;}}
 @keyframes mdFadeOut{from{opacity:1;}to{opacity:0;}}
 @keyframes mdPopIn{0%{opacity:0;scale:.6;}100%{opacity:1;scale:1;}}
 @keyframes mdPop{0%{opacity:0;scale:.3;}100%{opacity:1;scale:1;}}
-@keyframes mdFlag{0%{opacity:0;scale:.3;}100%{opacity:1;scale:1;}}
-@keyframes mdWave{0%,100%{rotate:0deg;}50%{rotate:-6deg;}}
-@keyframes mdPulseV{0%,100%{scale:1 1;filter:none;}50%{scale:1.7 1;filter:drop-shadow(0 0 6px rgba(240,60,140,.9));}}
-@keyframes mdPulseH{0%,100%{scale:1 1;filter:none;}50%{scale:1 1.7;filter:drop-shadow(0 0 6px rgba(240,60,140,.9));}}
+@keyframes mdPlant{0%{opacity:0;clip-path:inset(100% -40% -20% -40%);}35%{opacity:1;}100%{opacity:1;clip-path:inset(-20% -40% -20% -40%);}}
+@keyframes mdDrawV{0%{opacity:1;clip-path:inset(0 0 100% 0);}100%{opacity:1;clip-path:inset(0 0 0 0);}}
+@keyframes mdDrawH{0%{opacity:1;clip-path:inset(0 100% 0 0);}100%{opacity:1;clip-path:inset(0 0 0 0);}}
+@keyframes mdLineGlow{0%,100%{filter:none;}50%{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(36,88,198,.95));}}
 @keyframes mdSlot{0%,100%{border-color:rgba(47,130,222,.75);background:rgba(255,255,255,.55);}50%{border-color:#2F82DE;background:rgba(214,234,255,.8);}}
 @keyframes mdBeat{0%,100%{opacity:1;scale:1;}50%{opacity:.55;scale:1.06;}}
 @keyframes mdBobY{0%,100%{translate:0 0;}50%{translate:0 8px;}}
@@ -2581,14 +2734,16 @@ body.is-start .sg-sky{
 @keyframes mdSparkle{0%,100%{opacity:.45;scale:.96;}50%{opacity:.85;scale:1.04;}}
 @media (prefers-reduced-motion:reduce){
   .md-stage.in .md-obj,.md-stage.in .md-shadow,.md-stage.in .md-box-back,.md-stage.in .md-box-front,.md-stage.in .md-block{animation:none;opacity:1;scale:1;}
+  .md-stage.in .md-painting,.md-stage.in .md-doorlight{animation:none;opacity:1;}
   .md-line.show,.md-line.show.pulse{animation:none;opacity:1;}
-  .md-flag.show{animation:none;opacity:1;scale:1;}
-  .md-slot.target,.md-endmark,.md-err,.md-arrow,.md-plate-spark{animation:none;}
+  .md-flag.show{animation:none;opacity:1;}
+  .md-slot.target,.md-endmark,.md-err,.md-arrow{animation:none;}
   .md-num.in,.md-mark.in,.md-plate.in{animation:none;opacity:1;scale:1;}
 }
 
 /* ---- [measure kit] MEASURE_ASK: the three answer cards (the checklist's MCQ card: white, 2.69px #D5D8DF, 16px radius,
-   a bottom ledge), the blocks' glow (wrong #1) and the one-by-one highlight (wrong #2); the row's start flag faces away ---- */
+   a bottom ledge; wrong = its red border while it shakes, the hint sheet's soft glow is MDK.softGlow); the blocks' glow
+   (COMPARE_MEASURED's right answer); the row's start flag faces away ---- */
 .mq-opts{position:absolute;left:0;right:0;display:flex;justify-content:center;gap:30px;z-index:20;opacity:0;pointer-events:none;}
 .mq-opts.in{opacity:1;pointer-events:auto;}
 .mq-opt{min-width:190px;height:84px;padding:0 22px;border-radius:16px;background:#fff;border:2.69px solid #D5D8DF;box-shadow:0 4px 0 #D9D9D9;
@@ -2602,16 +2757,13 @@ body.is-start .sg-sky{
 .mq-opt.correct{border:5px solid #00B132;background:#EFFBF2;}
 .mq-opt.faded{opacity:.45 !important;}
 .md-block.glow{animation:mdGlow .8s ease-in-out 2 !important;opacity:1;}
-.md-block.hl{scale:1.12;z-index:25 !important;filter:drop-shadow(0 0 10px rgba(255,196,26,.95)) drop-shadow(0 6px 6px rgba(12,46,92,.25));transition:scale .15s,filter .15s;}
-.md-flag.flip{scale:-1 1;transform-origin:4px 40px;}
-.md-flag.flip.show{animation:mdFlagFlip .55s cubic-bezier(.3,1.6,.5,1) forwards;}
 @keyframes mdGlow{0%,100%{filter:drop-shadow(0 3px 3px rgba(12,46,92,.22));}50%{filter:drop-shadow(0 0 12px rgba(255,196,26,.95)) drop-shadow(0 3px 3px rgba(12,46,92,.22));}}
-@keyframes mdFlagFlip{0%{opacity:0;scale:-.3 .3;}100%{opacity:1;scale:-1 1;}}
 
 /* ---- [measure kit] COMPARE_MEASURED (G4 the mats, P1 the chairs): one tap area over each object and its blocks; the
-   right one lifts a little with a green glow, the other greys; the mats' soft shadow; the hand's anchor ---- */
+   right one lifts a little with a green glow, the other greys; the mats' soft shadow. .md-anchor = a hint hand's target
+   (placeNudge sets the fingertip 8px under it), used by the match cards and the classroom spaces ---- */
 .cm-hit{position:absolute;z-index:8;border-radius:18px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
-.cm-anchor{position:absolute;width:2px;height:2px;pointer-events:none;}
+.md-anchor{position:absolute;width:2px;height:2px;pointer-events:none;}
 .cm .md-obj{transition:scale .35s cubic-bezier(.3,1.6,.5,1),filter .3s;}
 .cm-x .md-obj{filter:drop-shadow(0 6px 8px rgba(12,46,92,.16));}
 .cm .md-obj.cm-right{scale:1.03;filter:drop-shadow(0 0 3px #1DB954) drop-shadow(0 0 3px #1DB954) drop-shadow(0 0 14px rgba(29,185,84,.7));}
@@ -2626,7 +2778,6 @@ body.is-start .sg-sky{
 .mm-card.t-blue{--mm-b:#86BDF0;--mm-bg:#EAF4FF;--mm-sh:#B7D6F3;}
 .mm-card.t-green{--mm-b:#8FD187;--mm-bg:#EBF8E7;--mm-sh:#B9E2B2;}
 .mm-card.hover{--mm-b:#2F82DE;box-shadow:0 5px 0 var(--mm-sh),0 0 0 5px rgba(47,130,222,.22);}
-.mm-card.no{--mm-b:#F93544;--mm-bg:#FFECEC;}
 .mm-card.ok{--mm-b:#1DB954;--mm-sh:#A8E3B9;}
 .mm-slot{position:absolute;box-sizing:border-box;border:3px dashed rgba(96,112,140,.42);border-radius:18px;background:rgba(255,255,255,.6);z-index:1;opacity:0;}
 .md-stage.in .mm-slot{animation:mdFade .4s ease-out .5s forwards;}
@@ -2644,9 +2795,38 @@ body.is-start .sg-sky{
 .mm-box.b-yellow{--bx-b:#E8B32F;--bx-bg:#FFF7DD;--bx-sh:#EFDBA3;}
 .mm-box.lift{cursor:grabbing;scale:1.06;box-shadow:0 14px 22px rgba(12,46,92,.24);}
 .mm-box.ok{--bx-b:#1DB954;--bx-bg:#EFFBF2;--bx-sh:#A8E3B9;border-style:solid;cursor:default;}
-.mm-box.ok::after{content:"\2713";position:absolute;right:-12px;top:-12px;width:30px;height:30px;border-radius:50%;box-sizing:border-box;
-  background:#1DB954;border:2.5px solid #fff;color:#fff;font-size:17px;font-weight:900;line-height:25px;text-align:center;
-  box-shadow:0 2px 5px rgba(0,0,0,.2);animation:mdPop .4s cubic-bezier(.3,1.7,.5,1) both;}
+/* (review 2026-10-01: "remove the tick marks from correct answer, only green outline represents correct answer" - the ✓
+   badge that sat on a matched box's corner is gone; its green border + the card's green border say it) */
+/* ---- [photos] data.look (P2 "board", P3 "fridge"): the cards are white photos - their picture a little scene (.mm-pic,
+   app.js picBg), a push pin / a fruit magnet at the top, the broad bottom margin the label's place; the labels are brown
+   paper tags (a hole, a red string) / Mummy's sticky notes (a curled corner). Right = a green outline, nothing else. ---- */
+.mm-card.mm-ph{border:none;background:#FFFFFF;border-radius:8px;box-shadow:0 1px 0 rgba(0,0,0,.05),0 10px 18px rgba(70,45,20,.24);}
+.mm-card.mm-ph.hover{box-shadow:0 0 0 5px rgba(47,130,222,.4),0 10px 18px rgba(70,45,20,.24);}
+.mm-card.mm-ph.ok{box-shadow:0 0 0 4px #1DB954,0 10px 18px rgba(70,45,20,.24);}
+.mm-pic{position:absolute;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(60,40,20,.08),inset 0 8px 14px rgba(60,40,20,.06);}
+.mm-deco{position:absolute;left:50%;pointer-events:none;z-index:3;filter:drop-shadow(0 3px 2px rgba(50,30,10,.3));}
+.mm-deco.pin{width:44px;top:-26px;translate:-40% 0;}
+.mm-deco.magnet{width:62px;top:-30px;translate:-50% 0;rotate:-8deg;}
+.mm-slot.at-board,.mm-slot.at-fridge{border:2.5px dashed rgba(120,96,70,.4);border-radius:8px;background:rgba(250,244,232,.8);}
+.mm-box.lb-board,.mm-box.lb-fridge{border:none;background:none;box-shadow:none;border-radius:0;font-size:29px;
+  filter:drop-shadow(0 3px 2px rgba(60,40,20,.28));transition:scale .15s,filter .15s;}
+.mm-box .mm-shape{position:absolute;inset:0;}
+.mm-box .mm-txt{position:relative;z-index:1;}
+/* the tag: kraft paper, cut corners on the left, a reinforced hole, a loop of red string */
+.lb-board{transform-origin:9% 50%;color:#4A2C12;}
+.lb-board .mm-shape{background:linear-gradient(180deg,#E6C999,#D5B07A);clip-path:polygon(13% 0,100% 0,100% 100%,13% 100%,0 76%,0 24%);border-radius:0 8px 8px 0;}
+.lb-board .mm-hole{position:absolute;left:5.5%;top:50%;width:15px;height:15px;translate:0 -50%;border-radius:50%;background:#8B6A45;
+  box-shadow:0 0 0 3.5px #FBF3E2,0 0 0 4.5px rgba(120,90,50,.35);}
+.lb-board .mm-str{position:absolute;left:-30px;top:14%;width:44px;height:36px;border:2.5px solid #D2463B;border-right:none;border-radius:50% 0 0 50%;}
+.lb-board .mm-txt{padding-left:22px;}
+.mm-tagpin{position:absolute;left:1%;top:50%;width:34px;translate:-18% -78%;z-index:2;pointer-events:none;}
+/* the sticky note: pad yellow, its glue strip a shade darker, the bottom-right corner curling up */
+.lb-fridge{color:#23408F;}
+.lb-fridge .mm-shape{background:linear-gradient(180deg,#F7D65C 0,#F7D65C 14%,#FFE680 14%,#FFE27A 100%);clip-path:polygon(0 0,100% 0,100% 64%,91% 100%,0 100%);}
+.lb-fridge .mm-curl{position:absolute;right:0;bottom:0;width:9.5%;height:36%;background:linear-gradient(135deg,#E9C24C 0,#FFF0AA 48%,rgba(0,0,0,0) 50%);}
+.mm-box.lb-board.lift,.mm-box.lb-fridge.lift{scale:1.07;filter:drop-shadow(0 14px 12px rgba(40,25,10,.3));box-shadow:none;}
+.mm-box.lb-board.ok,.mm-box.lb-fridge.ok{filter:drop-shadow(3px 0 0 #1DB954) drop-shadow(-3px 0 0 #1DB954) drop-shadow(0 3px 0 #1DB954) drop-shadow(0 -3px 0 #1DB954) drop-shadow(0 3px 2px rgba(60,40,20,.28));}
+.mm-fit{position:absolute;z-index:3;pointer-events:none;filter:drop-shadow(0 3px 3px rgba(60,40,20,.22));}
 @media (prefers-reduced-motion:reduce){
   .md-stage.in .mm-card,.md-stage.in .mm-slot,.md-stage.in .mm-guide,.md-stage.in .mm-box{animation:none;opacity:1;}
   .mm-guide{opacity:.75;}
@@ -2661,7 +2841,6 @@ body.is-start .sg-sky{
   transition:border-color .2s,background-color .2s;}
 .cf.cf-placing .cf-space:not(.filled){animation:cfPulse 1.3s ease-in-out infinite;}
 .cf-space.hover{border-color:#1DB954 !important;background-color:rgba(29,185,84,.16);}
-.cf-space.no{border-color:#F93544 !important;background-color:rgba(249,53,68,.18) !important;}
 .cf-space.filled{border-color:transparent;background:none;animation:none;}
 .cf-sb{position:absolute;box-sizing:border-box;border:2px dashed rgba(47,130,222,.7);border-radius:7px;background:rgba(47,130,222,.12);}
 .cf-strip.ok .cf-sb{border-style:solid;border-color:rgba(29,185,84,.75);background:rgba(29,185,84,.15);}
