@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 184" width="150" height="184" role="img" aria-label="स्टूल">
+  <!-- The stool (P2, SME deck page 10): a square wooden seat seen a little from above, an apron, four legs (the
+       front two splayed) and a rung. The seat top is the top edge (y 3) and the legs end at the bottom edge (y 182),
+       so a column of blocks beside it runs from the floor to the top. -->
+  <defs>
+    <linearGradient id="stTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDA05E"/><stop offset="1" stop-color="#C98543"/></linearGradient>
+    <linearGradient id="stEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B8723A"/><stop offset="1" stop-color="#9C5A26"/></linearGradient>
+    <linearGradient id="stLeg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C07A3D"/><stop offset=".7" stop-color="#B06A30"/><stop offset="1" stop-color="#8E4F1F"/></linearGradient>
+    <linearGradient id="stLegR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#C07A3D"/><stop offset=".7" stop-color="#B06A30"/><stop offset="1" stop-color="#8E4F1F"/></linearGradient>
+    <linearGradient id="stBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A4219"/><stop offset="1" stop-color="#8E5122"/></linearGradient>
+  </defs>
+  <g stroke="#5A3314" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
+    <!-- back legs and their rung -->
+    <path d="M36 30H48L49.5 167Q49.5 170 46.5 170H39Q36 170 36 167Z" fill="url(#stBack)"/>
+    <path d="M102 30H114V167Q114 170 111 170H103.5Q100.5 170 100.5 167Z" fill="url(#stBack)"/>
+    <path d="M46 122H104V130H46Z" fill="url(#stBack)"/>
+    <!-- apron -->
+    <path d="M18 34H132V52Q132 55 129 55H21Q18 55 18 52Z" fill="#9E5B28"/>
+    <!-- front rung -->
+    <path d="M22 137H128V147H22Z" fill="url(#stEdge)"/>
+    <!-- front legs, splayed -->
+    <path d="M14 34H34L28 179Q28 182 25 182H13Q9 182 9.2 179Z" fill="url(#stLeg)"/>
+    <path d="M116 34H136L140.8 179Q141 182 137 182H125Q122 182 122 179Z" fill="url(#stLegR)"/>
+    <!-- the seat: its top face and front edge -->
+    <path d="M14 3H136Q142 3 145 8L148 16Q149 20 144 20H6Q1 20 2 16L5 8Q8 3 14 3Z" fill="url(#stTop)"/>
+    <path d="M4.5 20H145.5Q148 20 148 23V31Q148 36 143 36H7Q2 36 2 31V23Q2 20 4.5 20Z" fill="url(#stEdge)"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M22 9C60 7 100 11 128 9" stroke="#B86F33" stroke-width="1.6" opacity=".55"/>
+    <path d="M14 15C60 13 104 17 138 15" stroke="#B86F33" stroke-width="1.4" opacity=".45"/>
+    <path d="M9 19.5H141" stroke="#EDB27A" stroke-width="2" opacity=".8"/>
+    <path d="M18 5.5H132" stroke="#F0BD88" stroke-width="1.6" opacity=".7"/>
+    <path d="M19 40L14 172" stroke="#D08C4E" stroke-width="2.4" opacity=".55"/>
+    <path d="M131 40L136 172" stroke="#D08C4E" stroke-width="2.4" opacity=".55"/>
+    <path d="M30 141H120" stroke="#D08C4E" stroke-width="1.4" opacity=".5"/>
+  </g>
+</svg>

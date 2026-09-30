@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 184 250" width="184" height="250" role="img" aria-label="खिड़की">
+  <!-- The window (P3, SME deck page 11): a school window - a blue painted frame, four panes of sky (a cloud, the sun,
+       a tree top), its grill rods and a wooden sill. Top edge y 2 to the sill's lower edge y 248, so a column of
+       blocks beside it runs from its bottom to its top. -->
+  <defs>
+    <linearGradient id="wSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86CFF8"/><stop offset="1" stop-color="#D8F2FF"/></linearGradient>
+    <linearGradient id="wFrame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#57A9E6"/><stop offset="1" stop-color="#2E7CC0"/></linearGradient>
+    <linearGradient id="wSill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D99552"/><stop offset="1" stop-color="#A9632C"/></linearGradient>
+    <clipPath id="wGlass"><rect x="18" y="14" width="148" height="206" rx="2"/></clipPath>
+  </defs>
+  <rect x="6" y="2" width="172" height="230" rx="7" fill="url(#wFrame)" stroke="#1F4E79" stroke-width="2.6"/>
+  <rect x="18" y="14" width="148" height="206" rx="2" fill="url(#wSky)" stroke="#1F4E79" stroke-width="2.4"/>
+  <g clip-path="url(#wGlass)">
+    <circle cx="134" cy="46" r="15" fill="#FFD84D"/>
+    <circle cx="134" cy="46" r="21" fill="#FFE98C" opacity=".35"/>
+    <path d="M36 70Q36 58 48 58Q52 48 64 50Q74 44 82 54Q94 54 94 66Q94 74 84 74H44Q36 74 36 70Z" fill="#FFFFFF" opacity=".95"/>
+    <path d="M100 150Q104 128 124 126Q134 112 150 120Q170 122 170 146V222H100Z" fill="#6CC46A"/>
+    <path d="M18 176Q60 160 110 172T170 168V222H18Z" fill="#8ED486"/>
+    <path d="M30 222L64 14H86L52 222Z" fill="#FFFFFF" opacity=".18"/>
+    <path d="M104 222L138 14H148L114 222Z" fill="#FFFFFF" opacity=".14"/>
+  </g>
+  <!-- grill rods -->
+  <g stroke="#2A5F92" stroke-width="3" stroke-linecap="round" opacity=".85">
+    <path d="M55 16V218M129 16V218"/>
+  </g>
+  <!-- the cross bars -->
+  <g stroke="#1F4E79" stroke-width="2.4" stroke-linejoin="round">
+    <rect x="87" y="14" width="10" height="206" fill="url(#wFrame)"/>
+    <rect x="18" y="112" width="148" height="10" fill="url(#wFrame)"/>
+  </g>
+  <path d="M12 7H172" stroke="#8CCBF4" stroke-width="2.2" stroke-linecap="round" opacity=".8" fill="none"/>
+  <!-- the sill -->
+  <path d="M2 229H182Q184 229 184 231V241Q184 248 177 248H7Q0 248 0 241V231Q0 229 2 229Z" fill="url(#wSill)" stroke="#5A3314" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M6 233H178" stroke="#EDB27A" stroke-width="2" stroke-linecap="round" opacity=".8" fill="none"/>
+</svg>

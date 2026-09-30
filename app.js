@@ -89,7 +89,7 @@ const XAPI = window.XAPI = (function(){
 })();
 /* signal -> verb, for the three that already have a 1:1 signal */
 const XAPI_MAP = { slide_entered:"screen_viewed", hint_shown:"hint_used", audio_replay:"audio_replayed" };
-const XAPI_ANSWERABLE = ["COUNT_HOW_MANY","MAKE_SET","PICK_EXTREME"];   /* slide types that send question_started */
+const XAPI_ANSWERABLE = ["COUNT_HOW_MANY","MAKE_SET","PICK_EXTREME","MEASURE_ASK","COMPARE_MEASURED","MATCH_MEASURE","CLASSROOM_FIT"];   /* slide types that send question_started */
 
 /* [QA 01] The game's internal bus is GameBus (window.GameBus). The global SwiftPAL name belongs to
    the platform bridge (swiftpal-bridge.js, loaded first), which XAPI.send() hands each statement to.
@@ -1137,6 +1137,179 @@ function celebrateThenAdvance(slide, revealed){
 }
 
 /* ---------- 12. SLIDE MODULES ---------- */
+/* ---------- [measure kit] MDK - shared by every measuring slide (review 2026-09-30: "follow the ppt slides
+   instructions"): the T2/T3 demos, the measure-and-ask slides, the compare slides, the match slides and the classroom
+   game. Blocks = the first screen's plain blue cubes (slices of assets/cubes_blue_row.webp); a toy box they are taken
+   from; dashed end lines with a start and a finish flag; the demonstrating hand; counting digits; ✓ / ✗ marks; the
+   result plate. Everything is placed in stage px inside a .md-stage scene; CSS [measure kit].
+   MOVES ARE ANIMATED ON `translate`, never `transform`: a lifted block (scale 1.07) and the pressing hand (scale .9)
+   carry a CSS `scale`, which CSS applies to anything in `transform` - a block used to travel 107% of the way and the
+   hand 90%, so the fingertip slid up to 84px off the block. ---------- */
+const MDK = (function(){
+  const STRIP = { src: "assets/cubes_blue_row.webp", w: 2102, h: 214, top: 2, bot: 211, cuts: [3, 208, 416, 626, 839, 1049, 1260, 1472, 1683, 1893, 2099] };
+  const reduce = ()=> !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const px = v => (Math.round(v * 10) / 10) + "px";
+  const wait = ms => new Promise(r => setTimeout(r, reduce() ? Math.min(ms, 80) : ms));
+  function add(parent, tag, cls, css){ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; parent.appendChild(e); return e; }
+  const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
+  const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
+  /* one blue cube, s x s, at (x, y); i picks its slice of the strip (its shade of blue) */
+  function cube(parent, i, x, y, s){
+    const k = i % 10, c0 = STRIP.cuts[k], c1 = STRIP.cuts[k + 1], kx = s / (c1 - c0), ky = s / (STRIP.bot - STRIP.top);
+    const b = add(parent, "div", "md-block", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(s) + ";height:" + px(s) + ";--i:" + i + ";" +
+      "background-image:url(" + STRIP.src + ");background-size:" + px(STRIP.w * kx) + " " + px(STRIP.h * ky) + ";background-position:" + px(-c0 * kx) + " " + px(-STRIP.top * ky));
+    b._home = { x, y }; b._placed = false; return b;
+  }
+  const path = (dx, dy, up)=> [{ translate: "0px 0px" }, { translate: dx / 2 + "px " + (dy / 2 + up) + "px", offset: .5 }, { translate: dx + "px " + dy + "px" }];
+  /* the hand (the engine's nudge hand art; fingertip at NH.TIP_X/TIP_Y of its 86x108 box), pressing a block of size s */
+  function hand(parent, s){
+    const el = add(parent, "img", "md-hand"); el.src = "assets/nudge_hand_new.svg"; el.alt = "";
+    const grip = p => ({ x: p.x + s * 0.52 - NH.TIP_X, y: p.y + s * 0.56 - NH.TIP_Y });
+    return { el, grip, on(p){ setPos(el, grip(p)); el.classList.add("on"); }, off(){ el.classList.remove("on", "press"); el.getAnimations().forEach(a => a.cancel()); },
+             press(){ el.classList.add("press"); }, up(){ el.classList.remove("press"); } };
+  }
+  /* move an element along a gentle arc (arc) or straight; a hand rides with it */
+  function glide(el, to, ms, arc, h){
+    return new Promise(res => {
+      const from = pos(el), dx = to.x - from.x, dy = to.y - from.y, up = arc ? -Math.min(80, 26 + Math.hypot(dx, dy) * 0.16) : 0;
+      let fin = false; const done = ()=>{ if(fin) return; fin = true; setPos(el, to); if(h) setPos(h.el, h.grip(to)); res(); };
+      if(reduce() || ms <= 0){ done(); return; }
+      const o = { duration: ms, easing: "cubic-bezier(.45,.05,.35,1)" };
+      const a = el.animate(path(dx, dy, up), o); if(h) h.el.animate(path(dx, dy, up), o);
+      a.onfinish = done; a.oncancel = done;
+    });
+  }
+  const knock = ()=> _tone([392, 311], "sine", 0.16, 0.1);                    // a soft wooden set-down
+  function land(el, quiet){ if(!reduce()) el.animate([{ scale: "1.07 .9" }, { scale: ".98 1.03" }, { scale: "1 1" }], { duration: 220, easing: "ease-out" }); if(!quiet) knock(); }
+  /* the toy box: n blocks of size s in rows of `cols`, each back row a little higher so they peek over the front
+     panel (which sits in front of the lowest row). Returns the box and the n home spots. */
+  function toybox(parent, x, y, n, s, cols){
+    cols = Math.max(1, Math.min(cols || 3, n)); const rows = Math.ceil(n / cols), gap = Math.round(s * 0.1), pad = Math.round(s * 0.2), step = Math.round(s * 0.52);
+    const w = cols * s + (cols - 1) * gap + 2 * pad, frontH = Math.round(s * 0.62), h = s + (rows - 1) * step + pad + Math.round(s * 0.3);
+    const back = add(parent, "div", "md-box-back", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const front = add(parent, "div", "md-box-front", "left:" + px(x - 6) + ";top:" + px(y + h - frontH) + ";width:" + px(w + 12) + ";height:" + px(frontH + 6));
+    const spots = [];
+    for(let j = 0; j < n; j++){ const r = Math.floor(j / cols), c = j % cols, rowsBelow = rows - 1 - r;
+      spots.push({ x: x + pad + c * (s + gap), y: y + h - frontH - s * 0.42 - rowsBelow * step }); }
+    // the last spots are the front row: take from the top (back) first so the pile empties back to front
+    return { back, front, spots, w, h };
+  }
+  /* the dashed end lines and their flags. axis "x": two vertical lines at x = a and b, from y0 to y1, flags at the
+     bottom; axis "y": two horizontal lines at y = a (bottom) and b (top), from x0 to x1, flags at the right */
+  function endLines(parent, axis, a, b, s0, s1){
+    const mk = (v, kind)=>{
+      const l = add(parent, "div", "md-line " + (axis === "x" ? "v" : "h"),
+        axis === "x" ? "left:" + px(v - 4) + ";top:" + px(s0) + ";height:" + px(s1 - s0) : "top:" + px(v - 4) + ";left:" + px(s0) + ";width:" + px(s1 - s0));
+      const f = add(parent, "div", "md-flag " + kind, axis === "x" ? "left:" + px(v - 3) + ";top:" + px(s1 - 40) : "left:" + px(s1 - 3) + ";top:" + px(v - 40));
+      l._flag = f; return l; };
+    return { start: mk(a, "start"), end: mk(b, "end") };
+  }
+  const show = (l, pulse)=>{ l.classList.add("show"); if(l._flag) l._flag.classList.add("show"); if(pulse) l.classList.add("pulse"); };
+  const unpulse = l => l.classList.remove("pulse");
+  /* a counting digit on a block: its top edge (default), "above" it, "bottom" (below it), "right" / "left" of it */
+  function digit(parent, p, s, n, side){                                  // p = the TILE's top-left (the block may still be snapping in)
+    const d = add(parent, "div", "md-num", side === "right" ? "left:" + px(p.x + s - 4) + ";top:" + px(p.y + s / 2 - 16)
+                                         : side === "left" ? "left:" + px(p.x - 30) + ";top:" + px(p.y + s / 2 - 16)
+                                         : side === "bottom" ? "left:" + px(p.x + s / 2 - 16) + ";top:" + px(p.y + s + 6)
+                                         : side === "above" ? "left:" + px(p.x + s / 2 - 16) + ";top:" + px(p.y - 34) : "left:" + px(p.x + s / 2 - 16) + ";top:" + px(p.y - 18));
+    d.textContent = devNumeral(n); requestAnimationFrame(()=> d.classList.add("in")); return d;
+  }
+  /* ✓ / ✗ pop at (x, y) (its centre); ✗ stays until removed, ✓ fades by itself */
+  function mark(parent, x, y, ok){
+    const m = add(parent, "div", "md-mark " + (ok ? "ok" : "no"), "left:" + px(x - 22) + ";top:" + px(y - 22));
+    m.textContent = ok ? "✓" : "✕"; requestAnimationFrame(()=> m.classList.add("in"));
+    if(ok) setTimeout(()=>{ m.classList.add("out"); setTimeout(()=> m.remove(), 400); }, 900);
+    return m;
+  }
+  /* the result plate ("6 ब्लॉक्स") - the kit's blank badge with its sparkle - centred on cx, top at y */
+  function plate(parent, text, cx, y, w){
+    w = w || 230; const h = Math.round(w * 157 / 330);
+    const p = add(parent, "div", "md-plate", "left:" + px(cx - w / 2) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    p.innerHTML = '<img class="md-plate-spark" src="assets/mk_sparkle.webp" alt=""><img class="md-plate-img" src="assets/mk_badge_blank.webp" alt=""><span class="md-plate-text"></span>';
+    p.querySelector(".md-plate-text").textContent = text; requestAnimationFrame(()=> p.classList.add("in")); return p;
+  }
+  /* a bouncing arrow at (x, y): "down" above a tile, "left" to the right of one */
+  function arrow(parent, x, y, dir){ const a = add(parent, "div", "md-arrow " + (dir || "down"), "left:" + px(x - 16) + ";top:" + px(y - 16)); return a; }
+  /* the tutorial mascot's pose (Swiftee demonstrates): "guide" / "cheer" / null = back to the card's own */
+  function pose(id){
+    const m = document.querySelector("#slideHost .tut-mascot"); if(!m) return;
+    if(!m._src0) m._src0 = m.getAttribute("src");
+    m.setAttribute("src", id ? "assets/mk_sw_" + id + ".webp" : m._src0); m.classList.toggle("md-pose", !!id);
+  }
+  /* the child's measuring turn, shared by every slide where the child lays the blocks: drag each next block from the
+     box onto the next tile. A drop on the next tile snaps flush (onHit(n, tile) - may return a Promise, e.g. a counting
+     VO); anywhere else - a gap, an overlap, off the row - it bounces back to the box (then the ghost drag, if
+     cfg.ghostAfterWrong). Idle cfg.idleMs - the ghost drag. After the last one, onAll(). cfg: { scene, slide, alive,
+     blocks, slots, slotXY(k), S, hand, placed0, idleMs, ghostAfterWrong, showTiles (the next tile's outline while a
+     block is carried), onHit, onAll, onWrong } */
+  function childMeasure(cfg){
+    const { scene, blocks, slots, slotXY, S, hand } = cfg, N = slots.length, STOP = {};
+    let placed = cfg.placed0 || 0, drag = null, idleT = 0, tok = 0, on = false;
+    const live = ()=> on && cfg.alive();
+    const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
+    const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : (b._z || 3); };
+    async function ghost(){
+      const t = ++tok, src = blocks.find(b => !b._placed); if(!src || placed >= N || !hand) return;
+      const g = src.cloneNode(false); g.classList.add("ghost"); g.classList.remove("lift"); g.style.zIndex = 31; scene.appendChild(g); setPos(g, pos(src));
+      const slot = slots[placed];
+      try{
+        hand.on(pos(g)); await wait(300); if(t !== tok) throw STOP;
+        hand.press(); slot.classList.add("show", "target");
+        await glide(g, slotXY(placed), 1100, true, hand); if(t !== tok) throw STOP;
+        await wait(260);
+      } catch(e){ if(e !== STOP) throw e; }
+      g.remove(); if(t === tok){ hand.off(); if(!drag) slot.classList.remove("show", "target"); }
+    }
+    const cancelGhost = ()=>{ tok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); if(hand) hand.off(); };
+    const armIdle = ()=>{ clearTimeout(idleT); if(!cfg.idleMs) return;
+      idleT = setTimeout(()=>{ if(live() && !drag) ghost().then(()=>{ if(live()) armIdle(); }); }, cfg.idleMs); };
+    blocks.forEach(b =>{
+      b.addEventListener("pointerdown", ev =>{
+        if(!live() || b._placed || drag || placed >= N) return;
+        ev.preventDefault(); clearTimeout(idleT); cancelGhost();
+        const p = local(scene, ev), bp = pos(b);
+        drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false };
+        try{ b.setPointerCapture(ev.pointerId); }catch(e){}
+        lift(b); sfxTap(); if(cfg.showTiles !== false) slots[placed].classList.add("show", "target");
+      });
+      b.addEventListener("pointermove", ev =>{
+        if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
+        const p = local(scene, ev); if(Math.hypot(p.x - drag.sx, p.y - drag.sy) > 6) drag.moved = true;
+        setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy });
+      });
+      const up = ev =>{
+        if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
+        const dr = drag; drag = null;
+        const at = pos(b), to = slotXY(placed), slot = slots[placed];
+        const hit = dr.moved && Math.abs(at.x - to.x) <= S * 0.6 && Math.abs(at.y - to.y) <= S * 0.6;
+        slot.classList.remove("show", "target");
+        if(hit){                                                            // flush against the last one
+          b._placed = true; b.classList.add("placed"); drop(b);
+          glide(b, to, reduce() ? 0 : 120, false).then(()=> land(b));
+          placed++; const n = placed;
+          GameBus.emit("measure_unit_placed", { slide_id: cfg.slide.id, phase: cfg.slide.phase, count: n, of: N });
+          Promise.resolve(cfg.onHit ? cfg.onHit(n, to) : null).then(()=>{ if(!live()) return; if(n >= N){ on = false; clearTimeout(idleT); if(cfg.onAll) cfg.onAll(); } else armIdle(); });
+        } else {                                                            // a gap / an overlap / off the row: back to the box
+          sfxWrongSoft(); drop(b); b.style.zIndex = 30;
+          GameBus.emit("answer_wrong", { slide_id: cfg.slide.id, phase: cfg.slide.phase, attempts: ++state.attempts });
+          if(cfg.onWrong) cfg.onWrong();
+          glide(b, b._home, reduce() ? 0 : 420, true).then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3;
+            if(!reduce()) b.animate([{ translate: "0 -10px" }, { translate: "0 0" }, { translate: "0 -4px" }, { translate: "0 0" }], { duration: 360, easing: "ease-out" });
+            if(cfg.ghostAfterWrong) setTimeout(()=>{ if(live() && !drag) ghost().then(()=>{ if(live()) armIdle(); }); }, 350); else armIdle(); });
+        }
+      };
+      b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
+    });
+    return {
+      start(){ on = true; armIdle(); }, stop(){ on = false; clearTimeout(idleT); cancelGhost(); },
+      ghost(){ return live() ? ghost() : Promise.resolve(); }, cancelGhost, armIdle, get placed(){ return placed; }, set placed(v){ placed = v; }
+    };
+  }
+  /* pointer -> scene px (the stage is scaled by --scale) */
+  function local(scene, ev){ const r = scene.getBoundingClientRect(), k = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; }
+  return { STRIP, px, wait, add, pos, setPos, cube, hand, glide, land, knock, toybox, endLines, show, unpulse, digit, mark, plate, arrow, pose, local, reduce, childMeasure };
+})();
+
 const SlideModules = {
   INTRO: {
     mount(host, slide){
@@ -1721,200 +1894,699 @@ const SlideModules = {
   },
 
   MEASURE_DEMO: {
-    /* MTG2A04 T2 - the SME deck's page 3, built to its script step by step (review 2026-09-30: "add things and
-       animation as per the instruction completely"). Each step has its own VO line:
-         heading VO ........................ the table and the block tray come in
-         VO1 "...एक छोर से मापना शुरू करेंगे।" - a dashed line at the table's LEFT end appears and pulses;
-             "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।" - the RIGHT end
-         VO2 "चलिए, शुरू करते हैं" ............ Swiftee's hand drags blocks one by one from the tray: एक... दो...
-         VO3 "अब ध्यान रखें! ...जहाँ पिछला खत्म हुआ था।" - the previous block's end pulses;
-             "बीच में जगह न छोड़ें," ......... a block set down with a GAP, the gap boxed and pulsing, then taken back;
-             "और एक-दूसरे के ऊपर न रखें।" ..... a block set down OVERLAPPING, the overlap boxed, then taken back
-         child VO "अब आगे आप मापिए..." ...... a ghost drag, tray -> the next tile (the tile shows as the block moves)
-         child: drags each next block - dropped on the next tile it snaps flush and is counted aloud (vo_num_k);
-             dropped anywhere else it bounces back to the tray, then the ghost drag; idle 6s - the ghost drag
-         done: "शाबाश! यह टेबल 6 ब्लॉक्स लंबी है।" + "6 ब्लॉक्स" under the measured row; आगे unlocks.
-       As on the first screen, the units lie in their OWN row a little below the object, flush, and a dashed line
-       carries each end of it down to them. The blocks are the first screen's plain blue cubes (one slice each of
-       assets/cubes_blue_row.webp). data: { n, demo, table:{src, w, ar, x0, x1}, unit_hi } (x0/x1 = the tabletop's
-       ends, fractions of the picture). audio: prompt, explain_a, explain_b, demo, rule_a, rule_b, rule_c, child,
-       conclude (+ vo_num_k). CSS [T2 measure]. */
+    /* T2 (the table, SME deck page 3) and T3 (the door, page 4): the deck's measuring lesson, step by step, each step
+       on its own VO line (review 2026-09-30: "add things and animation as per the instruction completely", then
+       "yes, follow the ppt slides instructions"):
+         heading VO ....... the object, the toy box and the floor come in
+         VO1 explain_a .... the START end line appears (its flag too) and pulses; explain_b - the END line
+         VO2 demo ......... Swiftee (guide pose) - her hand drags blocks one by one from the toy box: एक... दो...
+         VO3 rule_a ....... the previous block's end pulses; rule_b - a block set down with a GAP: boxed, ✗, taken
+                            back; rule_c - one set down OVERLAPPING: boxed, ✗, taken back
+         child VO ......... a ghost drag, box -> the next tile (the tile shows as the block moves)
+         child ............ drags each next block (MDK.childMeasure): on the next tile it snaps flush - its number
+                            pops on it, ✓, counted aloud (vo_num_k); anywhere else it bounces back to the box, then the
+                            ghost drag; idle 6s - the ghost drag; a bouncing arrow marks the next tile
+         done ............. "<n> ब्लॉक्स" on the result plate under the measured object, confetti, Swiftee cheers,
+                            the conclusion VO; आगे unlocks.
+       axis "x" (T2): the units lie in their own row a little BELOW the object; axis "y" (T3): they stand in a column
+       BESIDE it (on its right), from the floor up. Dashed lines carry the object's two ends to them. The card gets
+       the T1 floor, the object standing on it. data: { n, demo, axis, obj:{src, w, ar, a0, a1}, bh, unit_hi }
+       (ar = h/w of the picture; a0/a1 = the measured ends as fractions along the axis). audio: prompt, explain_a,
+       explain_b, demo, rule_a, rule_b, rule_c, child, conclude (+ vo_num_k). CSS [measure kit]. */
     mount(host, slide){
-      const d = slide.data, N = d.n || 6, DEMO = Math.max(1, Math.min(d.demo || 2, N - 1));
-      const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const d = slide.data, N = d.n || 6, DEMO = Math.max(1, Math.min(d.demo || 2, N - 1)), AX = d.axis === "y" ? "y" : "x";
+      const K = MDK, reduce = K.reduce(), px = K.px;
       state.ownsAudio = true; setNavActive(false); setSwMood("teach");
       const scene = document.createElement("div"); scene.className = "md-stage"; host.appendChild(scene);
-      const card = host.closest(".tut-card"); if(card) card.classList.add("tc-measure");   // the scene sits right under the prompt (CSS)
+      const card = host.closest(".tut-card"); if(card) card.classList.add("tc-measure", "tc-floor");
       const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
       const STOP = {}, guard = ()=>{ if(!alive()) throw STOP; };
-      const px = v => v.toFixed(1) + "px";
-      /* ---- geometry (scene px = stage px) ---- */
-      const W = scene.offsetWidth || 1053, cx = W / 2;
-      const TW = d.table.w || 420, TH = TW * (d.table.ar || 212 / 460), TX = cx - TW / 2, TY = 0;
-      const XL = TX + TW * (d.table.x0 != null ? d.table.x0 : 2 / 460), XR = TX + TW * (d.table.x1 != null ? d.table.x1 : 458 / 460);
-      const BW = (XR - XL) / N, BH = BW, RY = TY + TH + 16;                  // the row: its own line, a little below the table
-      const TC = 3, TG = 8, TP = 12, TRW = TC * BW + (TC - 1) * TG + 2 * TP, TRH = Math.ceil(N / TC) * (BH + TG) - TG + 2 * TP;
-      const TRX = Math.min(W - TRW - 8, XR + 56), TRY = RY + BH - TRH + TP;   // the tray: right of the row, its floor on the row's line
-      scene.style.height = px(RY + BH + 64);
-      const add = (tag, cls, css)=>{ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; scene.appendChild(e); return e; };
-      const table = add("img", "md-table", "left:" + px(TX) + ";top:" + px(TY) + ";width:" + px(TW)); table.src = d.table.src; table.alt = "";
-      add("div", "md-shadow", "left:" + px(TX + TW * .04) + ";top:" + px(TY + TH - 14) + ";width:" + px(TW * .92));
-      add("div", "md-tray", "left:" + px(TRX) + ";top:" + px(TRY) + ";width:" + px(TRW) + ";height:" + px(TRH));
-      const lineTop = TY + 12, lineH = RY + BH + 16 - lineTop;
-      const lineL = add("div", "md-line", "left:" + px(XL - 4) + ";top:" + px(lineTop) + ";height:" + px(lineH));
-      const lineR = add("div", "md-line", "left:" + px(XR - 4) + ";top:" + px(lineTop) + ";height:" + px(lineH));
-      const slotXY = k => ({ x: XL + k * BW, y: RY });
-      const slots = [];
-      for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(add("div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(BW) + ";height:" + px(BH))); }
-      const STRIP = { src: "assets/cubes_blue_row.webp", w: 2102, h: 214, top: 2, bot: 211, cuts: [3, 208, 416, 626, 839, 1049, 1260, 1472, 1683, 1893, 2099] };
-      const trayXY = j => ({ x: TRX + TP + (j % TC) * (BW + TG), y: TRY + TP + Math.floor(j / TC) * (BH + TG) });
-      const blocks = [];
-      for(let j = 0; j < N; j++){
-        const c0 = STRIP.cuts[j % 10], c1 = STRIP.cuts[j % 10 + 1], kx = BW / (c1 - c0), ky = BH / (STRIP.bot - STRIP.top), p = trayXY(j);
-        const b = add("div", "md-block", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(BW) + ";height:" + px(BH) + ";--i:" + j + ";" +
-          "background-image:url(" + STRIP.src + ");background-size:" + px(STRIP.w * kx) + " " + px(STRIP.h * ky) + ";background-position:" + px(-c0 * kx) + " " + px(-STRIP.top * ky));
-        b._home = p; b._placed = false; blocks.push(b);
+      /* ---- layout: everything fits between the prompt and आगे (the door group sits right of आगे and may go lower) ---- */
+      const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
+      const W = scene.offsetWidth || 1053, navR = $("navBtn").getBoundingClientRect(), sR = scene.getBoundingClientRect();
+      let avail = Math.max(300, (navR.top - sR.top) / kS - 10); const PLATE_H = 72;
+      let OX, OY, OW, OH, S, A0, A1, slotXY, lines, plateAt, boxAt, floorY;
+      const ar = d.obj.ar || 1, f0 = d.obj.a0 || 0, f1 = d.obj.a1 != null ? d.obj.a1 : 1;
+      if(AX === "x"){                                                        // T2: the table on top, the row below it
+        OW = Math.min(d.obj.w || 400, (avail - 16 - 6 - PLATE_H) / (ar + (f1 - f0) / N)); OH = OW * ar; S = OW * (f1 - f0) / N;
+        const boxW = 3.6 * S + 12, cx = (W - boxW - 48) / 2 + 10;
+        OX = cx - OW / 2; OY = 2; A0 = OX + OW * f0; A1 = OX + OW * f1;
+        const RY = OY + OH + 16; slotXY = k => ({ x: A0 + k * S, y: RY });
+        lines = K.endLines(scene, "x", A0, A1, OY + 12, RY + S + 14);
+        plateAt = { cx: (A0 + A1) / 2, y: RY + S + 6 };
+        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)); boxAt = { x: A1 + 58, y: RY + S - bh + S * 0.3 };
+        floorY = OY + OH - 26;
+      } else {                                                               // T3: the door, the column beside it (on its right)
+        const cR0 = card ? card.getBoundingClientRect() : null;
+        const bottom = cR0 ? (cR0.bottom - sR.top) / kS - 10 - 8 : avail, navL = (navR.left - sR.left) / kS, navRt = (navR.right - sR.left) / kS;
+        S = Math.min(d.bh || 44, (bottom - 6 - PLATE_H) / N / (f1 - f0)) * (f1 - f0); OH = N * S / (f1 - f0); OW = OH / ar;
+        const gW = OW + 14 + S + 40;
+        OX = Math.min(W - gW - 12, Math.max(navRt + 24, W * 0.62 - gW / 2)); OY = bottom - PLATE_H - OH;
+        A0 = OY + OH * f1; A1 = OY + OH * f0;                                // A0 = bottom, A1 = top
+        const CX = OX + OW + 14; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
+        lines = K.endLines(scene, "y", A0, A1, OX - 8, CX + S + 40);
+        plateAt = { cx: OX + (OW + 14 + S) / 2, y: A0 + 8 };
+        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)), bw = 3.6 * S + 12;
+        boxAt = { x: Math.max(250, Math.min(navL - bw - 30, W * 0.3 - bw / 2)), y: Math.min(A0 - bh - 4, (navR.top - sR.top) / kS - bh - 24) };
+        floorY = A0; avail = Math.max(avail, bottom);
       }
-      const hand = add("img", "md-hand"); hand.src = "assets/nudge_hand_new.svg"; hand.alt = "";
-      const TIPX = NH.TIP_X, TIPY = NH.TIP_Y;                                   // the engine's hand: fingertip inside its 86x108 box
-      /* ---- motion helpers ---- */
-      const wait = ms => new Promise(r => setTimeout(r, reduce ? Math.min(ms, 80) : ms));
+      scene.style.height = px(avail);
+      if(card){ const cR = card.getBoundingClientRect(); card.style.setProperty("--floor-top", px((sR.top - cR.top) / kS - 10 + floorY - 10)); }   // (inside the 10px border)
+      const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
+      K.add(scene, "div", "md-shadow", AX === "x" ? "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92)
+                                                     : "left:" + px(OX - 6) + ";top:" + px(A0 - 13) + ";width:" + px(OW + 12));
+      if(AX === "x") lines.start._flag.classList.add("flip");                // the start flag points away from the row
+      const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(scene, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
+      const box = K.toybox(scene, boxAt.x, boxAt.y, N, S, 3);
+      const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S); b.style.zIndex = 3 + Math.floor(j / 3); b._z = b.style.zIndex; return b; });
+      box.front.style.zIndex = 3 + Math.ceil(N / 3);
+      const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      const knock = ()=> _tone([392, 311], "sine", 0.16, 0.1);                 // a soft wooden set-down
-      const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
-      const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
-      const grip = p => ({ x: p.x + BW * 0.52 - TIPX, y: p.y + BH * 0.56 - TIPY });   // the hand's box, fingertip pressing the block
-      const handOn = p =>{ setPos(hand, grip(p)); hand.classList.add("on"); };
-      const handOff = ()=>{ hand.classList.remove("on", "press"); };
-      /* the move is animated on the `translate` property, NOT `transform`: a lifted block (scale 1.07) and the pressing hand
-         (scale .9) carry a CSS `scale`, and CSS applies that scale to anything in `transform` - the block used to travel 107%
-         of the way and the hand 90%, so the fingertip slid up to 84px off the block. `translate` is applied outside the scale. */
-      const path = (dx, dy, up)=> [{ translate: "0px 0px" }, { translate: dx / 2 + "px " + (dy / 2 + up) + "px", offset: .5 }, { translate: dx + "px " + dy + "px" }];
-      function glide(el, to, ms, arc, withHand){                             // along a gentle arc (the hand rides with it)
-        return new Promise(res => {
-          const from = pos(el), dx = to.x - from.x, dy = to.y - from.y, up = arc ? -Math.min(80, 26 + Math.hypot(dx, dy) * 0.16) : 0;
-          let fin = false;
-          const done = ()=>{ if(fin) return; fin = true; setPos(el, to); if(withHand) setPos(hand, grip(to)); res(); };
-          if(reduce || ms <= 0){ done(); return; }
-          const o = { duration: ms, easing: "cubic-bezier(.45,.05,.35,1)" };
-          const a = el.animate(path(dx, dy, up), o);
-          if(withHand) hand.animate(path(dx, dy, up), o);
-          a.onfinish = done; a.oncancel = done;
-        });
-      }
-      const land = el =>{ if(!reduce) el.animate([{ transform: "scale(1.07,.9)" }, { transform: "scale(.98,1.03)" }, { transform: "none" }], { duration: 220, easing: "ease-out" }); knock(); };
+      const side = AX === "x" ? "top" : "right";
+      const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
+      const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : b._z; };
+      const placeMark = (p, n)=>{ K.digit(scene, p, S, n, side); K.mark(scene, AX === "x" ? p.x + S / 2 : p.x + S + 30, AX === "x" ? p.y + S + 22 : p.y + S / 2, true); };
       async function handDrag(el, to){                                      // Swiftee's hand picks a block up and sets it down
-        handOn(pos(el)); await wait(320); guard();
-        hand.classList.add("press"); sfxTap(); el.classList.add("lift"); await wait(120);
-        await glide(el, to, 900, true, true); guard();
-        el.classList.remove("lift"); land(el); hand.classList.remove("press"); await wait(200); handOff();
+        hand.on(K.pos(el)); await K.wait(320); guard();
+        hand.press(); sfxTap(); lift(el); await K.wait(120);
+        await K.glide(el, to, 900, true, hand); guard();
+        drop(el); K.land(el); hand.up(); await K.wait(200); hand.off();
       }
-      /* ---- the ghost drag (the hint): a see-through block, tray -> the next tile, the tile showing as it moves ---- */
-      let placed = 0, phase = "demo", ghostTok = 0, idleT = 0, drag = null;
-      async function ghost(){
-        const tok = ++ghostTok, src = blocks.find(b => !b._placed); if(!src || placed >= N) return;
-        const g = src.cloneNode(false); g.classList.add("ghost"); g.classList.remove("lift"); scene.appendChild(g); setPos(g, pos(src));
-        const slot = slots[placed];
-        try{
-          handOn(pos(g)); await wait(300); if(tok !== ghostTok) throw STOP;
-          hand.classList.add("press"); slot.classList.add("show", "target");
-          await glide(g, slotXY(placed), 1100, true, true); if(tok !== ghostTok) throw STOP;
-          await wait(260);
-        } catch(e){ if(e !== STOP) throw e; }
-        g.remove(); if(tok === ghostTok){ handOff(); if(!drag) slot.classList.remove("show", "target"); }
-      }
-      const cancelGhost = ()=>{ ghostTok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); handOff(); hand.getAnimations().forEach(a => a.cancel()); };
-      const armIdle = ()=>{ clearTimeout(idleT); idleT = setTimeout(()=>{ if(alive() && phase === "child" && !drag) ghost().then(()=>{ if(alive() && phase === "child") armIdle(); }); }, 6000); };
-      /* ---- the child's drag ---- */
-      const local = ev =>{ const r = scene.getBoundingClientRect(), s = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / s, y: (ev.clientY - r.top) / s }; };
-      blocks.forEach(b =>{
-        b.addEventListener("pointerdown", ev =>{
-          if(!alive() || phase !== "child" || b._placed || drag) return;
-          ev.preventDefault(); clearTimeout(idleT); cancelGhost();
-          const p = local(ev), bp = pos(b);
-          drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false };
-          try{ b.setPointerCapture(ev.pointerId); }catch(e){}
-          b.classList.add("lift"); sfxTap(); slots[placed].classList.add("show", "target");
-        });
-        b.addEventListener("pointermove", ev =>{
-          if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
-          const p = local(ev); if(Math.hypot(p.x - drag.sx, p.y - drag.sy) > 6) drag.moved = true;
-          setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy });
-        });
-        const drop = ev =>{
-          if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
-          const dr = drag; drag = null; b.classList.remove("lift");
-          const at = pos(b), to = slotXY(placed), slot = slots[placed];
-          const hit = dr.moved && Math.abs(at.x - to.x) <= BW * 0.6 && Math.abs(at.y - to.y) <= BH * 0.85;
-          if(hit){                                                          // flush against the last one: counted aloud
-            b._placed = true; b.classList.add("placed"); slot.classList.remove("show", "target");
-            glide(b, to, reduce ? 0 : 120, false, false).then(()=> land(b));
-            placed++;
-            GameBus.emit("measure_unit_placed", { slide_id: slide.id, phase: slide.phase, count: placed, of: N });
-            const n = placed;
-            sayNum(n).then(()=>{ if(!alive()) return; if(n >= N) finish(); else armIdle(); });
-          } else {                                                          // bounce back to the tray, then show how
-            sfxWrongSoft(); slot.classList.remove("show", "target");
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: ++state.attempts });
-            glide(b, b._home, reduce ? 0 : 420, true, false).then(()=>{ if(!alive()) return;
-              if(!reduce) b.animate([{ transform: "translateY(-10px)" }, { transform: "translateY(0)" }, { transform: "translateY(-4px)" }, { transform: "none" }], { duration: 360, easing: "ease-out" });
-              setTimeout(()=>{ if(alive() && phase === "child" && !drag) ghost().then(()=>{ if(alive() && phase === "child") armIdle(); }); }, 350); });
-          }
-        };
-        b.addEventListener("pointerup", drop); b.addEventListener("pointercancel", drop);
-      });
-      /* ---- done: "6 ब्लॉक्स" under the measured row, the conclusion, आगे ---- */
+      let phase = "demo", arrowEl = null;
+      const target = n =>{ if(arrowEl){ arrowEl.remove(); arrowEl = null; } if(phase !== "child" || n >= N) return;
+        const p = slotXY(n); arrowEl = AX === "x" ? K.arrow(scene, p.x + S / 2, p.y - 30, "down") : K.arrow(scene, p.x + S + 30, p.y + S / 2, "left"); };
+      /* ---- the child's turn: MDK.childMeasure ---- */
+      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, placed0: DEMO, idleMs: 6000, ghostAfterWrong: true,
+        onHit: (n, tile)=>{ placeMark(tile, n); target(n); return sayNum(n); }, onAll: finish });
       function finish(){
-        phase = "done"; clearTimeout(idleT); cancelGhost();
-        const trayEl = scene.querySelector(".md-tray"); if(trayEl) trayEl.classList.add("empty");   // every block is used: the tray bows out
-        const res = add("div", "md-result", "left:" + px(XL - 40) + ";width:" + px(XR - XL + 80) + ";top:" + px(RY + BH + 12));
-        res.textContent = devNumeral(N) + " " + (d.unit_hi || "ब्लॉक्स");
-        requestAnimationFrame(()=> res.classList.add("in"));
-        setSwMood("happy");
+        phase = "done"; target(N);
+        box.back.classList.add("empty"); box.front.classList.add("empty");                 // every block is used: the box bows out
+        K.plate(scene, devNumeral(N) + " " + (d.unit_hi || "ब्लॉक्स"), plateAt.cx, plateAt.y, Math.round((PLATE_H - 2) * 330 / 157));
+        setSwMood("happy"); K.pose("cheer"); try{ confettiCannon(); }catch(e){}
         play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); });
       }
       state.replayAudio = ()=>{
-        if(phase === "child"){ clearTimeout(idleT); say("child").then(()=>{ if(alive() && phase === "child") armIdle(); }); ghost(); }
+        if(phase === "child"){ run.cancelGhost(); say("child").then(()=>{ if(alive() && phase === "child") run.armIdle(); }); run.ghost(); }
         else if(phase === "done") play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); });
       };
       /* ---- the script ---- */
       (async ()=>{
         try{
           const tp = document.querySelector("#slideHost .tut-prompt");
-          requestAnimationFrame(()=> scene.classList.add("in"));             // the table + tray come in
+          requestAnimationFrame(()=> scene.classList.add("in"));             // the object + the toy box come in
           if(tp) tp.classList.add("speaking"); await say("prompt"); guard(); if(tp) tp.classList.remove("speaking");
-          lineL.classList.add("show", "pulse"); await say("explain_a"); guard(); lineL.classList.remove("pulse");
-          lineR.classList.add("show", "pulse"); await say("explain_b"); guard(); lineR.classList.remove("pulse");
-          await say("demo"); guard();
+          K.show(lines.start, true); await say("explain_a"); guard(); K.unpulse(lines.start);
+          K.show(lines.end, true); await say("explain_b"); guard(); K.unpulse(lines.end);
+          K.pose("guide"); await say("demo"); guard();
           for(let k = 0; k < DEMO; k++){                                     // एक... दो...
             await handDrag(blocks[k], slotXY(k)); guard();
-            blocks[k]._placed = true; blocks[k].classList.add("placed"); placed++;
-            await sayNum(placed); guard();
+            blocks[k]._placed = true; blocks[k].classList.add("placed"); drop(blocks[k]); placeMark(slotXY(k), k + 1);
+            await sayNum(k + 1); guard();
           }
           // the rule: start where the last one ends ...
-          const endAt = slotXY(DEMO).x, mark = add("div", "md-endmark", "left:" + px(endAt - 3) + ";top:" + px(RY - 10) + ";height:" + px(BH + 20));
+          const e0 = slotXY(DEMO), mark = AX === "x" ? K.add(scene, "div", "md-endmark v", "left:" + px(e0.x - 3) + ";top:" + px(e0.y - 10) + ";height:" + px(S + 20))
+                                                     : K.add(scene, "div", "md-endmark h", "left:" + px(e0.x - 10) + ";top:" + px(e0.y + S - 3) + ";width:" + px(S + 20));
           await say("rule_a"); guard(); mark.classList.add("out"); setTimeout(()=> mark.remove(), 400);
-          // ... no gap between ...
-          const g = blocks[DEMO], gp = slotXY(DEMO), GAP = BW * 0.45;
-          const vGap = say("rule_b");
-          await handDrag(g, { x: gp.x + GAP, y: gp.y }); guard();
-          const gapBox = add("div", "md-box", "left:" + px(gp.x + 2) + ";top:" + px(RY - 8) + ";width:" + px(GAP - 4) + ";height:" + px(BH + 16));
-          await vGap; guard(); await wait(1000); guard();
-          gapBox.classList.add("out"); await handDrag(g, g._home); guard(); gapBox.remove();
-          // ... and not on top of each other
-          const vOver = say("rule_c");
-          g.classList.add("over");
-          await handDrag(g, { x: gp.x - GAP, y: gp.y }); guard();
-          const ovBox = add("div", "md-box", "left:" + px(gp.x - GAP) + ";top:" + px(RY - 8) + ";width:" + px(GAP) + ";height:" + px(BH + 16));
-          await vOver; guard(); await wait(1000); guard();
-          ovBox.classList.add("out"); await handDrag(g, g._home); guard(); ovBox.remove(); g.classList.remove("over");
+          // ... no gap ... and not on top of each other
+          const g = blocks[DEMO], GAP = S * 0.45;
+          for(const kind of ["gap", "over"]){
+            const v = say(kind === "gap" ? "rule_b" : "rule_c");
+            const off = kind === "gap" ? GAP : -GAP;
+            const to = AX === "x" ? { x: e0.x + off, y: e0.y } : { x: e0.x, y: e0.y - off };
+            if(kind === "over") g.classList.add("over");
+            await handDrag(g, to); guard();
+            const bx = AX === "x" ? (kind === "gap" ? { l: e0.x + 2, t: e0.y - 8, w: GAP - 4, h: S + 16 } : { l: e0.x - GAP, t: e0.y - 8, w: GAP, h: S + 16 })
+                                  : (kind === "gap" ? { l: e0.x - 8, t: e0.y + S - GAP + 2, w: S + 16, h: GAP - 4 } : { l: e0.x - 8, t: e0.y + S, w: S + 16, h: GAP });
+            const boxEl = K.add(scene, "div", "md-err", "left:" + px(bx.l) + ";top:" + px(bx.t) + ";width:" + px(bx.w) + ";height:" + px(bx.h));
+            const x = K.mark(scene, AX === "x" ? bx.l + bx.w / 2 : bx.l + bx.w + 26, AX === "x" ? bx.t - 24 : bx.t + bx.h / 2, false);
+            if(!reduce) g.animate([{ rotate: "0deg" }, { rotate: "-6deg" }, { rotate: "6deg" }, { rotate: "-4deg" }, { rotate: "0deg" }], { duration: 600, easing: "ease-in-out" });
+            await v; guard(); await K.wait(1000); guard();
+            boxEl.classList.add("out"); x.classList.add("out"); await handDrag(g, g._home); guard(); boxEl.remove(); x.remove();
+            if(kind === "over") g.classList.remove("over");
+          }
           // the child's turn: the ghost drag shows how while the VO asks
-          phase = "child";
-          const gh = ghost(); await say("child"); guard(); await gh; guard();
-          armIdle();
+          K.pose(null); phase = "child"; target(DEMO); run.start();
+          const gh = run.ghost(); await say("child"); guard(); await gh; guard();
+          run.armIdle();
         } catch(e){ if(e !== STOP) console.error("[MEASURE_DEMO]", e); }
       })();
+    }
+  },
+
+  MEASURE_ASK: {
+    /* G1 the bed, G2 the almirah, G2b the pillow, G3 the fridge - SME deck pages 5-7 (review 2026-09-30: "follow the
+       ppt slides instructions"). The child MEASURES first, then answers:
+         instruction OST + VO ... the object (its dashed end lines + flags), its tiles, the toy box. The child drags the
+                                  blocks one by one (MDK.childMeasure): each correct drop stays; a gap / an overlap / off
+                                  the row bounces back; idle 6s - the ghost drag from the box to the next tile
+         then ................... every block stays; the OST becomes the question (data.ask_hi) and its VO plays
+                                  (audio.ask); three options, "<k> ब्लॉक्स"
+         a tap .................. correct - SFX + confetti + the correct VO, then on;
+                                  wrong #1 - the option wiggles, the blocks glow, "ब्लॉक्स को एक बार फिर गिनिए।";
+                                  wrong #2 - each block lights up in turn with the counting VO, एक ... N;
+                                  wrong #3 - a counting digit below (a row) / beside (a column) each block, then the hand
+                                             on the correct option;
+                                  wrong #4 - the correct option is shown, its VO, and the slide moves on (never stuck).
+       axis "x": the tiles in a row below the object; "y": a column beside it, from its foot up.
+       data: { n, axis, obj:{src, ar, a0, a1}, s, ask_hi, options:[..], unit_hi }  audio: prompt, ask, correct, try_again */
+    mount(host, slide){
+      const d = slide.data, N = d.n, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
+      state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
+      const scene = document.createElement("div"); scene.className = "md-stage mq"; host.appendChild(scene);
+      const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
+      const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
+      const W = scene.offsetWidth || 1033, H = Math.max(420, host.getBoundingClientRect().height / kS - 6);
+      scene.style.height = px(H);
+      const OPT_H = 100, ar = d.obj.ar || 1, f0 = d.obj.a0 || 0, f1 = d.obj.a1 != null ? d.obj.a1 : 1;
+      let S, OX, OY, OW, OH, A0, A1, slotXY, lines, boxAt, side;
+      if(AX === "x"){
+        S = Math.min(d.s || 64, (H - OPT_H - 44) / (N * ar / (f1 - f0) + 1)); OW = N * S / (f1 - f0); OH = OW * ar;
+        const boxW = 3.6 * S + 12, gW = OW + 60 + boxW; OX = (W - gW) / 2; OY = Math.max(4, (H - OPT_H - 30 - OH - S - 14) / 2);
+        A0 = OX + OW * f0; A1 = OX + OW * f1; const RY = OY + OH + 14; slotXY = k => ({ x: A0 + k * S, y: RY });
+        lines = K.endLines(scene, "x", A0, A1, OY + 10, RY + S + 12); lines.start._flag.classList.add("flip");
+        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)); boxAt = { x: OX + OW + 60, y: RY + S - bh + S * 0.3 }; side = "bottom";
+      } else {
+        S = Math.min(d.s || 50, (H - OPT_H - 34) / N * (f1 - f0)); OH = N * S / (f1 - f0); OW = OH / ar;
+        const boxW = 3.6 * S + 12, gW = boxW + 70 + OW + 14 + S + 40; OX = (W - gW) / 2 + boxW + 70; OY = H - OPT_H - 22 - OH;
+        A0 = OY + OH * f1; A1 = OY + OH * f0; const CX = OX + OW + 14; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
+        lines = K.endLines(scene, "y", A0, A1, OX - 8, CX + S + 40);
+        const bh = S * (1.5 + 0.52 * (Math.ceil(N / 3) - 1)); boxAt = { x: OX - 70 - boxW, y: A0 - bh + S * 0.3 }; side = "right";
+      }
+      const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
+      K.add(scene, "div", "md-shadow", "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92));
+      const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(scene, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
+      const box = K.toybox(scene, boxAt.x, boxAt.y, N, S, 3);
+      const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S); b.style.zIndex = 3 + Math.floor(j / 3); b._z = b.style.zIndex; return b; });
+      box.front.style.zIndex = 3 + Math.ceil(N / 3);
+      const hand = K.hand(scene, S);
+      const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      const inRow = []; let phase = "measure";
+      /* ---- measure ---- */
+      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, idleMs: 6000, ghostAfterWrong: false,
+        onHit: (n)=>{ inRow.push(blocks.find(b => b._placed && !inRow.includes(b))); }, onAll: ask });
+      /* ---- ask ---- */
+      const opts = K.add(scene, "div", "mq-opts", "top:" + px(H - OPT_H + 8));
+      const optEls = d.options.map(v =>{ const o = K.add(opts, "button", "mq-opt"); o.type = "button"; o.textContent = devNumeral(v) + " " + (d.unit_hi || "ब्लॉक्स"); o._v = v; return o; });
+      const right = optEls.find(o => o._v === N);
+      let wrong = 0, busy = false;
+      const rowOrder = ()=> inRow.slice().sort((a, b)=> AX === "x" ? K.pos(a).x - K.pos(b).x : K.pos(b).y - K.pos(a).y);
+      function ask(){
+        phase = "ask"; run.stop();
+        box.back.classList.add("empty"); box.front.classList.add("empty");
+        $("promptText").textContent = d.ask_hi || slide.prompt_hi;
+        opts.classList.add("in"); busy = true;
+        say("ask").then(()=>{ busy = false; });
+      }
+      async function onWrong(o){
+        wrong++; busy = true;
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e){}
+        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
+        sfxWrongSoft(); setSwMood("tryagain");
+        o.classList.add("wrong"); if(!reduce) o.animate([{ rotate: "0deg" }, { rotate: "-5deg" }, { rotate: "5deg" }, { rotate: "-3deg" }, { rotate: "0deg" }], { duration: 520, easing: "ease-in-out" });
+        setTimeout(()=> o.classList.remove("wrong"), 900);
+        const blocksNow = rowOrder();
+        if(wrong === 1){                                                    // wiggle + the blocks glow + "count them again"
+          blocksNow.forEach(b => b.classList.add("glow")); await say("try_again"); blocksNow.forEach(b => b.classList.remove("glow"));
+        } else if(wrong === 2){                                             // each block in turn, counted aloud
+          for(let k = 0; k < blocksNow.length && alive(); k++){ const b = blocksNow[k]; b.classList.add("hl"); await sayNum(k + 1); b.classList.remove("hl"); }
+        } else if(wrong === 3){                                             // the digits, then the hand on the right option
+          blocksNow.forEach((b, k)=> K.digit(scene, K.pos(b), S, k + 1, side === "bottom" ? "bottom" : "right"));
+          await K.wait(700); if(alive()) placeNudge(right);
+        } else { reveal(); return; }
+        if(alive()) busy = false;
+      }
+      function onRight(o, revealed){
+        state.locked = true; busy = true; stopNudge();
+        o.classList.add("correct");
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrong + 1, score: wrong === 0 ? 1 : 0 }); }catch(e){}
+        recordResult(slide, wrong === 0 && !revealed);
+        const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "cardinality_first_try";
+        GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrong === 0 && !revealed, first_try: wrong === 0, attempts: wrong + 1, latency_ms: Date.now() - state.slideStart });
+        if(!revealed){ sfxCorrect(); try{ confettiCannon(); }catch(e){} setSwMood("happy"); }
+        say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 500));
+      }
+      function reveal(){ GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" });
+        optEls.forEach(x =>{ if(x !== right) x.classList.add("faded"); }); onRight(right, true); }
+      optEls.forEach(o => o.addEventListener("click", ()=>{
+        if(phase !== "ask" || busy || state.locked || !alive()) return; stopNudge();
+        if(o === right) onRight(o, false); else onWrong(o);
+      }));
+      state.replayAudio = ()=>{ if(phase === "measure"){ say("prompt"); run.ghost(); } else if(!busy) say("ask"); };
+      /* ---- go ---- */
+      requestAnimationFrame(()=>{ scene.classList.add("in"); K.show(lines.start); K.show(lines.end); });
+      say("prompt").then(()=>{ if(alive() && phase === "measure") run.armIdle(); });
+      run.start();
+    }
+  },
+
+  COMPARE_MEASURED: {
+    /* G4 the mats, P1 the chairs - SME deck pages 8-9 (review 2026-09-30: "follow the ppt slides instructions"). Two
+       objects side by side, each ALREADY measured: its blocks laid flush along it, from one end to the other (no
+       numbers yet). The child taps the longer / taller one.
+         correct ...... it lights up (green glow) + SFX; "<k> ब्लॉक्स" below (a row) / beside (a column) each one - why
+                        it is longer; the correct VO; then on
+         wrong #1 ..... the tapped one wiggles; the blocks of BOTH light up one by one, a digit appearing below / beside
+                        each, with the counting VO (first object 1..n1, then the second 1..n2); then the question only
+                        (audio.reask)
+         wrong #2 ..... the hand on the correct object; tapping it plays the correct-response SFX (as above)
+         wrong #3 ..... the correct one is shown and the slide moves on (never stuck)
+       axis "x" (the mats): each n·S long, its row of blocks under it, both rows on one line. axis "y" (the chairs):
+       each n·S tall on one floor, its column of blocks beside it. data: { axis, s, unit_hi, items:[{src, ar, n,
+       correct}] } (items in the deck's order - its "first" and "second"). audio: prompt, correct, reask. */
+    mount(host, slide){
+      const d = slide.data, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
+      state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
+      const scene = document.createElement("div"); scene.className = "md-stage cm cm-" + AX; host.appendChild(scene);
+      const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
+      const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
+      const W = scene.offsetWidth || 1033, H = Math.max(420, host.getBoundingClientRect().height / kS - 6); scene.style.height = px(H);
+      const items = d.items, unit = d.unit_hi || "ब्लॉक्स", GAP = 70, PW = 170, PH = Math.round(PW * 157 / 330), NUM = 44, CG = 12;
+      /* the block size: the two (plus, for columns, their digits and count plates) across the width; the taller one
+         (plus, for rows, its blocks, the digits and the plate) down the height */
+      let S = d.s || 64;
+      if(AX === "x") S = Math.min(S, (W - GAP - 40) / items.reduce((a, it)=> a + it.n, 0),
+                                     (H - 24 - 8 - NUM - PH) / (Math.max(...items.map(it => it.n * it.ar)) + 1));
+      else S = Math.min(S, (H - 40) / Math.max(...items.map(it => it.n)),
+                           (W - GAP - 40 - items.length * (CG + 36 + PW)) / items.reduce((a, it)=> a + it.n / it.ar + 1, 0));
+      const geo = items.map(it => AX === "x" ? { w: it.n * S, h: it.n * S * it.ar } : { w: it.n * S / it.ar, h: it.n * S });
+      const gw = g => AX === "x" ? g.w : g.w + CG + S + 36 + PW;
+      let x = (W - geo.reduce((a, g)=> a + gw(g), 0) - GAP * (items.length - 1)) / 2;
+      const maxH = Math.max(...geo.map(g => g.h));
+      const base = AX === "x" ? (H - (maxH + 8 + S + NUM + PH)) / 2 + maxH     // the mats' lower edge (their rows under it)
+                              : H - 30;                                        // the floor the chairs stand on
+      let shade = 0;
+      const els = items.map((it, i)=>{
+        const g = geo[i], ox = x, oy = base - g.h, e = { it, blocks: [] };
+        if(AX === "y") K.add(scene, "div", "md-shadow", "left:" + px(ox + g.w * .02) + ";top:" + px(base - 13) + ";width:" + px(g.w + CG + S));
+        e.img = K.add(scene, "img", "md-obj cm-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(g.w) + ";height:" + px(g.h));
+        e.img.src = it.src; e.img.alt = "";
+        for(let k = 0; k < it.n; k++){
+          const p = AX === "x" ? { x: ox + k * S, y: base + 8 } : { x: ox + g.w + CG, y: base - (k + 1) * S };
+          const b = K.cube(scene, shade++, p.x, p.y, S); b.classList.add("placed"); b.style.zIndex = 4; e.blocks.push(b);
+        }
+        /* one tap area over the object and its blocks; the hand's anchor at the object's middle (placeNudge puts the
+           fingertip 8px under its target's lower edge) */
+        e.hit = K.add(scene, "div", "cm-hit", AX === "x"
+          ? "left:" + px(ox - 8) + ";top:" + px(oy - 8) + ";width:" + px(g.w + 16) + ";height:" + px(g.h + 8 + S + 16)
+          : "left:" + px(ox - 8) + ";top:" + px(Math.min(oy, base - it.n * S) - 8) + ";width:" + px(g.w + CG + S + 16) + ";height:" + px(Math.max(g.h, it.n * S) + 16));
+        e.hit.setAttribute("role", "button");
+        e.anchor = K.add(scene, "div", "cm-anchor", "left:" + px(ox + g.w / 2 - 1) + ";top:" + px(oy + g.h * .5 - 10));
+        e.plateAt = AX === "x" ? { cx: ox + g.w / 2, y: base + 8 + S + NUM } : { cx: ox + g.w + CG + S + 36 + PW / 2, y: base - it.n * S / 2 - PH / 2 };
+        x += gw(g) + GAP;
+        return e;
+      });
+      const right = els.find(e => e.it.correct) || els[els.length - 1];
+      const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      let wrong = 0, busy = true, counted = false;
+      async function countBoth(){                          // the blocks of both, one by one, a digit at each, counted aloud
+        for(const e of els){
+          for(let k = 0; k < e.blocks.length; k++){ if(!alive()) return; const b = e.blocks[k];
+            b.classList.add("hl"); if(!counted) K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right");
+            await sayNum(k + 1); b.classList.remove("hl"); }
+          await K.wait(300);
+        }
+        counted = true;
+      }
+      function onRight(e, revealed){
+        state.locked = true; busy = true; stopNudge();
+        e.img.classList.add("cm-right"); els.forEach(o =>{ if(o !== e) o.img.classList.add("cm-dim"); });
+        e.blocks.forEach(b => b.classList.add("glow"));
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrong + 1, score: wrong === 0 ? 1 : 0 }); }catch(e2){}
+        recordResult(slide, wrong === 0 && !revealed);
+        const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "compare_correct";
+        GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrong === 0 && !revealed, first_try: wrong === 0, attempts: wrong + 1, latency_ms: Date.now() - state.slideStart });
+        if(!revealed){ sfxCorrect(); try{ confettiCannon(); }catch(e2){} setSwMood("happy"); }
+        els.forEach((o, i)=> setTimeout(()=>{ if(alive()) K.plate(scene, devNumeral(o.it.n) + " " + unit, o.plateAt.cx, o.plateAt.y, PW); }, 250 + i * 350));
+        say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 900));
+      }
+      async function onWrong(e){
+        wrong++; busy = true;
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e2){}
+        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
+        sfxWrongSoft(); setSwMood("tryagain");
+        if(!reduce) e.img.animate([{ rotate: "0deg" }, { rotate: "-3deg" }, { rotate: "3deg" }, { rotate: "-2deg" }, { rotate: "1deg" }, { rotate: "0deg" }], { duration: 620, easing: "ease-in-out" });
+        if(wrong === 1){ await K.wait(700); await countBoth(); if(!alive()) return; await say("reask"); }
+        else if(wrong === 2){ await K.wait(450); if(alive()) placeNudge(right.anchor); }
+        else { GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" }); onRight(right, true); return; }
+        if(alive() && !state.locked){ busy = false; setSwMood("point"); }
+      }
+      els.forEach(e => e.hit.addEventListener("click", ()=>{
+        if(busy || state.locked || !alive()) return;
+        if(e === right) onRight(e, false); else { stopNudge(); onWrong(e); }
+      }));
+      state.replayAudio = ()=>{ if(!busy) say(wrong ? "reask" : "prompt"); };
+      requestAnimationFrame(()=> scene.classList.add("in"));
+      say("prompt").then(()=>{ if(alive() && !state.locked && !wrong) busy = false; });
+      setTimeout(()=>{ if(alive() && busy && !state.locked && !wrong) busy = false; }, 1600);   // a tap may come while the question plays
+    }
+  },
+
+  MATCH_MEASURE: {
+    /* P2 (the bench, the blackboard, the stool) and P3 (the window, the water bottle, the TV) - SME deck pages 10-11
+       (review 2026-09-30: "follow the ppt slides instructions"). Left: the three objects, each in its own card and
+       ALREADY measured - its blocks laid flush along it (a row on top of a long one, a column beside a tall one) with
+       dashed lines at its two ends. Right: the three measurement boxes, "<k> ब्लॉक्स", in the deck's shuffled order.
+       The child drags a box onto an object:
+         right ........ the box snaps into that card's slot and locks (green, ✓) + the positive SFX; after all three,
+                        the VO (audio.correct), then on
+         wrong #1 ..... (counted per object) the box bounces back
+         wrong #2 ..... it bounces back; that object's blocks light up one by one, a digit at each, counted aloud
+         wrong #3 ..... it bounces back; the hand on the correct box
+         wrong #4 ..... the correct box moves in by itself (never stuck)
+       A drop on no card / on a card already matched just goes back. The cards are laid out in data.rows (one card in a
+       row: its slot at its right; several: each slot below). data: { s, unit_hi, rows:[[id..]..], items:[{id, src,
+       ar, n, axis}], boxes:[n..] }  audio: prompt, correct. */
+    mount(host, slide){
+      const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
+      state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
+      const scene = document.createElement("div"); scene.className = "md-stage mm"; host.appendChild(scene);
+      const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
+      const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
+      const W = scene.offsetWidth || 1033, H = Math.max(420, host.getBoundingClientRect().height / kS - 6); scene.style.height = px(H);
+      const unit = d.unit_hi || "ब्लॉक्स", TONES = ["yellow", "blue", "green"], BTONES = ["green", "blue", "yellow"];
+      const BW = 184, BH = 74, PAD = 16, GUT = 14, DIG = 34;                 // a box; card padding; gutter; the digits' room
+      const COLW = BW + 44, AX0 = 8, AW = W - COLW - AX0 - 8;               // the boxes' column; the objects' area
+      const items = d.items, byId = {}; items.forEach((it, i)=>{ byId[it.id] = it; it._k = i; });
+      const rows = d.rows || items.map(it => [it.id]);
+      /* an object's content at block size S: a row on top of a long one (digits above it), a column left of a tall one
+         (digits left of it) */
+      const need = (it, S)=> it.axis === "y" ? { w: DIG + S + 10 + it.n * S / it.ar, h: it.n * S }
+                                             : { w: it.n * S, h: DIG + S + it.n * S * it.ar };
+      function plan(S){                                                       // the rows at block size S, or null
+        const out = []; let y = 0;
+        for(const r of rows){
+          const ns = r.map(id => need(byId[id], S));
+          if(r.length === 1){
+            if(ns[0].w + BW + 3 * PAD > AW) return null;
+            const h = Math.max(ns[0].h, BH) + 2 * PAD; out.push({ ids: r, y, h, ws: [AW], slot: "right" }); y += h + GUT;
+          } else {
+            const ws = ns.map(n => Math.max(n.w, BW) + 2 * PAD), sum = ws.reduce((a, b)=> a + b, 0), free = AW - GUT * (r.length - 1);
+            if(sum > free) return null;
+            const h = Math.max(...ns.map(n => n.h)) + BH + 3 * PAD; out.push({ ids: r, y, h, ws: ws.map(w => w * free / sum), slot: "below" }); y += h + GUT;
+          }
+        }
+        return y - GUT <= H - 8 ? { rows: out, h: y - GUT } : null;
+      }
+      let S = d.s || 50, P = plan(S); while(!P && S > 20) P = plan(--S);
+      if(!P){ console.warn("[MATCH_MEASURE] the cards do not fit"); P = { rows: [], h: 0 }; }
+      const Y0 = (H - P.h) / 2;
+      const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      /* ---- the cards: each object with its blocks and end lines, its slot ---- */
+      const cards = []; let shade = 0;
+      P.rows.forEach(r =>{
+        let x = AX0;
+        r.ids.forEach((id, j)=>{
+          const it = byId[id], w = r.ws[j], y = Y0 + r.y, h = r.h, n = need(it, S), c = { it, x, y, w, h, wrong: 0, done: false, blocks: [] };
+          c.el = K.add(scene, "div", "mm-card t-" + TONES[it._k % 3], "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h) + ";--k:" + it._k);
+          let ax, ay, aw, ah;
+          if(r.slot === "right"){ c.slot = { x: x + w - PAD - BW, y: y + (h - BH) / 2 }; ax = x + PAD; ay = y + PAD; aw = w - BW - 3 * PAD; ah = h - 2 * PAD; }
+          else { c.slot = { x: x + (w - BW) / 2, y: y + h - PAD - BH }; ax = x + PAD; ay = y + PAD; aw = w - 2 * PAD; ah = h - BH - 3 * PAD; }
+          K.add(scene, "div", "mm-slot", "left:" + px(c.slot.x) + ";top:" + px(c.slot.y) + ";width:" + px(BW) + ";height:" + px(BH));
+          const x0 = ax + (aw - n.w) / 2, y0 = ay + (ah - n.h) / 2;
+          let ox, oy, ow, oh;
+          if(it.axis === "y"){                                               // a column from its foot to its top, on its left
+            oh = it.n * S; ow = oh / it.ar; const cx = x0 + DIG; ox = cx + S + 10; oy = y0;
+            for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(scene, shade++, cx, oy + oh - (k + 1) * S, S));
+            const gw = S + 10 + ow * .6 + 8;
+            K.add(scene, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy - 1) + ";width:" + px(gw));
+            K.add(scene, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy + oh - 1) + ";width:" + px(gw));
+            c.side = "left";
+          } else {                                                           // a row on top, from one end to the other
+            ow = it.n * S; oh = ow * it.ar; ox = x0; oy = y0 + DIG + S;
+            for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(scene, shade++, ox + k * S, oy - S, S));
+            const gh = S + 8 + Math.min(oh * .4, 40);
+            K.add(scene, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S - 8) + ";height:" + px(gh));
+            K.add(scene, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S - 8) + ";height:" + px(gh));
+            c.side = "above";
+          }
+          c.blocks.forEach(b =>{ b.classList.add("placed"); b.style.zIndex = 4; });
+          c.img = K.add(scene, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh)); c.img.src = it.src; c.img.alt = "";
+          cards.push(c); x += w + GUT;
+        });
+      });
+      /* ---- the boxes ---- */
+      /* spaced so the hand (wrong #3: its fingertip 8px under the box, 100px of hand below that) never covers the next box */
+      const BX = W - COLW + 26, BG = Math.min(110, (H - d.boxes.length * BH - 24) / Math.max(1, d.boxes.length - 1)), tot = d.boxes.length * BH + (d.boxes.length - 1) * BG;
+      const boxes = d.boxes.map((v, i)=>{
+        const home = { x: BX, y: (H - tot) / 2 + i * (BH + BG) };
+        const b = K.add(scene, "div", "mm-box b-" + BTONES[i % 3], "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(BW) + ";height:" + px(BH) + ";--k:" + i);
+        b.textContent = devNumeral(v) + " " + unit; b.setAttribute("role", "button");
+        b._v = v; b._home = home; b._done = false; return b;
+      });
+      const boxFor = c => boxes.find(b => b._v === c.it.n);
+      const cardAt = p => cards.find(c => p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h);
+      let drag = null, busy = false, wrongAll = 0, revealed = false, matched = 0;
+      const goHome = (b, bounce)=> K.glide(b, b._home, reduce ? 0 : 380, true).then(()=>{ b.style.zIndex = "";
+        if(bounce && !reduce && alive()) b.animate([{ translate: "0 -12px" }, { translate: "0 0" }, { translate: "0 -5px" }, { translate: "0 0" }], { duration: 380, easing: "ease-out" }); });
+      function settle(c, b, rev){
+        c.done = true; b._done = true; matched++; b.style.zIndex = 13;
+        return K.glide(b, c.slot, reduce ? 0 : (rev ? 800 : 160), !!rev).then(()=>{
+          if(!alive()) return;
+          b.classList.add("ok"); c.el.classList.add("ok"); K.land(b, true);
+          if(!rev) sfxCorrect();
+          GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: c.it.id, value: c.it.n, attempts: c.wrong + 1, revealed: !!rev });
+          if(matched === cards.length) finish();
+        });
+      }
+      async function miss(c, b){
+        c.wrong++; wrongAll++; busy = true;
+        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: c.it.id, attempts: c.wrong });
+        sfxWrongSoft(); setSwMood("tryagain");
+        c.el.classList.add("no"); setTimeout(()=> c.el.classList.remove("no"), 700);
+        await goHome(b, true); if(!alive()) return;
+        if(c.wrong === 2){                                                   // its blocks, one by one, a digit at each, counted
+          await K.wait(250);
+          for(let k = 0; k < c.blocks.length; k++){ if(!alive()) return; const bl = c.blocks[k];
+            bl.classList.add("hl"); if(!c.counted) K.digit(scene, K.pos(bl), S, k + 1, c.side); await sayNum(k + 1); bl.classList.remove("hl"); }
+          c.counted = true;
+        } else if(c.wrong === 3){ placeNudge(boxFor(c)); }
+        else if(c.wrong >= 4){
+          revealed = true; stopNudge();
+          GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, object: c.it.id, attempts: c.wrong, reason: "wrong" });
+          await settle(c, boxFor(c), true);
+        }
+        if(alive() && !state.locked){ busy = false; setSwMood("point"); }
+      }
+      function finish(){
+        state.locked = true; busy = true; stopNudge();
+        const first = wrongAll === 0 && !revealed;
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongAll + 1, score: first ? 1 : 0 }); }catch(e){}
+        recordResult(slide, first);
+        try{ confettiCannon(); }catch(e){} setSwMood("happy");
+        setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 700)); }, 450);
+      }
+      boxes.forEach(b =>{
+        b.addEventListener("pointerdown", ev =>{
+          if(!alive() || busy || b._done || drag || state.locked) return;
+          ev.preventDefault(); stopNudge();
+          const p = K.local(scene, ev), bp = K.pos(b);
+          drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y };
+          try{ b.setPointerCapture(ev.pointerId); }catch(e){}
+          b.classList.add("lift"); b.style.zIndex = 30; sfxTap();
+        });
+        b.addEventListener("pointermove", ev =>{
+          if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
+          const p = K.local(scene, ev); K.setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy });
+          const c = cardAt({ x: p.x - drag.ox + BW / 2, y: p.y - drag.oy + BH / 2 });
+          cards.forEach(o => o.el.classList.toggle("hover", o === c && !o.done));
+        });
+        const up = ev =>{
+          if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
+          drag = null; b.classList.remove("lift"); cards.forEach(o => o.el.classList.remove("hover"));
+          const at = K.pos(b), c = cardAt({ x: at.x + BW / 2, y: at.y + BH / 2 });
+          if(!c || c.done){ goHome(b, false); return; }
+          if(c.it.n === b._v) settle(c, b, false); else miss(c, b);
+        };
+        b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
+      });
+      state.replayAudio = ()=>{ if(!busy) say("prompt"); };
+      requestAnimationFrame(()=> scene.classList.add("in"));
+      say("prompt");
+    }
+  },
+
+  CLASSROOM_FIT: {
+    /* P4 - the classroom game, SME deck pages 12-13 (review 2026-09-30: "follow the ppt slides instructions"). The
+       classroom (assets/scene_classroom.svg) in the upper part with four empty spaces, each showing its size: a strip
+       of faint blocks along it and "<k> ब्लॉक्स (लंबाई / ऊँचाई)". At the bottom, a tray with the four objects.
+         intro ....... the VO (audio.intro); the child picks ANY object (idle 8s: the hand on the tray - flow only)
+         measure ..... the object enlarges in the centre, the classroom fades out; its blocks wait in the tray (two
+                       more than it needs). The child lays them from one end to the other on its own: no ghost drag, no
+                       start pulse, no counting VO, no hints, no target outlines (a block not flush just goes back).
+                       The first object, if it is the one the VO names (data.vo_object, the bench): audio.measure
+         place ....... the blocks stay on it; the classroom comes back and its spaces pulse; the measured object waits
+                       in the tray and the child drags it into a space - the right one: it snaps in and stays, the
+                       correct SFX; any other: it goes back to the tray (nothing else - the child reconsiders). The
+                       first object, if the bench: audio.place
+         ...then the next object, without any VO; after the fourth, a cheer and on.
+       data: { sc (the classroom's block px), unit_hi, vo_object, items:[{id, name_hi, src, ar, n, axis, space:{x, y,
+       markers, label:[cx, top]}}] } in the room's px (1033 x 340). audio: intro, measure, place. */
+    mount(host, slide){
+      const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
+      state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
+      const scene = document.createElement("div"); scene.className = "md-stage cf"; host.appendChild(scene);
+      const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
+      const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
+      const W = scene.offsetWidth || 1033, H = Math.max(440, host.getBoundingClientRect().height / kS - 6); scene.style.height = px(H);
+      const RW = 1033, RH = 340, RX = (W - RW) / 2, TY = RH + 10, TH = H - TY, SC = d.sc || 36, unit = d.unit_hi || "ब्लॉक्स";
+      const items = d.items;
+      const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const setHead = t =>{ $("promptText").textContent = t; };
+      /* ---- the classroom: its spaces, their block strips, floor markers and size labels ---- */
+      const room = K.add(scene, "div", "cf-room", "left:" + px(RX) + ";top:0;width:" + px(RW) + ";height:" + px(RH));
+      const bg = K.add(room, "img", "cf-room-bg"); bg.src = "assets/scene_classroom.svg"; bg.alt = "";
+      items.forEach(it =>{
+        const s = it.space, w = it.axis === "y" ? it.n * SC / it.ar : it.n * SC, h = it.axis === "y" ? it.n * SC : it.n * SC * it.ar;
+        it._r = { x: s.x, y: s.y, w, h };
+        it._hit = it.axis === "y" ? { x: s.x - SC - 18, y: s.y - 14, w: w + SC + 32, h: h + 28 } : { x: s.x - 14, y: s.y - SC - 18, w: w + 28, h: h + SC + 32 };
+        it._sp = K.add(room, "div", "cf-space", "left:" + px(s.x) + ";top:" + px(s.y) + ";width:" + px(w) + ";height:" + px(h));
+        it._strip = K.add(room, "div", "cf-strip");
+        for(let k = 0; k < it.n; k++){
+          const p = it.axis === "y" ? { x: s.x - SC - 4, y: s.y + h - (k + 1) * SC } : { x: s.x + k * SC, y: s.y - SC - 4 };
+          K.add(it._strip, "div", "cf-sb", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(SC) + ";height:" + px(SC));
+        }
+        if(s.markers) [s.x - 6, s.x + w - 2].forEach(x => K.add(room, "div", "cf-marker", "left:" + px(x) + ";top:" + px(s.y + h * .3) + ";height:" + px(h * .7 + 6)));
+        it._lb = K.add(room, "div", "cf-label", "left:" + px(s.label[0]) + ";top:" + px(s.label[1]));
+        it._lb.innerHTML = "<b></b><span></span>";
+        it._lb.querySelector("b").textContent = devNumeral(it.n) + " " + unit;
+        it._lb.querySelector("span").textContent = it.axis === "y" ? "(ऊँचाई)" : "(लंबाई)";
+      });
+      /* ---- the tray ---- */
+      const tray = K.add(scene, "div", "cf-tray", "left:" + px(RX) + ";top:" + px(TY) + ";width:" + px(RW) + ";height:" + px(TH));
+      const TW = (RW - 40 - 3 * 18) / 4;
+      items.forEach((it, i)=>{
+        const t = K.add(tray, "button", "cf-item", "left:" + px(20 + i * (TW + 18)) + ";top:8px;width:" + px(TW) + ";height:" + px(TH - 18));
+        t.type = "button"; t.innerHTML = '<img alt=""><span></span>'; t.querySelector("img").src = it.src; t.querySelector("span").textContent = it.name_hi;
+        t.addEventListener("click", ()=> pick(it)); it._t = t;
+      });
+      /* ---- the game ---- */
+      let phase = "pick", first = true, cur = null, run = null, wrongs = 0, placedN = 0, idleT = 0;
+      const voFor = it => first && it && it.id === d.vo_object;
+      function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
+        const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, 8000); }
+      function toPick(idle){
+        phase = "pick"; cur = null; setHead(slide.prompt_hi || ""); scene.classList.remove("cf-measuring", "cf-placing");
+        items.forEach(it =>{ it._t.disabled = !!it._done; }); if(idle) armIdle();
+      }
+      function pick(it){
+        if(phase !== "pick" || it._done || !alive()) return;
+        clearTimeout(idleT); stopNudge(); sfxTap();
+        cur = it; phase = "measure"; scene.classList.add("cf-measuring");
+        setHead(it.name_hi + " को ब्लॉक से मापिए।");
+        measureView(it);
+        if(voFor(it)) say("measure"); else stopAudio();
+      }
+      /* the measuring view: the object big in the centre (a row on top of a long one, a column left of a tall one),
+         dashed lines at its ends, the blocks waiting in the tray */
+      function measureView(it){
+        const N = it.n, M = N + 2, TOP = RH - 10, layer = K.add(scene, "div", "cf-mv");
+        let S, slotXY, ox, oy, ow, oh;
+        if(it.axis === "y"){
+          S = Math.min(64, (TOP - 40) / N, (W - 80) / (M + (M - 1) * .16));
+          oh = N * S; ow = oh / it.ar; const gx = (W - (S + 12 + ow)) / 2; ox = gx + S + 12; oy = (TOP - oh) / 2 + 10;
+          slotXY = k => ({ x: gx, y: oy + oh - (k + 1) * S });
+          const gw = S + 12 + ow * .6 + 16;
+          K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy - 1) + ";width:" + px(gw));
+          K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy + oh - 1) + ";width:" + px(gw));
+        } else {
+          S = Math.min(64, (W - 120) / N, (TOP - 40) / (1 + N * it.ar), (W - 80) / (M + (M - 1) * .16));
+          ow = N * S; oh = ow * it.ar; ox = (W - ow) / 2; oy = (TOP - (S + oh)) / 2 + S + 10;
+          slotXY = k => ({ x: ox + k * S, y: oy - S });
+          const gh = S + 12 + Math.min(oh * .4, 50);
+          K.add(layer, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S - 12) + ";height:" + px(gh));
+          K.add(layer, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S - 12) + ";height:" + px(gh));
+        }
+        const img = K.add(layer, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh)); img.src = it.src; img.alt = "";
+        const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(layer, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
+        const gap = Math.round(S * .16), bx = (W - (M * S + (M - 1) * gap)) / 2, by = TY + (TH - S) / 2;
+        const blocks = []; for(let j = 0; j < M; j++){ const b = K.cube(layer, j, bx + j * (S + gap), by, S); b._z = 3; b.style.zIndex = 3; blocks.push(b); }
+        run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: null,
+          idleMs: 0, ghostAfterWrong: false, showTiles: false, onAll: ()=> setTimeout(()=> measured(it, layer), 650) });
+        run.start();
+      }
+      function measured(it, layer){
+        if(!alive() || cur !== it) return;
+        run.stop(); phase = "place";
+        setHead("अब " + it.name_hi + " के लिए सही जगह चुनिए।");
+        if(voFor(it)) say("place");
+        layer.querySelectorAll(".md-block:not(.placed)").forEach(b => b.classList.add("cf-spare"));
+        /* the blocks stay on it a moment; then the classroom comes back and the object, still measured, moves to the tray */
+        setTimeout(()=>{ if(!alive() || cur !== it) return;
+          layer.classList.add("out"); setTimeout(()=> layer.remove(), 450);
+          scene.classList.remove("cf-measuring"); scene.classList.add("cf-placing");
+          makeCard(it);
+        }, 1100);
+      }
+      /* the measured object in the tray: its picture with its blocks, dragged as one */
+      function makeCard(it){
+        const N = it.n, avH = TH - 22, avW = 460;
+        let s2, cw, ch, bl = [], ob;
+        if(it.axis === "y"){ s2 = Math.min(avH / N, avW / (1 + N / it.ar)); const oh = N * s2, ow = oh / it.ar; cw = s2 + 6 + ow; ch = oh;
+          for(let k = 0; k < N; k++) bl.push({ x: 0, y: oh - (k + 1) * s2 }); ob = { x: s2 + 6, y: 0, w: ow, h: oh }; }
+        else { s2 = Math.min(avW / N, avH / (1 + N * it.ar)); const ow = N * s2, oh = ow * it.ar; cw = ow; ch = s2 + oh;
+          for(let k = 0; k < N; k++) bl.push({ x: k * s2, y: 0 }); ob = { x: 0, y: s2, w: ow, h: oh }; }
+        const home = { x: (W - cw) / 2, y: TY + (TH - ch) / 2 };
+        const c = K.add(scene, "div", "cf-card", "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(cw) + ";height:" + px(ch));
+        const img = K.add(c, "img", "md-obj", "left:" + px(ob.x) + ";top:" + px(ob.y) + ";width:" + px(ob.w) + ";height:" + px(ob.h)); img.src = it.src; img.alt = "";
+        bl.forEach((p, k)=>{ const b = K.cube(c, k, p.x, p.y, s2); b.classList.add("placed"); });
+        c.setAttribute("role", "button");
+        let drag = null, busy = false;
+        const spaceAt = p =>{ const x = p.x - RX, y = p.y; return items.find(o => !o._done && x >= o._hit.x && x <= o._hit.x + o._hit.w && y >= o._hit.y && y <= o._hit.y + o._hit.h) || null; };
+        const hover = sp => items.forEach(o => o._sp.classList.toggle("hover", o === sp));
+        const back = ()=>{ busy = true; K.glide(c, home, reduce ? 0 : 420, true).then(()=>{ busy = false; }); };
+        c.addEventListener("pointerdown", ev =>{
+          if(phase !== "place" || busy || drag || !alive()) return;
+          ev.preventDefault(); stopNudge();
+          const p = K.local(scene, ev), cp = K.pos(c); drag = { id: ev.pointerId, ox: p.x - cp.x, oy: p.y - cp.y };
+          try{ c.setPointerCapture(ev.pointerId); }catch(e){}
+          c.classList.add("lift"); sfxTap();
+        });
+        c.addEventListener("pointermove", ev =>{
+          if(!drag || ev.pointerId !== drag.id) return;
+          const p = K.local(scene, ev); K.setPos(c, { x: p.x - drag.ox, y: p.y - drag.oy }); hover(spaceAt(p));
+        });
+        const up = ev =>{
+          if(!drag || ev.pointerId !== drag.id) return;
+          drag = null; c.classList.remove("lift"); hover(null);
+          const sp = spaceAt(K.local(scene, ev));
+          if(!sp){ back(); return; }
+          if(sp === it){ busy = true; fit(it, c); return; }
+          wrongs++; it._wrong = (it._wrong || 0) + 1;                       // the wrong space: back to the tray, nothing else
+          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: it.id, space: sp.id, attempts: it._wrong });
+          sfxWrongSoft(); sp._sp.classList.add("no"); setTimeout(()=> sp._sp.classList.remove("no"), 700);
+          back();
+        };
+        c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
+      }
+      function fit(it, c){
+        phase = "fit"; it._done = true; placedN++; first = false;
+        sfxCorrect(); stopAudio();
+        c.classList.add("gone"); setTimeout(()=> c.remove(), 320);
+        const r = it._r, o = K.add(room, "img", "cf-placed", "left:" + px(r.x) + ";top:" + px(r.y) + ";width:" + px(r.w) + ";height:" + px(r.h));
+        o.src = it.src; o.alt = "";
+        it._sp.classList.add("filled"); it._strip.classList.add("ok"); it._lb.classList.add("ok");
+        it._t.classList.add("done"); it._t.disabled = true;
+        GameBus.emit("classroom_placed", { slide_id: slide.id, phase: slide.phase, object: it.id, value: it.n, attempts: (it._wrong || 0) + 1 });
+        scene.classList.remove("cf-placing");
+        setTimeout(()=>{ if(!alive()) return; if(placedN >= items.length) finish(); else toPick(false); }, 900);
+      }
+      function finish(){
+        phase = "done"; state.locked = true; stopNudge(); clearTimeout(idleT); setHead(slide.prompt_hi || "");
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongs + 1, score: wrongs === 0 ? 1 : 0 }); }catch(e){}
+        recordResult(slide, wrongs === 0);
+        const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "classroom_done";
+        GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrongs === 0, wrong_drops: wrongs, latency_ms: Date.now() - state.slideStart });
+        try{ confettiCannon(); }catch(e){} setSwMood("happy");
+        setTimeout(()=>{ if(alive()) completeSlide(true); }, 2400);
+      }
+      state.replayAudio = ()=>{ if(phase === "pick") say("intro"); else if(phase === "measure" && voFor(cur)) say("measure"); else if(phase === "place" && voFor(cur)) say("place"); };
+      requestAnimationFrame(()=> scene.classList.add("in"));
+      toPick(false);
+      say("intro").then(()=>{ if(alive() && phase === "pick") armIdle(); });
     }
   },
 
@@ -4084,15 +4756,9 @@ function boot(){
         /* [QA 10] the real button assets (default + deactive) */
         "btn-next-default.svg","btn-next-deactive.svg","btn-continue-default.svg","btn-continue-deactive.svg"
       ].forEach(f => imgs.push("assets/" + (ANIM_ASSETS.indexOf(f) >= 0 ? "gif/" : "") + f));
-      /* deck object art - preload so it never pops in mid-lesson [QA 02] */
-      ["obj_door","obj_bed","obj_almirah","obj_pillow","obj_fridge","obj_mat_1","obj_chairs"   /* [QA 01] only the ones a slide shows */
-      ].forEach(f => imgs.push("assets/" + f + ".webp"));
-      /* [kit] measurement art kit - the block states, markers, wrong-way figures,
-         result plate and the Swiftie poses the feedback card reads. */
-      ["mk_block","mk_block_placed","mk_block_ghost","mk_block_glow",
-       "mk_marker_start","mk_marker_end","mk_err_gap","mk_err_overlap",
-       "mk_sparkle","mk_badge_blank",
-       "mk_sw_explain","mk_sw_guide","mk_sw_cheer"   /* [QA 01] the three poses MK.sw actually reads */
+      /* the deck's object art (the tables, the door ... the classroom) is CARD.assets.image, pushed above [QA 02] */
+      /* [measure kit] the result plate + its sparkle, and the two Swiftie poses of the T2/T3 demos (MDK.pose) */
+      ["mk_sparkle","mk_badge_blank","mk_sw_guide","mk_sw_cheer"   /* [QA 01] only the ones a slide shows */
       ].forEach(f => imgs.push("assets/" + f + "." + IMG_EXT));
       return { imgs: imgs, auds: auds, total: imgs.length + auds.length };
     })();

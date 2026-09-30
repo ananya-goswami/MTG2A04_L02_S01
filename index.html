@@ -166,8 +166,8 @@
   "dt_fallback": null,
   "phase_distribution": {
     "tutorial": 3,
-    "guided": 4,
-    "practice": 6
+    "guided": 5,
+    "practice": 5
   },
   "scaffold_rules": {
     "nudge_timeout_ms": {
@@ -179,17 +179,18 @@
   "signals_expected": [
     "slide_entered",
     "slide_completed",
-    "make_set_add",
-    "make_set_correct",
+    "pick_extreme_correct",
+    "measure_unit_placed",
     "cardinality_first_try",
+    "compare_correct",
+    "match_correct",
+    "classroom_placed",
+    "classroom_done",
     "answer_wrong",
     "answer_revealed",
     "mastery_score",
     "lesson_completed"
   ],
-  "_emoji_fallback": {
-    "mk_block": "🧱"
-  },
   "slides": [
     {
       "id": "T1",
@@ -245,12 +246,13 @@
       "data": {
         "n": 6,
         "demo": 2,
-        "table": {
+        "axis": "x",
+        "obj": {
           "src": "assets/obj_table_long.svg",
-          "w": 380,
+          "w": 400,
           "ar": 0.4609,
-          "x0": 0.0043,
-          "x1": 0.9957
+          "a0": 0.0043,
+          "a1": 0.9957
         },
         "unit_hi": "ब्लॉक्स"
       },
@@ -262,23 +264,29 @@
       "id": "T3",
       "phase": "tutorial",
       "eis": "iconic",
-      "type": "DEMO_COUNT",
+      "type": "MEASURE_DEMO",
       "prompt_hi": "अब दरवाजे की लंबाई मापते हैं।",
       "audio": {
-        "prompt": "vo_t3_prompt",
+        "prompt": "vo_p4_head",
+        "explain_a": "vo_p4_explain_a",
+        "explain_b": "vo_p4_explain_b",
+        "demo": "vo_demo_start",
+        "rule_a": "vo_rule_a",
+        "rule_b": "vo_rule_b",
+        "rule_c": "vo_rule_c",
+        "child": "vo_p4_child",
         "conclude": "vo_p4_done"
       },
       "data": {
-        "count": 9,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
+        "n": 9,
+        "demo": 2,
+        "axis": "y",
+        "obj": {
+          "src": "assets/obj_door.webp",
+          "ar": 1.6434
         },
-        "per_row": 7,
-        "scene_img": "obj_door"
+        "bh": 44,
+        "unit_hi": "ब्लॉक्स"
       },
       "signals": {
         "on_complete": []
@@ -287,39 +295,34 @@
     {
       "id": "G1",
       "phase": "guided",
-      "eis": "enactive",
-      "type": "MAKE_SET",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
       "prompt_hi": "पलंग की लंबाई ब्लॉक से मापिए।",
       "audio": {
         "prompt": "vo_p5_instr",
-        "try_again": "vo_try_again",
-        "correct": "vo_p5_ok"
+        "ask": "vo_p5_ask",
+        "correct": "vo_p5_ok",
+        "try_again": "vo_try_again"
       },
       "data": {
-        "target": 8,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
+        "n": 8,
+        "axis": "x",
+        "obj": {
+          "src": "assets/obj_bed.webp",
+          "ar": 0.3918
         },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
+        "s": 64,
+        "ask_hi": "पलंग की लंबाई कितनी है?",
+        "options": [
+          7,
+          8,
+          9
         ],
-        "scene_img": "obj_bed"
+        "unit_hi": "ब्लॉक्स"
       },
       "signals": {
         "on_complete": [
-          "make_set_correct"
+          "cardinality_first_try"
         ]
       }
     },
@@ -327,51 +330,63 @@
       "id": "G2",
       "phase": "guided",
       "eis": "iconic",
-      "type": "COUNT_HOW_MANY",
-      "prompt_hi": "अलमारी की लंबाई कितनी है?",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "अलमारी की लंबाई ब्लॉक से मापिए।",
       "audio": {
-        "prompt": "vo_p6_ask",
-        "try_again": "vo_try_again",
-        "hint": "vo_try_again",
+        "prompt": "vo_p6_instr",
+        "ask": "vo_p6_ask",
         "correct": "vo_p6_ok",
-        "reveal": "vo_p6_ok"
+        "try_again": "vo_try_again"
       },
       "data": {
-        "count": 7,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
+        "n": 7,
+        "axis": "y",
+        "obj": {
+          "src": "assets/obj_almirah.webp",
+          "ar": 1.6914
         },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
-        ],
-        "per_row": 4,
+        "s": 48,
+        "ask_hi": "अलमारी की लंबाई कितनी है?",
         "options": [
-          {
-            "value": 6,
-            "audio": "vo_num_6"
-          },
-          {
-            "value": 7,
-            "audio": "vo_p6_ok"
-          },
-          {
-            "value": 8,
-            "audio": "vo_num_8"
-          }
+          6,
+          7,
+          8
         ],
-        "scene_img": "obj_almirah"
+        "unit_hi": "ब्लॉक्स"
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
+      }
+    },
+    {
+      "id": "G2b",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "तकिये की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p6b_instr",
+        "ask": "vo_p6b_ask",
+        "correct": "vo_p6b_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 3,
+        "axis": "x",
+        "obj": {
+          "src": "assets/obj_pillow.webp",
+          "ar": 0.5921
+        },
+        "s": 96,
+        "ask_hi": "तकिये की लंबाई कितनी है?",
+        "options": [
+          2,
+          3,
+          5
+        ],
+        "unit_hi": "ब्लॉक्स"
       },
       "signals": {
         "on_complete": [
@@ -382,39 +397,34 @@
     {
       "id": "G3",
       "phase": "guided",
-      "eis": "enactive",
-      "type": "MAKE_SET",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
       "prompt_hi": "फ्रिज की लंबाई ब्लॉक से मापिए।",
       "audio": {
         "prompt": "vo_p7_instr",
-        "try_again": "vo_try_again",
-        "correct": "vo_p7_ok"
+        "ask": "vo_p7_ask",
+        "correct": "vo_p7_ok",
+        "try_again": "vo_try_again"
       },
       "data": {
-        "target": 6,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
+        "n": 6,
+        "axis": "y",
+        "obj": {
+          "src": "assets/obj_fridge.webp",
+          "ar": 2.0403
         },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
+        "s": 52,
+        "ask_hi": "फ्रिज की लंबाई कितनी है?",
+        "options": [
+          4,
+          5,
+          6
         ],
-        "scene_img": "obj_fridge"
+        "unit_hi": "ब्लॉक्स"
       },
       "signals": {
         "on_complete": [
-          "make_set_correct"
+          "cardinality_first_try"
         ]
       }
     },
@@ -422,94 +432,69 @@
       "id": "G4",
       "phase": "guided",
       "eis": "iconic",
-      "type": "COUNT_HOW_MANY",
+      "type": "COMPARE_MEASURED",
       "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",
       "audio": {
         "prompt": "vo_p8_ask",
-        "try_again": "vo_p8_reask",
-        "hint": "vo_p8_reask",
         "correct": "vo_p8_ok",
-        "reveal": "vo_p8_ok"
+        "reask": "vo_p8_reask"
       },
       "data": {
-        "count": 7,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
-        ],
-        "per_row": 5,
-        "options": [
+        "axis": "x",
+        "s": 64,
+        "unit_hi": "ब्लॉक्स",
+        "items": [
           {
-            "value": 5,
-            "audio": "vo_num_5"
+            "src": "assets/obj_mat_1.webp",
+            "ar": 0.5056,
+            "n": 6
           },
           {
-            "value": 6,
-            "audio": "vo_num_6"
-          },
-          {
-            "value": 7,
-            "audio": "vo_p8_ok"
+            "src": "assets/obj_mat_2.webp",
+            "ar": 0.4686,
+            "n": 7,
+            "correct": true
           }
-        ],
-        "scene_img": "obj_mat_1"
+        ]
       },
       "signals": {
         "on_complete": [
-          "cardinality_first_try"
+          "compare_correct"
         ]
       }
     },
     {
       "id": "P1",
       "phase": "practice",
-      "eis": "enactive",
-      "type": "MAKE_SET",
+      "eis": "iconic",
+      "type": "COMPARE_MEASURED",
       "prompt_hi": "कौन-सी कुर्सी ज़्यादा लंबी है?",
       "audio": {
         "prompt": "vo_p9_ask",
-        "try_again": "vo_p9_reask",
-        "correct": "vo_p9_ok"
+        "correct": "vo_p9_ok",
+        "reask": "vo_p9_reask"
       },
       "data": {
-        "target": 5,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
-        ],
-        "scene_img": "obj_chairs"
+        "axis": "y",
+        "s": 70,
+        "unit_hi": "ब्लॉक्स",
+        "items": [
+          {
+            "src": "assets/obj_chair_short.webp",
+            "ar": 1.615,
+            "n": 4
+          },
+          {
+            "src": "assets/obj_chair_tall.webp",
+            "ar": 1.7926,
+            "n": 5,
+            "correct": true
+          }
+        ]
       },
       "signals": {
         "on_complete": [
-          "make_set_correct"
+          "compare_correct"
         ]
       }
     },
@@ -517,92 +502,111 @@
       "id": "P2",
       "phase": "practice",
       "eis": "iconic",
-      "type": "COUNT_HOW_MANY",
+      "type": "MATCH_MEASURE",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "try_again": "vo_try_again",
-        "hint": "vo_try_again",
-        "correct": "vo_match_ok",
-        "reveal": "vo_match_ok"
+        "correct": "vo_match_ok"
       },
       "data": {
-        "count": 7,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
+        "s": 50,
+        "unit_hi": "ब्लॉक्स",
+        "rows": [
+          [
+            "bench"
+          ],
+          [
+            "board",
+            "stool"
+          ]
         ],
-        "per_row": 6,
-        "options": [
+        "items": [
           {
-            "value": 3,
-            "audio": "vo_num_3"
+            "id": "bench",
+            "src": "assets/obj_bench.svg",
+            "ar": 0.2762,
+            "n": 7,
+            "axis": "x"
           },
           {
-            "value": 5,
-            "audio": "vo_num_5"
+            "id": "board",
+            "src": "assets/obj_blackboard.svg",
+            "ar": 0.44,
+            "n": 5,
+            "axis": "x"
           },
           {
-            "value": 7,
-            "audio": "vo_match_ok"
+            "id": "stool",
+            "src": "assets/obj_stool.svg",
+            "ar": 1.2267,
+            "n": 3,
+            "axis": "y"
           }
+        ],
+        "boxes": [
+          3,
+          7,
+          5
         ]
       },
       "signals": {
         "on_complete": [
-          "cardinality_first_try"
+          "match_correct"
         ]
       }
     },
     {
       "id": "P3",
       "phase": "practice",
-      "eis": "enactive",
-      "type": "MAKE_SET",
+      "eis": "iconic",
+      "type": "MATCH_MEASURE",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "try_again": "vo_try_again",
         "correct": "vo_match_ok"
       },
       "data": {
-        "target": 5,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
+        "s": 56,
+        "unit_hi": "ब्लॉक्स",
+        "rows": [
+          [
+            "window",
+            "bottle",
+            "tv"
+          ]
+        ],
+        "items": [
+          {
+            "id": "window",
+            "src": "assets/obj_window.svg",
+            "ar": 1.3587,
+            "n": 5,
+            "axis": "y"
+          },
+          {
+            "id": "bottle",
+            "src": "assets/obj_bottle.svg",
+            "ar": 2.6389,
+            "n": 3,
+            "axis": "y"
+          },
+          {
+            "id": "tv",
+            "src": "assets/obj_tv.svg",
+            "ar": 0.6615,
+            "n": 4,
+            "axis": "x"
+          }
+        ],
+        "boxes": [
+          5,
+          4,
+          3
         ]
       },
       "signals": {
         "on_complete": [
-          "make_set_correct"
+          "match_correct"
         ]
       }
     },
@@ -610,110 +614,88 @@
       "id": "P4",
       "phase": "practice",
       "eis": "iconic",
-      "type": "COUNT_HOW_MANY",
-      "prompt_hi": "दरवाज़ा को कितने ब्लॉक से नापा गया? सही अंक चुनिए।",
+      "type": "CLASSROOM_FIT",
+      "prompt_hi": "ब्लॉक से मापिए और सही जगह चुनिए।",
       "audio": {
-        "prompt": "vo_p12_ask",
-        "try_again": "vo_try_again",
-        "hint": "vo_try_again",
-        "correct": "vo_p12_ok",
-        "reveal": "vo_p12_ok"
+        "intro": "vo_p13_intro",
+        "measure": "vo_p13_measure",
+        "place": "vo_p13_place"
       },
       "data": {
-        "count": 7,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
-        ],
-        "per_row": 7,
-        "options": [
+        "sc": 36,
+        "unit_hi": "ब्लॉक्स",
+        "vo_object": "bench",
+        "items": [
           {
-            "value": 6,
-            "audio": "vo_num_6"
+            "id": "bench",
+            "name_hi": "बेंच",
+            "src": "assets/obj_bench.svg",
+            "ar": 0.2762,
+            "n": 8,
+            "axis": "x",
+            "space": {
+              "x": 372,
+              "y": 252,
+              "markers": true,
+              "label": [
+                724,
+                280
+              ]
+            }
           },
           {
-            "value": 7,
-            "audio": "vo_p12_ok"
+            "id": "almirah",
+            "name_hi": "छोटी अलमारी",
+            "src": "assets/obj_almirah.webp",
+            "ar": 1.6914,
+            "n": 5,
+            "axis": "y",
+            "space": {
+              "x": 890,
+              "y": 110,
+              "label": [
+                943,
+                60
+              ]
+            }
           },
           {
-            "value": 8,
-            "audio": "vo_num_8"
+            "id": "chair",
+            "name_hi": "कुर्सी",
+            "src": "assets/obj_chair_tall.webp",
+            "ar": 1.7926,
+            "n": 4,
+            "axis": "y",
+            "space": {
+              "x": 214,
+              "y": 146,
+              "label": [
+                254,
+                96
+              ]
+            }
+          },
+          {
+            "id": "board",
+            "name_hi": "ब्लैकबोर्ड",
+            "src": "assets/obj_blackboard.svg",
+            "ar": 0.44,
+            "n": 6,
+            "axis": "x",
+            "space": {
+              "x": 360,
+              "y": 84,
+              "label": [
+                636,
+                110
+              ]
+            }
           }
         ]
       },
       "signals": {
         "on_complete": [
-          "cardinality_first_try"
-        ]
-      }
-    },
-    {
-      "id": "P5",
-      "phase": "practice",
-      "eis": "iconic",
-      "type": "COUNT_HOW_MANY",
-      "prompt_hi": "बेंच को ब्लॉक से मापिए।",
-      "audio": {
-        "prompt": "vo_p13_measure",
-        "try_again": "vo_try_again",
-        "hint": "vo_try_again",
-        "correct": "vo_p13_ok",
-        "reveal": "vo_p13_ok"
-      },
-      "data": {
-        "count": 6,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "numerals": [
-          "एक",
-          "दो",
-          "तीन",
-          "चार",
-          "पाँच",
-          "छह",
-          "सात",
-          "आठ",
-          "नौ"
-        ],
-        "per_row": 8,
-        "options": [
-          {
-            "value": 5,
-            "audio": "vo_num_5"
-          },
-          {
-            "value": 6,
-            "audio": "vo_p13_ok"
-          },
-          {
-            "value": 7,
-            "audio": "vo_num_7"
-          }
-        ],
-        "scene_img": "obj_pillow"
-      },
-      "signals": {
-        "on_complete": [
-          "cardinality_first_try"
+          "classroom_done"
         ]
       }
     },
@@ -743,15 +725,18 @@
       "vo_num_7": "assets/voiceover/vo_num_7.ogg",
       "vo_num_8": "assets/voiceover/vo_num_8.ogg",
       "vo_num_9": "assets/voiceover/vo_num_9.ogg",
-      "vo_p12_ask": "assets/voiceover/vo_p12_ask.ogg",
-      "vo_p12_ok": "assets/voiceover/vo_p12_ok.ogg",
       "vo_p13_measure": "assets/voiceover/vo_p13_measure.ogg",
-      "vo_p13_ok": "assets/voiceover/vo_p13_ok.ogg",
       "vo_p2_ask": "assets/voiceover/vo_p2_ask.ogg",
       "vo_p2_fb": "assets/voiceover/vo_p2_fb.ogg",
       "vo_p3_done": "assets/voiceover/vo_p3_done.ogg",
       "vo_p4_done": "assets/voiceover/vo_p4_done.ogg",
       "vo_p5_instr": "assets/voiceover/vo_p5_instr.ogg",
+      "vo_p7_ask": "assets/voiceover/vo_p7_ask.ogg",
+      "vo_p6b_ok": "assets/voiceover/vo_p6b_ok.ogg",
+      "vo_p6b_ask": "assets/voiceover/vo_p6b_ask.ogg",
+      "vo_p6b_instr": "assets/voiceover/vo_p6b_instr.ogg",
+      "vo_p6_instr": "assets/voiceover/vo_p6_instr.ogg",
+      "vo_p5_ask": "assets/voiceover/vo_p5_ask.ogg",
       "vo_p5_ok": "assets/voiceover/vo_p5_ok.ogg",
       "vo_p6_ask": "assets/voiceover/vo_p6_ask.ogg",
       "vo_p6_ok": "assets/voiceover/vo_p6_ok.ogg",
@@ -774,18 +759,14 @@
       "vo_rule_b": "assets/voiceover/vo_rule_b.ogg",
       "vo_rule_c": "assets/voiceover/vo_rule_c.ogg",
       "vo_p3_child": "assets/voiceover/vo_p3_child.ogg",
-      "vo_t3_prompt": "assets/voiceover/vo_t3_prompt.ogg",
-      "vo_total_1": "assets/voiceover/vo_total_1.ogg",
-      "vo_total_2": "assets/voiceover/vo_total_2.ogg",
-      "vo_total_3": "assets/voiceover/vo_total_3.ogg",
-      "vo_total_4": "assets/voiceover/vo_total_4.ogg",
-      "vo_total_5": "assets/voiceover/vo_total_5.ogg",
-      "vo_total_6": "assets/voiceover/vo_total_6.ogg",
-      "vo_total_7": "assets/voiceover/vo_total_7.ogg",
-      "vo_total_8": "assets/voiceover/vo_total_8.ogg",
-      "vo_total_9": "assets/voiceover/vo_total_9.ogg",
+      "vo_p4_head": "assets/voiceover/vo_p4_head.ogg",
+      "vo_p4_explain_a": "assets/voiceover/vo_p4_explain_a.ogg",
+      "vo_p4_explain_b": "assets/voiceover/vo_p4_explain_b.ogg",
+      "vo_p4_child": "assets/voiceover/vo_p4_child.ogg",
       "vo_try_again": "assets/voiceover/vo_try_again.ogg",
-      "vo_well_done": "assets/voiceover/vo_well_done.ogg"
+      "vo_well_done": "assets/voiceover/vo_well_done.ogg",
+      "vo_p13_intro": "assets/voiceover/vo_p13_intro.ogg",
+      "vo_p13_place": "assets/voiceover/vo_p13_place.ogg"
     },
     "audio_text": {
       "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
@@ -800,15 +781,18 @@
       "vo_num_7": "सात",
       "vo_num_8": "आठ",
       "vo_num_9": "नौ",
-      "vo_p12_ask": "अब बताइए, यह कितने ब्लॉक्स लंबा है?",
-      "vo_p12_ok": "शाबाश! यह 7 ब्लॉक्स लंबा है।",
       "vo_p13_measure": "बेंच को ब्लॉक से मापिए।",
-      "vo_p13_ok": "शाबाश! बेंच की लंबाई 6 ब्लॉक्स है।",
       "vo_p2_ask": "इनमें से कौन-सी टेबल ज्यादा लंबी है? उस पर टैप करिए।",
       "vo_p2_fb": "यह टेबल ज्यादा लंबी है।",
       "vo_p3_done": "शाबाश! यह टेबल 6 ब्लॉक्स लंबी है।",
       "vo_p4_done": "शाबाश! यह दरवाजा 9 ब्लॉक्स लंबा है।",
       "vo_p5_instr": "पलंग की लंबाई ब्लॉक से मापिए।",
+      "vo_p7_ask": "अब बताइए, फ्रिज की लंबाई कितनी है?",
+      "vo_p6b_ok": "शाबाश! तकिये की लंबाई 3 ब्लॉक्स है।",
+      "vo_p6b_ask": "अब बताइए, तकिये की लंबाई कितनी है?",
+      "vo_p6b_instr": "तकिये की लंबाई ब्लॉक से मापिए।",
+      "vo_p6_instr": "अलमारी की लंबाई ब्लॉक से मापिए।",
+      "vo_p5_ask": "अब बताइए, पलंग की लंबाई कितनी है?",
       "vo_p5_ok": "शाबाश! पलंग की लंबाई 8 ब्लॉक्स है।",
       "vo_p6_ask": "अब बताइए, अलमारी की लंबाई कितनी है?",
       "vo_p6_ok": "शाबाश! अलमारी की लंबाई 7 ब्लॉक्स है।",
@@ -831,21 +815,16 @@
       "vo_rule_b": "बीच में जगह न छोड़ें,",
       "vo_rule_c": "और एक-दूसरे के ऊपर न रखें।",
       "vo_p3_child": "अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है।",
-      "vo_t3_prompt": "क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं।  इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे और ऊपर तक जाएंगे।  अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। बीच में जगह न छोड़ें, और एक-दूसरे के ऊपर न रखें।  चलिए, शुरू करते हैं।",
-      "vo_total_1": "कुल एक ब्लॉक",
-      "vo_total_2": "कुल दो ब्लॉक्स",
-      "vo_total_3": "कुल तीन ब्लॉक्स",
-      "vo_total_4": "कुल चार ब्लॉक्स",
-      "vo_total_5": "कुल पाँच ब्लॉक्स",
-      "vo_total_6": "कुल छह ब्लॉक्स",
-      "vo_total_7": "कुल सात ब्लॉक्स",
-      "vo_total_8": "कुल आठ ब्लॉक्स",
-      "vo_total_9": "कुल नौ ब्लॉक्स",
+      "vo_p4_head": "क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
+      "vo_p4_explain_a": "इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे",
+      "vo_p4_explain_b": "और ऊपर तक जाएंगे।",
+      "vo_p4_child": "अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है।",
       "vo_try_again": "ब्लॉक्स को एक बार फिर गिनिए।",
-      "vo_well_done": "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!"
+      "vo_well_done": "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!",
+      "vo_p13_intro": "आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए।",
+      "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।"
     },
     "image": {
-      "mk_block": "assets/mk_block.webp",
       "obj_table_long": "assets/obj_table_long.svg",
       "obj_table_short": "assets/obj_table_short.svg",
       "obj_door": "assets/obj_door.webp",
@@ -854,7 +833,16 @@
       "obj_pillow": "assets/obj_pillow.webp",
       "obj_fridge": "assets/obj_fridge.webp",
       "obj_mat_1": "assets/obj_mat_1.webp",
-      "obj_chairs": "assets/obj_chairs.webp"
+      "obj_mat_2": "assets/obj_mat_2.webp",
+      "obj_chair_short": "assets/obj_chair_short.webp",
+      "obj_chair_tall": "assets/obj_chair_tall.webp",
+      "obj_bench": "assets/obj_bench.svg",
+      "obj_blackboard": "assets/obj_blackboard.svg",
+      "obj_stool": "assets/obj_stool.svg",
+      "obj_window": "assets/obj_window.svg",
+      "obj_bottle": "assets/obj_bottle.svg",
+      "obj_tv": "assets/obj_tv.svg",
+      "scene_classroom": "assets/scene_classroom.svg"
     },
     "img_ext": "webp",
     "audio_ext": "ogg"

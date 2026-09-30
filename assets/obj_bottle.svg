@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 190" width="72" height="190" role="img" aria-label="पानी की बोतल">
+  <!-- The water bottle (P3, SME deck page 11): a clear blue plastic bottle, its cap, the water inside and a label with
+       a drop on it. Cap top y 2 to the base y 188, so a column of blocks beside it runs from its bottom to its top. -->
+  <defs>
+    <linearGradient id="btBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#BFE5FF"/><stop offset=".45" stop-color="#E4F5FF"/><stop offset="1" stop-color="#A9D8F7"/></linearGradient>
+    <linearGradient id="btWater" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5DB4EE"/><stop offset=".45" stop-color="#8DD0F7"/><stop offset="1" stop-color="#4BA3E0"/></linearGradient>
+    <linearGradient id="btCap" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1E7BEA"/><stop offset=".5" stop-color="#3D95F5"/><stop offset="1" stop-color="#1359C8"/></linearGradient>
+    <clipPath id="btIn"><path d="M27 30H45Q47 42 57 52Q67 62 67 76V176Q67 187 56 187H16Q5 187 5 176V76Q5 62 15 52Q25 42 27 30Z"/></clipPath>
+  </defs>
+  <path d="M27 30H45Q47 42 57 52Q67 62 67 76V176Q67 187 56 187H16Q5 187 5 176V76Q5 62 15 52Q25 42 27 30Z" fill="url(#btBody)"/>
+  <g clip-path="url(#btIn)">
+    <path d="M0 84Q12 78 24 84T48 84T72 84V190H0Z" fill="url(#btWater)" opacity=".9"/>
+    <path d="M0 150H72M0 162H72" stroke="#FFFFFF" stroke-width="2" opacity=".25"/>
+  </g>
+  <path d="M27 30H45Q47 42 57 52Q67 62 67 76V176Q67 187 56 187H16Q5 187 5 176V76Q5 62 15 52Q25 42 27 30Z" fill="none" stroke="#1D5FA8" stroke-width="2.6" stroke-linejoin="round"/>
+  <!-- label -->
+  <rect x="5" y="104" width="62" height="38" fill="#FFFFFF" stroke="#1D5FA8" stroke-width="2.2"/>
+  <path d="M36 110Q44 121 44 127A8 8 0 0 1 28 127Q28 121 36 110Z" fill="#2F8FEA" stroke="#1D5FA8" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M32 126A4 4 0 0 0 35 131" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <!-- neck ring + cap -->
+  <rect x="24" y="24" width="24" height="8" rx="2" fill="#7FC2F2" stroke="#1D5FA8" stroke-width="2.2"/>
+  <rect x="21" y="2" width="30" height="23" rx="4" fill="url(#btCap)" stroke="#0E3F86" stroke-width="2.4"/>
+  <path d="M27 6V21M33 6V21M39 6V21M45 6V21" stroke="#0E3F86" stroke-width="1.4" opacity=".5"/>
+  <!-- shine -->
+  <path d="M13 72Q12 64 18 58" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" fill="none" opacity=".85"/>
+  <path d="M12 150V176" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" fill="none" opacity=".6"/>
+</svg>

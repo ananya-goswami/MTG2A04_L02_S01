@@ -7,47 +7,87 @@
 
 > Code resolved via `skill_lookup.py MTG2A04_L02_S01` against the Green-Flagged Skills G2-G3 sheet — GREEN-FLAGGED, not inferred.
 
-**Slides:** 13 · Tutorial 3 / Guided 4 / Practice 6
+**Slides:** 13 · Tutorial 3 / Guided 5 / Practice 5 (the celebration counts as practice)
 
-## Teach-then-test — gesture ledger
-- **DEMO_COUNT** (autonomous teach) — the unit block is laid in one row (per_row=n) and counted aloud one at a time, concluding with the measured object's length in blocks.
-- **MAKE_SET** (produce) — add unit blocks until the count matches what the named object needs (engine-capped at 5 items).
-- **COUNT_HOW_MANY** (pick) — a completed row of blocks stands for a finished measurement; tap the numeral it was measured with. Distractors are ±1 (the off-by-one gap/overlap error).
+## The lesson, slide by slide (rebuilt 2026-09-30 to the SME deck, pages 2-14)
+Review: "follow the ppt slides instructions". Each slide does what its deck page says, with the page's own OST and VO.
+Every measuring slide uses one kit — `app.js` `MDK` (`[measure kit]`) + CSS `[measure kit]`: the first screen's plain
+blue cubes (slices of `cubes_blue_row.webp`; the deck's mock-ups draw yellow blocks), a red toy box with a yellow rim,
+dashed end lines with a start and a finish flag, the hand, counting digits, ✓ / ✕ marks and the result plate. Moves
+animate the `translate` property, never `transform`: a lifted block and the pressing hand carry a CSS `scale`, which
+multiplies anything in `transform` (the hand used to drift up to 84px off its block).
 
-## New-mechanic SPEC flagged for the dev team (not built here — KIT MODE, engine read-only)
-**`MEASURE_STRIP`** — a produce module where a target object sits at one end of a horizontal track; tapping repeatedly lays one more unit copy hard-snapped against the last (so a gap/overlap is physically impossible) until the units span the target's marked end, then auto-counts the copies aloud. This is SME pathway [3] verbatim and the one true gap in the current catalog for the whole A04 Measurement domain — see the build script's docstring for the full spec, including a stretch variant rendering pathway [1] (a pre-laid row with a visible gap to spot and fix).
+- **T1 — page 2, `PICK_EXTREME`.** The long and the short table (`obj_table_long.svg` 450px / `obj_table_short.svg`
+  308px, drawn after the deck's art) stand on the card's calm floor (CSS `[T1 tables]`: light wood under the grid-paper
+  wall, a skirting line, soft shadows), a little right of centre so Swifty's corner stays free. Tap the longer one.
+  Right = SFX + confetti, then on. Wrong (deck: "pulsate / hand nudge on the long table and play VO: यह टेबल ज्यादा लंबी
+  है।") = the long table pulses, the hand points at it, `vo_p2_fb` plays — that line only, no re-ask; hint at the 2nd
+  wrong, reveal at the 3rd.
+- **T2 — page 3, `MEASURE_DEMO`.** The long table on the floor and the toy box. Heading VO; VO1 (`vo_p3_explain_a/_b`):
+  the start line and its flag pulse, then the finish; VO2 (`vo_demo_start`): Swiftee's hand drags blocks 1 and 2, each
+  counted aloud with a digit and a ✓; VO3 (`vo_rule_a/_b/_c`): the last block's end glows, a block set down with a GAP
+  (boxed red, ✕, wiggles, taken back), then one OVERLAPPING (the same); the child VO with a bouncing arrow on the next
+  tile. The child drags blocks 3-6: a drop on the next tile snaps flush and is counted aloud with its digit; anywhere
+  else bounces back to the box, then the ghost drag; idle 6s — the ghost drag. Done: the "6 ब्लॉक्स" plate, confetti,
+  Swiftee cheers, `vo_p3_done`, आगे.
+- **T3 — page 4, `MEASURE_DEMO` (axis y).** The door, measured from its bottom to its top — the same script with the
+  door's lines (`vo_p4_head`, `vo_p4_explain_a/_b`, `vo_demo_start`, `vo_rule_a/_b/_c`, `vo_p4_child`, `vo_p4_done`): a
+  column of 9 beside the door using the card's full height, the box on its left, clear of आगे.
+- **G1 bed — page 5, G2 almirah + G2b pillow — page 6, G3 fridge — page 7, `MEASURE_ASK`.** The child measures first:
+  every block dragged from the box onto the object's row (a column for the almirah and the fridge) — no digits, no
+  counting; a gap / an overlap / off the row bounces back; idle 6s the ghost drag. Then the header becomes the question
+  (its VO) and three answer cards "<k> ब्लॉक्स" come up. Wrong 1 — the card wiggles, the blocks glow, "ब्लॉक्स को एक
+  बार फिर गिनिए।"; 2 — each block lights up in turn, counted aloud; 3 — a digit on every block, then the hand on the
+  right card; 4 — it is shown and the slide moves on. Right — SFX + confetti + the correct VO.
+- **G4 mats — page 8, P1 chairs — page 9, `COMPARE_MEASURED`.** Two objects side by side, already measured: blocks
+  flush along each mat's long side (a row under it) / up beside each chair from the floor, no numbers. Tap the longer /
+  taller one. Right — it lifts with a green glow, the other greys, SFX + confetti, "6 ब्लॉक्स" / "7 ब्लॉक्स" under the
+  mats ("4" / "5" beside the chairs), the correct VO. Wrong 1 — it wiggles; the blocks of BOTH light up one by one, a
+  digit appearing below (mats) / beside (chairs) each, counted aloud (first 1…n, then 1…m), then the question only
+  (`vo_p8_reask` / `vo_p9_reask`). Wrong 2 — the hand on the right one; tapping it plays the correct SFX. Wrong 3 — it
+  is shown, on. The chairs are in the deck's order, the 4-block chair first (`obj_chair_short.webp`, `obj_chair_tall.webp`
+  — split from the deck's two-chair picture).
+- **P2 — page 10, P3 — page 11, `MATCH_MEASURE`.** Left, three cards in the deck's yellow / blue / green, each object
+  already measured with dashed lines at its two ends — P2: the bench (7, a row on top), the blackboard (5, on top), the
+  stool (3, a column on its left); P3: the window (5), the water bottle (3), the TV (4, on top). Right, the boxes in
+  the deck's shuffled order (3 / 7 / 5 and 5 / 4 / 3). Drag a box onto an object: right — it snaps into that card's
+  slot, green with a ✓, positive SFX; wrong, counted per object: 1 — it bounces back; 2 — back, and that object's blocks
+  light up one by one with digits, counted aloud; 3 — back, and the hand on the correct box (the boxes are spaced so
+  the hand never covers the next one); 4 — the right box moves in by itself. All three — confetti, `vo_match_ok`, on.
+  Art drawn for these pages in the tables' style: `obj_bench.svg`, `obj_blackboard.svg`, `obj_stool.svg`,
+  `obj_window.svg`, `obj_bottle.svg`, `obj_tv.svg`.
+- **P4 — pages 12-13, `CLASSROOM_FIT`** (replaces the old P4 and P5). The classroom (`scene_classroom.svg`: the wall
+  with bunting and a clock, the window, the door, the tiled floor) with four empty spaces, each with a strip of faint
+  blocks and its size: the blackboard's on the wall (6, लंबाई), the chair's beside the window (4, ऊँचाई), the small
+  almirah's in the corner (5, ऊँचाई), the bench's on the floor between two markers (8, लंबाई). The tray below: बेंच,
+  छोटी अलमारी, कुर्सी, ब्लैकबोर्ड. After the intro VO the child taps any object: it enlarges in the centre, the
+  classroom fades out, its blocks (two spare) wait in the tray, and the child measures it alone — no ghost drag, no
+  start pulse, no counting VO, no hints, no target outlines (a block not laid flush just goes back). The blocks stay on
+  it; the classroom returns, its spaces pulse, and the measured object waits in the tray: dragged into the right space
+  it snaps in and stays (correct SFX); into another it goes back to the tray, nothing else. The deck's VO names the
+  bench, so "बेंच को ब्लॉक से मापिए।" / "अब बेंच के लिए सही जगह चुनिए।" play when the bench is the first object; the
+  next objects play without VO (the header still names each one). After the fourth — confetti, on. Idle 8s on the
+  tray: the hand points at it (flow only).
+- **CEL — page 14.** No text: only the VO "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!", then the engine's आगे बढ़ें.
+
+Signals (`signals_expected`): `slide_entered`, `slide_completed`, `pick_extreme_correct` (T1), `measure_unit_placed`
+(every block laid), `cardinality_first_try` (G1-G3), `compare_correct` (G4, P1), `match_correct` (each P2/P3 pair),
+`classroom_placed` (each P4 object) + `classroom_done`, `answer_wrong`, `answer_revealed`, `mastery_score`,
+`lesson_completed`. Every answerable slide sends `question_started` / `question_answered` and scores first-try.
 
 ## Assets
-- **Art — measurement kit (`assets/mk_*.webp`, 15 cuts):** cut from one supplied sheet.
-  Each sprite is de-hazed (the source carried a broad translucent glow around every object),
-  speck-cleaned and tight-cropped on its own alpha; the sheet's baked-in captions are excluded.
-  - tables — none left from the kit: `mk_table_small` (T1) and `mk_table_plain` (T2) were removed 2026-09-30 with
-    those slides' art. T1's own two tables are `obj_table_long.svg` / `obj_table_short.svg`, drawn 2026-09-30 after
-    the deck's page 2 — see T1 below
-  - unit block, four states — `mk_block` (idle) / `mk_block_placed` / `mk_block_ghost` /
-    `mk_block_glow`
-  - measure markers — `mk_marker_start` / `mk_marker_end`
-  - the two wrong-way figures — `mk_err_gap` / `mk_err_overlap`
-  - `mk_sparkle` and `mk_badge_blank` (the result plate with its baked-in caption lifted off,
-    so every count 1..9 this card uses can reuse one plate)
-  - three full-body Swiftie poses — `mk_sw_explain` / `guide` / `cheer`
-- **Art — how it is wired** (`app.js` § 11b, `style.css` MEASUREMENT ART KIT):
-  - measuring slides carry `.mk-on`, which lays the units **flush** (`.mk-rail`) instead of in
-    bordered tiles with a 12–32px gutter — the old row drew the exact gap this skill forbids.
-    `per_row` is forced to 0 there too, so a measurement is never split over two lines.
-  - START/END markers bracket the measured object; a counted or placed unit swaps to its
-    "placed" face and flashes `mk_block_glow`.
-  - MAKE_SET parks a ghost unit hard against the last one (the anti-gap cue) and drops it once
-    the row reaches the target.
-  - the result lands on the badge plate with the sparkle. Both it and the wrong-way figure float
-    inside `.slide-stage`, so they never steal height from the scene art above.
-  - a wrong count shows the matching figure — too few units = a **gap**, too many = an
-    **overlap** — which is exactly the ±1 misconception the distractors are built from.
-  - the feedback card shows the full-body poses in place of the three `sw_anim_*.gif` frames.
-- **Art — legacy:** `assets/obj_*.webp` (bed, door, almirah, fridge, mats, chairs, pillow)
-  are unchanged and still used for the scenes the kit sheet does not cover. Emoji fallback if missing.
-- **Art — landing cubes (`assets/cubes_blue_row.webp`):** one strip of 10 plain glossy blue cubes (faces
-  painted out), sliced per cube on the landing — see **Landing measure** below.
+- **Art — the objects:** `obj_table_long.svg` / `obj_table_short.svg` (T1, T2), `obj_door.webp` (T3), `obj_bed.webp`
+  (G1), `obj_almirah.webp` (G2, P4), `obj_pillow.webp` (G2b), `obj_fridge.webp` (G3), `obj_mat_1.webp` /
+  `obj_mat_2.webp` (G4), `obj_chair_short.webp` / `obj_chair_tall.webp` (P1; the tall one also in P4), `obj_bench.svg`,
+  `obj_blackboard.svg` (P2, P4), `obj_stool.svg` (P2), `obj_window.svg`, `obj_bottle.svg`, `obj_tv.svg` (P3),
+  `scene_classroom.svg` (P4). The `.webp` cut-outs are the deck's art, tight-cropped; the `.svg` art is drawn in the
+  tables' style (brown wood, dark outline). All of it is `CARD.assets.image`, preloaded.
+- **Art — the blocks (`assets/cubes_blue_row.webp`):** one strip of 10 plain glossy blue cubes (faces painted out),
+  sliced per cube on the landing and on every measuring slide.
+- **Art — measurement kit, what is left:** `mk_badge_blank.webp` + `mk_sparkle.webp` (the result plate) and
+  `mk_sw_guide.webp` / `mk_sw_cheer.webp` (Swiftee demonstrating / cheering on T2 and T3). The rest of the old kit
+  (the block states, the start / end markers, the gap / overlap figures, the explain pose) went with the slides that
+  used it (2026-09-30).
 - **Art - phase-gate peek clip** (`assets/gif/peeking.webp`): rebuilt from the two supplied
   high-resolution Swifty PNGs rather than the old 73-frame clip. One fixed pair of the supplied
   large hands stays on the ledge while her head and torso rise behind it, eliminating the old
@@ -59,9 +99,11 @@
   The app asset is a 500x500, 8.0s animated WebP with loop count 1. `PG_CLIP_MS` in `app.js` is the
   matching 8000ms contract.
   Rebuild: `fln-animation-toolkit/tools/make-swifty-peek-talk.py` (kit recipe 23).
-- **Audio:** Hindi VO `.ogg` (Opus, aap register) — 48 clips, all wired, script taken verbatim from the SME review deck, slides 3-17. Voice matched to HI01H01_L02_S04. See `VO_MANIFEST.md`. Missing audio → silent beat, lesson still plays.
+- **Audio:** Hindi VO `.ogg` (Opus, aap register) — 54 clips + 1 sfx, all wired, the script taken verbatim from the SME
+  review deck, slides 3-17. Voice matched to HI01H01_L02_S04. See `VO_MANIFEST.md`. Missing audio → silent beat, lesson
+  still plays.
 
-## Status: 🧪 for SME review — teach arc + 2 mechanic families + new-mechanic spec flagged.
+## Status: 🧪 for SME review — every deck page built (2026-09-30).
 
 ## FLN QA checklist pass (2026-09-28)
 Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` / `index.html`.
@@ -69,35 +111,6 @@ Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` /
   `app.js`. The internal signal bus is now `window.GameBus`; `window.SwiftPAL` belongs to the bridge.
 - **Stability:** one reusable VO `Audio` element (was one per clip, ~150 live players by P5 —
   full playthroughs crashed the renderer there); preload players are released once cached.
-- **T1 (2026-09-30):** its old one-table/blocks art was removed on review ("remove all the assets as shown in this
-  screen": the VO asks for a two-table comparison the art did not show), then the deck's page 2 was built (review:
-  "add 2 tables, 1 small and 1 big, as per the instruction"): `PICK_EXTREME` with a long and a short table
-  (`assets/obj_table_long.svg` 450px / `obj_table_short.svg` 308px, vector, drawn after the deck's art). Tap the
-  longer one. Correct = SFX + confetti, then on. Incorrect (deck: "pulsate / hand nudge on the long table and play
-  VO: यह टेबल ज्यादा लंबी है।") = the long table pulses, the hand points at it, and `vo_p2_fb` plays — that line
-  only, no re-ask (`reask:false`); the usual scaffold (hint at the 2nd wrong, reveal at the 3rd). Look (CSS
-  `[T1 tables]`): the card gets a calm floor — the bottom 35%, light wood under the grid-paper wall, a skirting line
-  and two faint board seams — and the tables STAND on it (feet ~60% into the floor, soft shadows), a little right of
-  centre so Swifty's corner stays free; they drop in one after the other; a faint glint crosses each tabletop now
-  and then; right = green glow, wrong = red glow. Like every tap-to-answer slide, आगे is hidden and a right answer
-  moves on by itself.
-- **T2 (2026-09-30):** its old face-cube/table art was removed on review ("in this screen also remove the table and
-  yellow cubes"), then the deck's page 3 was built to its script ("add things and animation as per the instruction
-  completely"): `MEASURE_DEMO` (app.js, CSS `[T2 measure]`). T1's long table, a wooden block tray, and each step on
-  its own VO line — heading (`vo_p3_head`, the table + tray come in); VO1 (`vo_p3_explain_a/_b`: a pink dashed line
-  at the table's left end pulses, then the right end); VO2 (`vo_demo_start`: the hand — Swiftee's — drags blocks 1
-  and 2 from the tray, एक… दो…); VO3 (`vo_rule_a`: the previous block's end pulses; `vo_rule_b`: a block set down
-  with a GAP, the gap boxed and pulsing, then taken back; `vo_rule_c`: one set down OVERLAPPING, boxed, taken back);
-  child VO (`vo_p3_child`) with a ghost drag tray → next tile. Then the child drags blocks 3-6: a drop on the next
-  tile snaps flush and is counted aloud (`vo_num_k`); anywhere else bounces back to the tray, then the ghost drag;
-  idle 6s → the ghost drag. Done: "6 ब्लॉक्स" under the row + `vo_p3_done`, the empty tray fades, आगे unlocks. As on
-  the first screen, the units lie in their own row a little below the table, flush, and the dashed end lines carry
-  its length down to them; the blocks are the first screen's plain blue cubes. The five T2 lines were restored from
-  the re-timed renders (explain and rule split at their pauses); the composed `vo_t2_prompt` was deleted.
-- **Tutorial:** DEMO_COUNT is now tap-to-count (child taps each block to hear it); आगे unlocks
-  only after all blocks + the conclusion are heard; the spoken numeral/prompt wears a white outline.
-- **Scaffold:** MAKE_SET's आगे submits at any count > 0, so its wrong path (re-listen → hint →
-  reveal) is live; `SW_REST` was undefined and froze the feedback popup — fixed.
 - **Score:** first-try correctness over every answerable slide (`recordResult`); was mastery-only = always 0.
 - **xAPI:** HI01 statement shape via `SwiftPAL.sendEvent`; one screen verb per slide; MAKE_SET sends
   `question_answered`; landing chip sends `audio_replayed`; no duplicate `hint_used`; `?dev=1` shows an
@@ -109,7 +122,9 @@ Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` /
 - **Cleanup:** 16 unwired VO clips + 34 unused images deleted (2026-09-29), and the old thin `pencil_purple.webp` once the
   landing switched to the green pencil with a face. That art is now recoloured purple (2026-09-29) and ships as
   `pencil_purple.webp` (same 1658×283 framing; only its green turned purple, in OKLab keeping every pixel's
-  lightness); `pencil_green.webp` is gone. No unused assets ship in the build.
+  lightness); `pencil_green.webp` is gone. 2026-09-30, with the rebuild: the old kit's block states / markers /
+  wrong-way figures / explain pose, the two-chair picture, and 12 clips only the old slides used (`vo_p12_ask/_ok`,
+  `vo_p13_ok`, `vo_total_1..9`) were deleted. No unused assets ship in the build.
 - **Test harness** (not shipped): automated Playwright playthrough — 0 console errors, 0 failed requests.
 
 ## Swifty animation tools — `tools/swifty_anim_tools.py`
