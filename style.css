@@ -981,6 +981,13 @@ body.is-start .start-bg{display:block;}
    height and leaves the headline exactly as designed. */
 .phase-gate #phaseGateImg{height:clamp(300px,44vh,520px);width:auto;display:block;pointer-events:none;
   margin-bottom:-1.7vh;animation:none;}
+/* [peek-4] review 2026-09-30: "do not touch the center title ... only increase the size of swifty a little more but
+   make sure swifty head and the center title have healthy space between them". Swifty 1.2x at every window size
+   (300-520px -> 360-624px); the margin keeps the ledge ON the bottom edge (3.86% of her height is empty canvas below
+   it). The title is NOT touched: its own rule (.pg-title, further down) still places it from her OLD height, so it
+   stays exactly where and as big as it was. Her crest (the clip's highest frame, 38% down its canvas) then rises
+   0.62 x the growth - measured on the gate at 7 window sizes, her head keeps >= ~80px clear of the title's ink. */
+.phase-gate #phaseGateImg{height:clamp(360px,52.8vh,624px);margin-bottom:calc(clamp(360px,52.8vh,624px) * -0.0386);}
 /* No CSS entrance any more: the rise is IN the clip (it opens with her below the ledge), and
    the old .5s pgPeek layered on top fought it - she jumped up, then rose again. Only the EXIT
    is CSS, because the clip has to PARK on her smile for gates whose VO outruns it (the guided
@@ -1834,82 +1841,8 @@ body.is-end{background:#FDE9A8;}
 .measure-obj ~ .q-row .count-set .cobj-emoji{font-size:56px;}
 
 
-/* --- LANDING HERO = THE DECK'S BLOCK STRIP (deck page 1: "Show an animation -
-       Blocks (cube) appear one by one"). The card shipped an orange
-       `type:"bars"` placeholder; the cells are now the real block cut-out
-       lifted from the deck's title art. Scoped to #sgHero, which exists only on
-       the landing, so the generic .sg-art/.sg-acell rules are untouched.
-       gap:0 so the cubes read as one measuring strip, the way the deck draws
-       them, rather than five separate tiles. --- */
-/* [cube-art] The five cells are now the cube CHARACTERS cut out of the supplied
-   title plate (assets/blk_1..5.webp, alpha, no blue plate). Each one walks
-   on from the left in turn — the deck's "blocks appear one by one" — lands with a
-   small squash, then breathes on the spot. The contact shadow is a real element
-   (.sg-ex::after) rather than a drop-shadow filter, so it can flatten and spread
-   as the cube rises and falls instead of travelling with it. */
-/* gap:0 and a 1px overlap: the cubes stand FLUSH, the way the title plate draws
-   them and the way the skill itself demands ("identical units in one row, no
-   gaps"). It also hides the straight edge where each cube was cut from its
-   neighbour — only the two end cubes carry an outstretched arm, exactly as in
-   the source art. */
+/* --- LANDING HERO: the pencil image; its cubes and end lines are built by app.js [landing measure]. --- */
 #sgHero{gap:0;align-items:flex-end;}
-#sgHero .sg-acell{gap:0;animation:cubeWalkIn .66s cubic-bezier(.34,1.42,.56,1) both;
-  animation-play-state:paused;}
-#sgHero .sg-acell + .sg-acell{margin-left:-9px;}   /* = the shoe overhang past the body seam, so BODIES touch */
-body.loaded #sgHero .sg-acell{animation-play-state:running;}
-#sgHero .sg-ex{position:relative;height:auto;align-items:flex-end;filter:none;
-  padding-bottom:9px;}
-#sgHero .sg-acell img{width:auto;height:108px;object-fit:contain;position:relative;z-index:1;
-  transform-origin:50% 100%;animation:cubeBob 2.6s ease-in-out infinite both;
-  animation-play-state:paused;}
-body.loaded #sgHero .sg-acell img{animation-play-state:running;}
-/* contact shadow — sits on the ground line, widens as the cube comes down */
-#sgHero .sg-ex::after{content:"";position:absolute;left:50%;bottom:2px;
-  width:74%;height:10px;border-radius:50%;
-  background:radial-gradient(ellipse at center,rgba(11,61,140,.34) 0%,rgba(11,61,140,.20) 55%,rgba(11,61,140,0) 72%);
-  transform:translateX(-50%) scale(1);transform-origin:50% 50%;
-  animation:cubeShadow 2.6s ease-in-out infinite both;animation-play-state:paused;}
-body.loaded #sgHero .sg-ex::after{animation-play-state:running;}
-
-/* they arrive one by one, left to right; the bob picks up where the walk-on ends
-   so a cube never bobs before it has landed */
-#sgHero .sg-acell:nth-child(1){animation-delay:.15s;}
-#sgHero .sg-acell:nth-child(2){animation-delay:.48s;}
-#sgHero .sg-acell:nth-child(3){animation-delay:.81s;}
-#sgHero .sg-acell:nth-child(4){animation-delay:1.14s;}
-#sgHero .sg-acell:nth-child(5){animation-delay:1.47s;}
-#sgHero .sg-acell:nth-child(1) img,#sgHero .sg-acell:nth-child(1) .sg-ex::after{animation-delay:.81s;}
-#sgHero .sg-acell:nth-child(2) img,#sgHero .sg-acell:nth-child(2) .sg-ex::after{animation-delay:1.14s;}
-#sgHero .sg-acell:nth-child(3) img,#sgHero .sg-acell:nth-child(3) .sg-ex::after{animation-delay:1.47s;}
-#sgHero .sg-acell:nth-child(4) img,#sgHero .sg-acell:nth-child(4) .sg-ex::after{animation-delay:1.80s;}
-#sgHero .sg-acell:nth-child(5) img,#sgHero .sg-acell:nth-child(5) .sg-ex::after{animation-delay:2.13s;}
-
-@keyframes cubeWalkIn{
-    0%{opacity:0;transform:translateX(-26px) translateY(0) rotate(-6deg);}
-   35%{opacity:1;transform:translateX(-13px) translateY(-9px) rotate(4deg);}   /* step */
-   62%{opacity:1;transform:translateX(-5px)  translateY(0)   rotate(-3deg);}   /* down */
-   82%{opacity:1;transform:translateX(0)     translateY(-5px) rotate(1deg);}   /* last hop */
-  100%{opacity:1;transform:translateX(0)     translateY(0)   rotate(0deg);}
-}
-/* a soft breath: up, squash on landing, up again */
-@keyframes cubeBob{
-    0%{transform:translateY(0)     scaleY(1)    scaleX(1);}
-   28%{transform:translateY(-7px)  scaleY(1.03) scaleX(.98);}
-   55%{transform:translateY(0)     scaleY(.95)  scaleX(1.05);}
-   72%{transform:translateY(-2px)  scaleY(1.01) scaleX(.99);}
-  100%{transform:translateY(0)     scaleY(1)    scaleX(1);}
-}
-@keyframes cubeShadow{
-    0%{transform:translateX(-50%) scale(1);opacity:1;}
-   28%{transform:translateX(-50%) scale(.80,.7);opacity:.62;}
-   55%{transform:translateX(-50%) scale(1.10,1.1);opacity:1;}
-   72%{transform:translateX(-50%) scale(.94,.9);opacity:.85;}
-  100%{transform:translateX(-50%) scale(1);opacity:1;}
-}
-@media (prefers-reduced-motion: reduce){
-  #sgHero .sg-acell,#sgHero .sg-acell img,#sgHero .sg-ex::after{animation:none;opacity:1;transform:none;}
-  #sgHero .sg-ex::after{transform:translateX(-50%);}
-}
 
 /* ===================================================================== */
 /* MEASUREMENT ART KIT (assets/mk_*)                              */
@@ -2074,15 +2007,33 @@ body.loaded #sgHero .sg-ex::after{animation-play-state:running;}
    so specks only ever ADD light to the art. */
 .sg-dust{position:absolute;left:0;top:0;width:1096px;height:438px;mix-blend-mode:screen;pointer-events:none;}
 
-/* study-lamp bulb: warm glow centred on the painted bulb (card 979,59), steady
-   most of the time with an occasional faint double-flicker. */
-.sg-lamp{position:absolute;left:900px;top:-20px;width:140px;height:140px;border-radius:50%;mix-blend-mode:screen;
-  background:radial-gradient(circle,rgba(255,238,178,.85) 0,rgba(255,216,128,.38) 30%,transparent 66%);
-  animation:sgLampFlicker 6.5s linear infinite;}
+/* study-lamp light (review 2026-09-29: "light of lamp should only come from inside"). The painted lamp faces down-left;
+   its lit OPENING and the shade around it were traced from the art (card px, via a 3x render). Two parts, both inside
+   .sg-lamp (fx 890,-30, 160px box), which flickers them together - smoothly and continuously, by BRIGHTNESS ONLY (a
+   scale would push the clipped light past the traced edges):
+   ::before - the bulb's glow, CLIPPED to the opening, so it can only brighten the inside of the shade (the old round
+              glow also lit the shade's orange outside, as if the light shone through it);
+   ::after  - the light the lamp throws onto the wall, starting BELOW the shade: its top edge follows the shade's lower
+              rim, from the left tip of the opening to the rim's lowest point, and it spreads down and left from there
+              (the way the lamp points), fading out before its own edges, so it never touches the shade itself. */
+.sg-lamp{position:absolute;left:890px;top:-30px;width:160px;height:160px;mix-blend-mode:screen;pointer-events:none;
+  animation:sgLampFlicker 5.2s ease-in-out infinite;}
+.sg-lamp::before{content:"";position:absolute;left:0;top:0;width:160px;height:160px;
+  background:radial-gradient(ellipse 64px 36px at 79px 80px,rgba(255,246,206,.92) 0,rgba(255,226,146,.5) 42%,rgba(255,208,116,.18) 78%,transparent 100%);
+  clip-path:polygon(19.1px 66.8px,21.2px 64.4px,23.3px 63.7px,25.4px 63.4px,27.4px 63.4px,29.5px 63.4px,31.6px 63.7px,33.7px 63.7px,35.8px 64.1px,37.9px 64.4px,39.9px 64.8px,42.0px 64.8px,44.1px 65.1px,46.2px 65.4px,48.3px 65.8px,50.4px 66.1px,52.4px 66.5px,54.5px 66.8px,56.6px 67.2px,58.7px 67.9px,60.8px 68.6px,62.9px 69.3px,64.9px 68.9px,67.0px 69.3px,69.1px 70.0px,71.2px 70.3px,73.3px 71.0px,75.4px 71.7px,77.4px 72.4px,79.5px 73.4px,81.6px 73.8px,83.7px 74.5px,85.8px 75.5px,87.9px 76.2px,89.9px 77.2px,92.0px 77.9px,94.1px 79.0px,96.2px 79.7px,98.3px 80.7px,100.4px 82.1px,102.4px 83.2px,104.5px 84.2px,106.6px 85.2px,108.7px 85.9px,110.8px 87.0px,112.9px 88.4px,114.9px 89.4px,117.0px 90.4px,119.1px 91.5px,121.2px 92.9px,123.3px 94.3px,125.4px 96.0px,127.4px 97.4px,129.5px 99.5px,131.6px 101.9px,132.7px 104.0px,132.7px 104.0px,131.6px 105.4px,129.5px 106.4px,127.4px 106.8px,125.4px 107.1px,123.3px 107.1px,121.2px 107.1px,119.1px 107.1px,117.0px 107.1px,114.9px 106.8px,112.9px 106.4px,110.8px 106.1px,108.7px 105.7px,106.6px 105.4px,104.5px 105.0px,102.4px 105.0px,100.4px 104.7px,98.3px 104.7px,96.2px 104.0px,94.1px 103.6px,92.0px 102.9px,89.9px 102.6px,87.9px 102.6px,85.8px 102.6px,83.7px 101.9px,81.6px 101.2px,79.5px 100.2px,77.4px 99.5px,75.4px 98.8px,73.3px 98.4px,71.2px 97.7px,69.1px 97.0px,67.0px 96.3px,64.9px 95.7px,62.9px 94.6px,60.8px 93.6px,58.7px 92.5px,56.6px 91.5px,54.5px 90.4px,52.4px 89.8px,50.4px 89.1px,48.3px 88.0px,46.2px 86.6px,44.1px 85.9px,42.0px 85.2px,39.9px 83.5px,37.9px 82.5px,35.8px 81.4px,33.7px 80.0px,31.6px 79.3px,29.5px 77.9px,27.4px 76.2px,25.4px 74.8px,23.3px 73.1px,21.2px 71.3px,19.1px 68.2px);}
+.sg-lamp::after{content:"";position:absolute;left:-110px;top:40px;width:330px;height:250px;
+  background:radial-gradient(ellipse 125px 120px at 132px 64px,rgba(255,230,160,.44) 0,rgba(255,214,130,.21) 40%,rgba(255,206,120,.07) 72%,transparent 100%);
+  clip-path:polygon(0.0px 61.2px,120.4px 27.2px,122.5px 31.0px,124.6px 33.1px,126.7px 35.2px,128.8px 36.6px,130.8px 37.9px,132.9px 39.7px,135.0px 41.1px,137.1px 42.1px,139.2px 43.5px,141.3px 44.5px,143.3px 45.6px,145.4px 46.6px,147.5px 47.7px,149.6px 48.7px,151.7px 49.8px,153.8px 50.4px,155.8px 51.5px,157.9px 52.5px,160.0px 53.2px,162.1px 54.3px,164.2px 55.3px,166.3px 56.0px,168.3px 56.7px,170.4px 57.7px,172.5px 58.1px,174.6px 58.8px,176.7px 59.5px,178.8px 60.2px,180.8px 60.9px,182.9px 61.6px,185.0px 62.2px,187.1px 62.9px,189.2px 63.3px,191.3px 64.0px,193.3px 64.7px,195.4px 65.0px,197.5px 65.7px,199.6px 66.1px,201.7px 66.8px,203.8px 67.1px,205.8px 67.5px,207.9px 67.8px,210.0px 68.2px,212.1px 68.5px,214.2px 68.8px,216.3px 69.2px,218.3px 69.5px,220.4px 69.9px,222.5px 69.9px,224.6px 70.2px,226.7px 70.6px,251.7px 250.0px,0.0px 250.0px);}
 @keyframes sgLampFlicker{
-  0%,40%,100%{opacity:.9;}
-  41%{opacity:.55;} 42%{opacity:.88;} 44%{opacity:.62;} 45%{opacity:.92;}
-  72%{opacity:.8;}  73%{opacity:.95;}
+    0%{opacity:.8;}
+   14%{opacity:1;}
+   27%{opacity:.86;}
+   36%{opacity:.55;}
+   44%{opacity:.96;}
+   60%{opacity:.82;}
+   76%{opacity:1;}
+   88%{opacity:.64;}
+  100%{opacity:.8;}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -2090,11 +2041,8 @@ body.loaded #sgHero .sg-ex::after{animation-play-state:running;}
 }
 
 /* ==================== START BUTTON AS ART ====================
-   शुरू करें is now assets/btn-start-pill.svg - the round play button's gold / white-rim /
-   crescent construction stretched into a pill, text in Baloo 2 outlines. The CSS pill above
-   is stripped so only the SVG draws. The SVG carries a 14px shadow margin on every side
-   (face 240x88 inside 268x116), so it is sized so the FACE stays 64px tall like the old
-   button, and bottom is pulled down by that margin to keep the face on the same line. */
+   The landing button is an SVG image, not a CSS pill: these rules strip the CSS pill so only the
+   art draws. The play button (.sg-btn--play, assets/btn-play-blob.svg) sets its own size below. */
 .sg-btn.sg-btn--art{
   background:none;
   border:0;
@@ -2248,10 +2196,17 @@ body.is-start .sg-sky{
    the backdrop blur alone now does all of it, identically everywhere. */
 .stage.blurred .stage-inner{filter:none;}
 .stage.gating .start-gate{filter:none;}
-/* [07] the gate headline was a flat 271px/96px nowrap: on a phone or a short tablet it ran off
-   the sides or into Swiftie. It now scales with the viewport and never exceeds the design size;
-   top stays above Swiftie's crest (she is at most 44vh tall, anchored to the bottom edge). */
-.pg-title{top:min(271px,30vh);font-size:min(96px,7.4vw,11vh);-webkit-text-stroke:min(10px,.9vw,1.1vh) #FFFFFF;}
+/* [07] the gate headline, as HI01H01_L02_S04 draws it: 96px, 271px from the top, a 10px white stroke, centred on the
+   screen (left 50% + translateX(-50%), above). Review 2026-09-30: "has the size of this text reduced? make it back to
+   normal" - the earlier QA scaling, min(96px, 7.4vw, 11vh), shrank it on every ordinary laptop window (77px at 1445x704).
+   It now shrinks ONLY where 96px cannot fit: a screen narrower than the longest line (687px at 96px = 7.2 x the size)
+   plus 24px each side, or one so short that the text would reach Swiftie (her crest = the gate's height minus her own,
+   clamp(300px,44vh,520px)); the top moves up with it so it always stays 16px above her. */
+.pg-title{
+  --pg-crest:calc(100dvh - clamp(300px,44vh,520px));
+  --pg-f:max(32px,min(96px,calc((100vw - 48px) / 7.2),calc(var(--pg-crest) - 40px)));
+  font-size:var(--pg-f);top:min(271px,calc(var(--pg-crest) - 16px - var(--pg-f)));
+  -webkit-text-stroke:calc(var(--pg-f) * 10 / 96) #FFFFFF;}
 
 /* [10] WRONG card: the shake never played. A wrong tap carries BOTH .crossed and .wg-wrong, and
    `.opt-cell.crossed{animation:none}` (same specificity, later) beat `.opt-cell.wg-wrong{animation:wgNo}`.
@@ -2284,11 +2239,20 @@ body.is-start .sg-sky{
   opacity:0;animation:nhFx 1.3s ease-out infinite;pointer-events:none;}
 @media (prefers-reduced-motion:reduce){ #nudgeHand img.nh-palm,#nudgeHand img.nh-finger,#nudgeHand .nh-ring{animation:none;} }
 
-/* [03] landing mascot per the checklist: ~180px wide, bottom -3. (Was held at HI01's 208/-12.)
-   The VO chip is tuned to sit on her leg, so it moves with her: its offset from her box was
-   (+120px, -4px) at 208px wide, i.e. 57.7% across - scaled to 180px that is left 80, bottom -6. */
-.sg-mascot{width:180px;height:auto;left:-24px;bottom:-3px;animation:none;}
-.sg-vo{left:80px;bottom:-6px;}
+/* [03] landing mascot = EXACTLY HI01H01_L02_S04's first screen (review 2026-09-29: "take exactly the
+   size from the 1st screen of HI01H01"): 208px wide, left -24, bottom -12, and its VO chip at
+   left 96 / bottom -16 on her leg. Supersedes the checklist's ~180px/-3 (which drew her 13% smaller
+   than the reference). Same animation as HI01's new_landing_swiftee_anim.webp, but re-encoded 2026-09-29
+   ("swifty is getting glitched"): its clip snaps between two poses at frames 1->2 and 29->30. It now STARTS at the
+   clip's frame 2 (frames 0-1 were the end pose - the loop's seam - flashing at the start) and the 29->30 snap has 3
+   cross-fade frames (60ms): 37 frames, 3.24s, plays once, same last frame. It is drawn by app.js [landing mascot
+   player] on a canvas where the browser can (Chrome blanked the <img> for 1-2 frames at frame changes); the <img>
+   stays the fallback. Original kept outside the game folder.
+   will-change:transform = her own GPU layer. Without it Chrome paints her through the drop-shadow
+   filter surface shared with the card FX (dust canvas / flare / lamp) at reduced resampling quality:
+   measured 87% of the sharpest Chrome can draw this 560px frame; with it 97%, also after a resize. */
+.sg-mascot{width:208px;height:auto;left:-24px;bottom:-12px;animation:none;will-change:transform;}
+.sg-vo{left:96px;bottom:-16px;}
 
 /* [04] SPEAKING = white text-stroke outline while that word's VO plays (the tutorial prompt while
    the prompt is spoken, the big running numeral while its number is spoken - app.js toggles
@@ -2307,15 +2271,19 @@ body.is-start .sg-sky{
 
 /* [10] Next / Continue use the REAL default + deactive button ASSETS, not a CSS-only fake state.
    assets/btn-next-{default,deactive}.svg and btn-continue-{default,deactive}.svg carry the face,
-   rim and the label (Baloo 2 ExtraBold, as outlines). The state class only swaps which asset
-   shows. The button keeps its text node for screen readers; it is painted transparent. */
+   rim and the label (as outlines). The state class only swaps which asset shows. The button keeps
+   its text node for screen readers; it is painted transparent.
+   NEXT (review 2026-09-30: "remove the word आगे, keep only the arrow in the middle; the 1st screen's
+   button style, but this button's wider pill shape"): btn-next-* are the play button's gold / grey
+   sets (btn-play-blob*.svg) built on the same 170x62 pill, with the arrow alone, centred. Their
+   shadows are the play button's navy-tinted ones (grey while it waits). */
 .nav-btn,.stage .nav-btn{width:170px;min-width:170px;height:62px;padding:0;border:0;border-radius:9999px;
   background:url("assets/btn-next-deactive.svg") center/100% 100% no-repeat;
-  color:transparent;font-size:0;box-shadow:none;filter:drop-shadow(0 4px 0 #D6D6D6);}
+  color:transparent;font-size:0;box-shadow:none;filter:drop-shadow(0 4px 4px rgba(70,70,82,.22));}
 .nav-btn::after{content:none;}
 .nav-btn.active,.stage .nav-btn.active{background:url("assets/btn-next-default.svg") center/100% 100% no-repeat;
-  color:transparent;box-shadow:none;filter:drop-shadow(0 6px 6px rgba(0,0,0,.25));}
-.nav-btn.active:active{box-shadow:none;filter:drop-shadow(0 3px 3px rgba(0,0,0,.25));}
+  color:transparent;box-shadow:none;filter:drop-shadow(0 7px 7px rgba(12,46,92,.32)) drop-shadow(0 2px 2px rgba(12,46,92,.18));}
+.nav-btn.active:active{box-shadow:none;filter:drop-shadow(0 3px 3px rgba(12,46,92,.28));}
 .end-btn{width:200px;height:70px;padding:0;border:0;
   background:url("assets/btn-continue-default.svg") center/100% 100% no-repeat;
   color:transparent;font-size:0;box-shadow:none;filter:drop-shadow(0 6px 6px rgba(0,0,0,.25));}
@@ -2375,4 +2343,195 @@ body.is-start .sg-sky{
 .sg-title .tfx-sh .tfx-g{color:transparent;text-shadow:inherit;}   /* each shadow layer sets its half of the heading's text-shadow (app.js) */
 .sg-title .tfx-fi .tfx-g{text-shadow:none;}
 .sg-title .tfx-svg{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;}
-.sg-title .tfx-off{visibility:hidden;}
+.sg-title .tfx-off{opacity:0;}   /* the real word goes transparent while its copy is up - NOT visibility:hidden, which dropped it from screen readers */
+.sg-title .tfx-dis{filter:grayscale(1) brightness(1.45);}   /* मापना "disabled": the heading's own layers in grey (white outline stays white) */
+.sg-title .tfx-bend{pointer-events:none;}
+
+/* [landing title] more space between लंबाई and मापना (review 2026-09-29). The title-fx copies are placed
+   from the real text layout, so they follow this automatically. */
+.sg-title,.sg-title.compact{word-spacing:28px;}   /* clearly more than the gaps inside मापना's ruler, so the two words read as two words */
+
+/* --- [landing pencil] pencil_purple.webp = the green pencil art (with the face) recoloured PURPLE (review 2026-09-29:
+       "change the green color of pencil to purple") - pixel-for-pixel the same framing as the green one, which was
+       framed EXACTLY like the thinner purple pencil before it - same 1658px
+       canvas, tip at x 7, eraser end at x 1650 - so the 480px width rule above and the title fx's
+       nib maths (6/1658) are unchanged. The green art is fatter (6.1:1 vs 7.0:1), so its canvas is
+       283px tall vs 249: at 480px that is +9.84px, taken back with equal negative margins so the
+       pencil keeps the purple one's layout slot and centre and the title/CTA do not move. --- */
+.sg-art img[src*="pencil_purple"]{margin:-4.92px 0;}
+
+/* --- [landing measure] reference visual "blocks (cube) appear one by one" under the pencil - an ADDITION only:
+       the pencil, title, CTA and Swifty are untouched. #sgHero only becomes a positioned, isolated box so the row
+       can sit BEHIND the pencil (z-index -1 inside it) without joining the flex layout. Blocks and markers are divs
+       with background images (not <img>), so the .sg-art img rules and the title fx's `.sg-art img` nib lookup never
+       see them. Geometry/timing: app.js [landing measure]. --- */
+#sgHero{position:relative;isolation:isolate;}
+.sg-measure{position:absolute;left:0;top:0;width:0;height:0;z-index:-1;pointer-events:none;}
+/* the pencil's live eyes + brows (app.js [pencil eyes]): a canvas over its face, above the pencil and its stretch canvas */
+.sg-pen-eyes{position:absolute;display:none;pointer-events:none;z-index:1;}
+.sgm-block,.sgm-mark{position:absolute;background:center/100% 100% no-repeat;opacity:0;}
+.sgm-block{transform-origin:50% 100%;background-repeat:no-repeat;}   /* its cube = a slice of assets/cubes_blue_row.webp: app.js [landing measure] */   /* plain glossy cube (no face), flush-tiling: top face + front only */
+.sgm-mark{background-repeat:repeat-y;background-size:8px 19px;background-position:center top;}   /* plain rounded dashes, no glow */
+.sgm-mark.start{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='19'%3E%3Crect width='8' height='12' rx='4' fill='%23F03C8C'/%3E%3C/svg%3E");}   /* pink at the pencil tip (swapped 2026-09-29) */
+.sgm-mark.end{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='19'%3E%3Crect width='8' height='12' rx='4' fill='%23F03C8C'/%3E%3C/svg%3E");}   /* pink too (review 2026-09-29: both lines pink) */
+.sg-measure.go .sgm-mark{animation:sgmMark .45s ease-out forwards;animation-delay:var(--d);}
+.sg-measure.go .sgm-block{animation:sgmPop .42s cubic-bezier(.34,1.56,.64,1) forwards;animation-delay:var(--d);}
+@keyframes sgmMark{0%{opacity:0;transform:translateY(-10px);}100%{opacity:1;transform:none;}}
+@keyframes sgmPop{0%{opacity:0;transform:translateY(-14px) scale(.55);}60%{opacity:1;}100%{opacity:1;transform:none;}}
+.sg-measure.static .sgm-block,.sg-measure.static .sgm-mark{opacity:1;animation:none;}
+@media (prefers-reduced-motion:reduce){ .sg-measure .sgm-block,.sg-measure .sgm-mark{opacity:1;animation:none;} }
+
+/* --- [landing layout] review 2026-09-29: "shift the title a little up, then the pencil a little up, and the cubes and
+       dotted lines also, so there is a little more space between cubes and play button" + "a little more upward shift".
+       The title and the pencil group move up by the SAME 28px (their spacing is kept); the play button stays, so the
+       cubes-to-button gap grows ~2.6 -> ~30 screen px. Relative offsets only - NOT transforms: the title fx drives #sgTitle's transform (glide),
+       and the cubes/lines are laid out inside #sgHero from the pencil's offsets, so they move with it. --- */
+.sg-content .sg-title{top:-38px;}   /* was -10px */
+#sgHero{top:-28px;}
+
+/* --- [landing measure: shadows] the cubes cast soft contact shadows on the tabletop (review 2026-09-29: "make it look like
+       that the cubes are placed on the table" + "and the cubes making shadow on the table"). One strip per cube,
+       abutting into one band under the row (app.js [landing measure] places them): a warm dark-brown gradient, darkest
+       just below the cube's base, fading out ~15px in front of it; the row's ends feather out, the right end longer
+       (window light from the left). Plain alpha - #sgHero is isolated, so a blend mode could not reach the table art. --- */
+.sgm-shadow,.sgm-shadow-row{position:absolute;opacity:0;pointer-events:none;transform-origin:50% 30%;
+  background:linear-gradient(to bottom,rgba(84,38,6,0) 0,rgba(84,38,6,.66) 24%,rgba(84,38,6,.4) 44%,rgba(84,38,6,.17) 70%,rgba(84,38,6,.05) 88%,rgba(84,38,6,0) 100%);}
+/* the settled row: one element, both ends feathered like the first / last strip */
+.sgm-shadow-row{-webkit-mask-image:linear-gradient(to right,transparent 0,#000 7px,#000 calc(100% - 20px),transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0,#000 7px,#000 calc(100% - 20px),transparent 100%);}
+.sgm-shadow.first{-webkit-mask-image:linear-gradient(to right,transparent 0,#000 7px);mask-image:linear-gradient(to right,transparent 0,#000 7px);}
+.sgm-shadow.last{-webkit-mask-image:linear-gradient(to left,transparent 0,#000 20px);mask-image:linear-gradient(to left,transparent 0,#000 20px);}
+.sg-measure.go .sgm-shadow{animation:sgmShadow .42s ease-out forwards,sgmShadowOff 1ms linear forwards;animation-delay:var(--d),var(--swap);}
+.sg-measure.go .sgm-shadow-row{animation:sgmShadowOn 1ms linear forwards;animation-delay:var(--swap);}   /* the same frame the strips go */
+@keyframes sgmShadowOff{to{opacity:0;}}
+@keyframes sgmShadowOn{to{opacity:1;}}
+@keyframes sgmShadow{0%{opacity:0;transform:scaleX(.55);}55%{opacity:.55;}100%{opacity:1;transform:none;}}   /* grows as the cube drops onto it */
+.sg-measure.static .sgm-shadow{opacity:0;animation:none;}
+.sg-measure.static .sgm-shadow-row{opacity:1;animation:none;}
+@media (prefers-reduced-motion:reduce){ .sg-measure .sgm-shadow{opacity:0;animation:none;} .sg-measure .sgm-shadow-row{opacity:1;animation:none;} }
+
+/* ==================== [T1 tables] slide T1 "कौन-सी टेबल ज़्यादा लंबी है?" (review 2026-09-30) ====================
+   The deck's page 2: a long table and a short table, tap the longer (PICK_EXTREME, data.look "tables"). The card,
+   prompt, Swifty and chip are the tutorial frame as before; only the empty middle gets the two tables.
+   - no tile: both tables stand on ONE floor line (grid aligned to the bottom), each on its own soft floor shadow;
+   - they drop in one after the other and land with a small squash (the picture moves, the shadow stays and grows);
+   - a light glint runs across each table now and then (masked to the table's own shape);
+   - hover lifts, a press squashes; right = a green glow on the table, wrong = a red glow + the kit's shake;
+   - the deck's "Incorrect: pulsate / hand nudge on the long table" = .pk-pulse (+ the engine's hand).
+   The checklist's tile borders/backgrounds (!important) are switched off here: the tables are the targets. */
+/* ON THE GROUND (review 2026-09-30: "place the tables a little more down, they should look like they are on ground",
+   + "a non-distracting background"): the card gets a floor - the bottom third, a light wood floor under the
+   grid-paper wall - and the tables stand ON it, their feet well inside it. Swifty stands on the same floor in
+   front at the bottom-left, so the pair sits a little right of centre to leave her corner free. */
+.stage .opt-grid.pk-tables{grid-template-columns:auto auto;gap:0 70px;align-items:end;align-content:center;justify-content:center;
+  transform:translate(var(--pk-dx,70px),var(--pk-dy,96px));}
+.tut-card.tc-tables::before{content:"";position:absolute;left:0;right:0;bottom:0;height:35%;z-index:0;pointer-events:none;
+  border-radius:0 0 24px 24px;
+  background:
+    linear-gradient(180deg,#F7F0E6 0,#F7F0E6 7px,rgba(120,86,50,.26) 7px,rgba(120,86,50,0) 17px),
+    linear-gradient(180deg,transparent 34%,rgba(140,100,60,.11) 34%,rgba(140,100,60,.11) calc(34% + 1.5px),transparent calc(34% + 1.5px)),
+    linear-gradient(180deg,transparent 64%,rgba(140,100,60,.11) 64%,rgba(140,100,60,.11) calc(64% + 1.5px),transparent calc(64% + 1.5px)),
+    linear-gradient(180deg,#EFE2CF,#E4CFB3);}   /* skirting board + its soft shadow, two faint board seams, the floor */
+.tut-card.tc-tables .tut-prompt,.tut-card.tc-tables .tut-content{position:relative;z-index:1;}
+.stage .opt-grid.pk-tables .opt-cell,
+.stage .opt-grid.pk-tables .opt-cell:hover,
+.stage .opt-grid.pk-tables .opt-cell:active,
+.stage .opt-grid.pk-tables .opt-cell.crossed,
+.stage .opt-grid.pk-tables .opt-cell.wg-wrong,
+.stage .opt-grid.pk-tables .opt-cell.ck-correct,
+.stage .opt-grid.pk-tables .opt-cell.correct{background:none !important;border:0 !important;box-shadow:none !important;
+  border-radius:0;padding:18px 12px 8px;transform:none;animation:none;position:relative;isolation:isolate;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;}
+.pk-tables .pk-pic{display:block;position:relative;line-height:0;transform-origin:50% 100%;
+  animation:pkDrop .7s cubic-bezier(.3,1.3,.55,1) both;}
+.pk-tables .opt-cell:nth-child(2) .pk-pic{animation-delay:.24s;}
+.pk-tables .pk-in{display:block;position:relative;transform-origin:50% 100%;transition:transform .18s cubic-bezier(.3,1.4,.5,1);}
+.pk-tables .pk-img{display:block;height:auto;max-width:none;max-height:none;pointer-events:none;user-select:none;transition:filter .25s;}
+/* the floor shadow the table stands on (it does not drop with the table) */
+.pk-tables .opt-cell::before{content:"";position:absolute;left:3%;right:3%;bottom:-2px;height:22px;border-radius:50%;z-index:-1;
+  background:radial-gradient(closest-side,rgba(18,48,98,.30),rgba(18,48,98,.13) 58%,rgba(18,48,98,0));
+  animation:pkShadow .7s ease-out both;}
+.pk-tables .opt-cell:nth-child(2)::before{animation-delay:.24s;}
+/* a light glint across the TABLETOP only (the top 28% of the picture, clipped to the table's own shape): subtle -
+   narrow, faint, every ~5s - so it reads as polish on wood, never a band across the legs */
+.pk-tables .pk-shine{position:absolute;left:0;right:0;top:0;height:28%;overflow:hidden;pointer-events:none;
+  -webkit-mask-size:100% auto;mask-size:100% auto;-webkit-mask-position:top center;mask-position:top center;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;}
+.pk-tables .pk-shine::before{content:"";position:absolute;top:-20%;bottom:-20%;left:-30%;width:14%;
+  background:linear-gradient(105deg,rgba(255,255,255,0),rgba(255,255,255,.4) 50%,rgba(255,255,255,0));
+  animation:pkShine 5.2s ease-in-out 1.6s infinite;}
+.pk-tables .opt-cell:nth-child(2) .pk-shine::before{animation-delay:2.3s;}
+@media (hover:hover){ .pk-tables .opt-cell:hover .pk-in{transform:translateY(-6px);} }
+.pk-tables .opt-cell:active .pk-in{transform:scale(1.02,.95);}
+.pk-tables .opt-cell.pk-pulse .pk-in{animation:pkPulse .78s ease-in-out 3;}
+.pk-tables .opt-cell.correct .pk-img,.pk-tables .opt-cell.ck-correct .pk-img{
+  filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 16px rgba(0,177,50,.75));}
+.pk-tables .opt-cell.wg-wrong .pk-img{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 12px rgba(249,53,68,.7));}
+.pk-tables .opt-cell.faded .pk-pic{opacity:.45;transition:opacity .3s;}
+@keyframes pkDrop{0%{opacity:0;transform:translateY(-54px);}55%{opacity:1;transform:translateY(0) scale(1.03,.94);}
+  76%{transform:translateY(-7px) scale(.99,1.02);}100%{opacity:1;transform:none;}}
+@keyframes pkShadow{0%{opacity:0;transform:scaleX(.45);}55%{opacity:1;transform:scaleX(1.04);}100%{opacity:1;transform:none;}}
+@keyframes pkShine{0%{transform:translateX(0);}34%,100%{transform:translateX(960%);}}
+@keyframes pkPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);filter:drop-shadow(0 0 12px rgba(255,190,30,.9));}}
+@media (prefers-reduced-motion:reduce){
+  .pk-tables .pk-pic,.pk-tables .opt-cell::before,.pk-tables .pk-shine::before{animation:none;}
+  .pk-tables .opt-cell.pk-pulse .pk-in{animation:none;filter:drop-shadow(0 0 12px rgba(255,190,30,.9));}
+}
+
+/* ==================== [T2 measure] MEASURE_DEMO - slide T2 "चलिए, टेबल की लंबाई मापते हैं।" (review 2026-09-30) ====================
+   The deck's page 3 (see app.js MEASURE_DEMO): the table, a block tray, the dashed end lines (the first screen's
+   pink dashes), the flush row of tiles under the table, the hand that demonstrates, the gap / overlap boxes and
+   "6 ब्लॉक्स". Everything is placed by app.js in stage px; this is the look and the motion. */
+.md-stage{position:relative;width:100%;flex:none;margin:0 auto;}
+.tut-card.tc-measure .tut-content{justify-content:flex-start;}   /* the scene is taller than the content box: anchor it under the prompt */
+.tut-card.tc-measure .md-stage{margin-top:6px;}
+.md-table{position:absolute;height:auto;pointer-events:none;user-select:none;z-index:1;opacity:0;transform-origin:50% 100%;}
+.md-stage.in .md-table{animation:pkDrop .7s cubic-bezier(.3,1.3,.55,1) forwards;}
+.md-shadow{position:absolute;height:26px;border-radius:50%;z-index:0;opacity:0;
+  background:radial-gradient(closest-side,rgba(18,48,98,.28),rgba(18,48,98,.12) 58%,rgba(18,48,98,0));}
+.md-stage.in .md-shadow{animation:pkShadow .7s ease-out forwards;}
+.md-tray{position:absolute;z-index:1;border-radius:18px;opacity:0;
+  background:linear-gradient(180deg,#F4E4C7,#E7CD9F);border:3px solid #C9A46F;
+  box-shadow:inset 0 5px 9px rgba(120,80,30,.20),0 7px 12px rgba(20,50,100,.12);}
+.md-stage.in .md-tray{animation:mdFade .45s ease-out .35s forwards;}
+.md-stage.in .md-tray.empty{animation:mdFadeOut .5s ease-in forwards;}
+@keyframes mdFadeOut{from{opacity:1;}to{opacity:0;}}
+.md-block{position:absolute;z-index:3;background-repeat:no-repeat;cursor:grab;touch-action:none;user-select:none;opacity:0;
+  filter:drop-shadow(0 3px 3px rgba(12,46,92,.22));transition:filter .15s;}
+.md-stage.in .md-block{animation:mdFade .35s ease-out forwards;animation-delay:calc(.45s + var(--i,0) * 60ms);}
+.md-block.lift{z-index:8;cursor:grabbing;filter:drop-shadow(0 14px 10px rgba(12,46,92,.30));scale:1.07;}
+.md-block.placed{cursor:default;}
+.md-block.over{z-index:5;}
+.md-block.ghost{opacity:.5 !important;animation:none !important;z-index:9;pointer-events:none;filter:none;}
+.md-line{position:absolute;width:8px;z-index:2;opacity:0;transform-origin:50% 0;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='19'%3E%3Crect width='8' height='12' rx='4' fill='%23F03C8C'/%3E%3C/svg%3E") center top/8px 19px repeat-y;}
+.md-line.show{animation:sgmMark .45s ease-out forwards;}
+.md-line.show.pulse{animation:sgmMark .45s ease-out forwards,mdLinePulse .8s ease-in-out .45s 4;}
+.md-slot{position:absolute;z-index:2;box-sizing:border-box;border:3px dashed rgba(47,130,222,.75);border-radius:12px;
+  background:rgba(255,255,255,.55);opacity:0;transition:opacity .2s;pointer-events:none;}
+.md-slot.show{opacity:1;}
+.md-slot.target{animation:mdSlot .9s ease-in-out infinite;}
+.md-endmark{position:absolute;width:6px;z-index:6;border-radius:3px;background:#FFC21A;pointer-events:none;
+  box-shadow:0 0 10px 3px rgba(255,194,26,.8);animation:mdBeat .7s ease-in-out infinite;transition:opacity .3s;}
+.md-box{position:absolute;z-index:7;box-sizing:border-box;border:4px dashed #F93544;border-radius:10px;pointer-events:none;
+  background:rgba(249,53,68,.28);box-shadow:0 0 10px rgba(249,53,68,.45);animation:mdBeat .7s ease-in-out infinite;transition:opacity .3s;}
+.md-endmark.out,.md-box.out{opacity:0;animation:none;}
+.md-hand{position:absolute;width:86px;height:108px;z-index:10;pointer-events:none;opacity:0;transition:opacity .2s,scale .12s;
+  transform-origin:34px 16px;}
+.md-hand.on{opacity:1;}
+.md-hand.press{scale:.9;}
+.md-result{position:absolute;z-index:6;text-align:center;pointer-events:none;opacity:0;scale:.6;
+  font-family:var(--font-hi);font-weight:800;font-size:44px;line-height:1.1;color:#012F76;
+  -webkit-text-stroke:7px #FFFFFF;paint-order:stroke fill;text-shadow:0 4px 0 #2F82DE,0 8px 12px rgba(0,40,120,.26);}
+.md-result.in{animation:mdPop .5s cubic-bezier(.3,1.5,.5,1) forwards;}
+@keyframes mdFade{from{opacity:0;}to{opacity:1;}}
+@keyframes mdLinePulse{0%,100%{scale:1 1;filter:none;}50%{scale:1.7 1;filter:drop-shadow(0 0 6px rgba(240,60,140,.9));}}
+@keyframes mdSlot{0%,100%{border-color:rgba(47,130,222,.75);background:rgba(255,255,255,.55);}50%{border-color:#2F82DE;background:rgba(214,234,255,.8);}}
+@keyframes mdBeat{0%,100%{opacity:1;scale:1;}50%{opacity:.55;scale:1.06;}}
+@keyframes mdPop{0%{opacity:0;scale:.6;}100%{opacity:1;scale:1;}}
+@media (prefers-reduced-motion:reduce){
+  .md-stage.in .md-table,.md-stage.in .md-shadow,.md-stage.in .md-tray,.md-stage.in .md-block{animation:none;opacity:1;}
+  .md-line.show,.md-line.show.pulse{animation:none;opacity:1;}
+  .md-slot.target,.md-endmark,.md-box{animation:none;}
+  .md-result.in{animation:none;opacity:1;scale:1;}
+}

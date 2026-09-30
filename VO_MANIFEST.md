@@ -1,6 +1,6 @@
 # VO_MANIFEST — MTG2A04_L02_S01
 
-**48 VO clips + 1 sfx on disk · all 49 wired into the lesson** · the 16 recorded-spare clips were moved out of the handoff folder to `../_unused_MTG2A04/assets/voiceover/` (FLN QA checklist 01: no unused assets in the build)
+**55 VO clips + 1 sfx on disk · all 56 wired into the lesson** · of the 16 recorded spares, 11 stay deleted (FLN QA checklist 01: no unused assets in the build); T2's five (heading, explain, rule, demo start, child) were restored 2026-09-30 from the re-timed renders when T2 was built to the deck's page 3 - explain and rule split at their sentence pauses so each animation has its own line - and the composed `vo_t2_prompt` was deleted
 
 Script source: `MTG2A04_L02_S01_review.pptx`, **slides 3 → 17** (Pages 1 → 14), followed verbatim except where noted as DERIVED.
 
@@ -14,6 +14,7 @@ Voice: `hi-IN-SwaraNeural` (edge-tts) at pitch `+0Hz`, rate `+0%` — Swara's na
 
 | file | exists | dur | Hindi text | used at | from |
 |---|:-:|--:|---|---|---|
+| `vo_demo_start` | yes | 2.2s | चलिए, शुरू करते हैं। | T2 VO2 demonstrate (then एक / दो as the hand sets blocks 1-2 down) | PPT slide 5 (Page 3) VO2 Demonstrate |
 | `vo_landing` | yes | 7.5s | नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं। | engine: landing | PPT slide 3 (Page 1) |
 | `vo_match_instr` | yes | 3.1s | हर चीज़ को उसके सही माप से मिलाइए। | P2 prompt; P3 prompt | PPT slides 13+14 (Pages 10+11) Instruction OST/VO |
 | `vo_match_ok` | yes | 4.9s | शाबाश! आपने सभी चीज़ों को उनके सही माप से मिला दिया। | P2 correct; P2 reveal; P2 option 7; P3 correct | PPT slides 13+14 (Pages 10+11) all-correct VO |
@@ -31,8 +32,12 @@ Voice: `hi-IN-SwaraNeural` (edge-tts) at pitch `+0Hz`, rate `+0%` — Swara's na
 | `vo_p13_measure` | yes | 2.3s | बेंच को ब्लॉक से मापिए। | P5 prompt | PPT slide 16 (Page 13) VO |
 | `vo_p13_ok` | yes | 3.7s | शाबाश! बेंच की लंबाई 6 ब्लॉक्स है। | P5 correct; P5 reveal; P5 option 6 | DERIVED - PPT slide 16 (Page 13) specifies no correct-feedback line for the measurement; built from the Page 5/6/7 pattern |
 | `vo_p2_ask` | yes | 4.6s | इनमें से कौन-सी टेबल ज्यादा लंबी है? उस पर टैप करिए। | T1 prompt | PPT slide 4 (Page 2) VO |
-| `vo_p2_fb` | yes | 2.4s | यह टेबल ज्यादा लंबी है। | T1 conclude | PPT slide 4 (Page 2) incorrect-feedback VO |
+| `vo_p2_fb` | yes | 2.4s | यह टेबल ज्यादा लंबी है। | T1 try_again; T1 hint; T1 reveal | PPT slide 4 (Page 2) incorrect-feedback VO |
+| `vo_p3_child` | yes | 4.8s | अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है। | T2 child-action VO (with the ghost drag) | PPT slide 5 (Page 3) child-action VO |
 | `vo_p3_done` | yes | 3.7s | शाबाश! यह टेबल 6 ब्लॉक्स लंबी है। | T2 conclude | PPT slide 5 (Page 3) completion VO |
+| `vo_p3_explain_a` | yes | 4.1s | इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे। | T2 VO1 explain, part 1 (left end line pulses) | PPT slide 5 (Page 3) VO1 Explain - split from vo_p3_explain at its sentence pause |
+| `vo_p3_explain_b` | yes | 3.8s | फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे। | T2 VO1 explain, part 2 (right end line pulses) | PPT slide 5 (Page 3) VO1 Explain - split from vo_p3_explain at its sentence pause |
+| `vo_p3_head` | yes | 5.4s | यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं। | T2 heading VO | PPT slide 5 (Page 3) Heading VO |
 | `vo_p4_done` | yes | 3.8s | शाबाश! यह दरवाजा 9 ब्लॉक्स लंबा है। | T3 conclude | PPT slide 6 (Page 4) completion VO |
 | `vo_p5_instr` | yes | 2.7s | पलंग की लंबाई ब्लॉक से मापिए। | G1 prompt | PPT slide 7 (Page 5) Instruction OST/VO |
 | `vo_p5_ok` | yes | 3.7s | शाबाश! पलंग की लंबाई 8 ब्लॉक्स है। | G1 correct | PPT slide 7 (Page 5) correct-feedback VO |
@@ -49,7 +54,9 @@ Voice: `hi-IN-SwaraNeural` (edge-tts) at pitch `+0Hz`, rate `+0%` — Swara's na
 | `vo_pt_guided` | yes | 5.7s | बहुत बढ़िया! अब हम साथ मिलकर शुरू करते हैं। चलिए, साथ में करें! | engine: guided phase gate | ENGINE FURNITURE - phase gate, not in the PPT (kept from the existing card) |
 | `vo_pt_practice` | yes | 2.3s | वाह! अब आपकी बारी। | engine: practice phase gate | ENGINE FURNITURE - phase gate, not in the PPT (kept from the existing card) |
 | `vo_pt_tutorial` | yes | 5.0s | ध्यान से देखिए और मेरे साथ जानिए। चलिए, शुरू करें! | engine: tutorial phase gate | ENGINE FURNITURE - phase gate, not in the PPT (kept from the existing card) |
-| `vo_t2_prompt` | yes | 24.8s | यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।  इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे। फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।  अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। बीच में जगह न छोड़ें, और एक-दूसरे के ऊपर न रखें।  चलिए, शुरू करते हैं। | T2 prompt | PPT slide 5 (Page 3): Heading VO + VO1 Explain + VO3 Rule + VO2 Demonstrate, spoken before the engine lays and counts the blocks |
+| `vo_rule_a` | yes | 6.0s | अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। | T2 VO3 rule, part 1 (the previous block's end pulses) | PPT slide 5 (Page 3) VO3 - split from vo_rule at its pauses |
+| `vo_rule_b` | yes | 2.2s | बीच में जगह न छोड़ें, | T2 VO3 rule, part 2 (a block set down with a gap, boxed) | PPT slide 5 (Page 3) VO3 - split from vo_rule at its pauses |
+| `vo_rule_c` | yes | 2.7s | और एक-दूसरे के ऊपर न रखें। | T2 VO3 rule, part 3 (a block set down overlapping, boxed) | PPT slide 5 (Page 3) VO3 - split from vo_rule at its pauses |
 | `vo_t3_prompt` | yes | 24.8s | क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं।  इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे और ऊपर तक जाएंगे।  अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। बीच में जगह न छोड़ें, और एक-दूसरे के ऊपर न रखें।  चलिए, शुरू करते हैं। | T3 prompt | PPT slide 6 (Page 4): Heading VO + VO1 Explain + VO3 Rule + VO2 Demonstrate, spoken before the engine lays and counts the blocks |
 | `vo_total_1` | yes | 1.5s | कुल एक ब्लॉक | engine: set total | engine count-aloud total |
 | `vo_total_2` | yes | 1.7s | कुल दो ब्लॉक्स | engine: set total | engine count-aloud total |
@@ -64,28 +71,23 @@ Voice: `hi-IN-SwaraNeural` (edge-tts) at pitch `+0Hz`, rate `+0%` — Swara's na
 | `vo_well_done` | yes | 4.2s | शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया! | CEL prompt | PPT slide 17 (Page 14) VO |
 | `sfx_celebrate` | yes | 1.5s | *(sound effect - no speech)* | CEL: celebration sting (playSfx) | FLN animation toolkit `assets/sfx_celebrate.ogg` (the file the engine already asked for; it was missing → 404) |
 
-## Recorded but not wired — moved out of the build
+## Recorded but not wired — deleted
 
-Every remaining line of the PPT script, rendered in the same voice and ready to drop in. They are unwired because the built engine has no slot for them — see the notes column.
+Every remaining line of the PPT script was rendered in the same voice; the clips were deleted (2026-09-29) because none is used. Re-render from the text below if one is ever wired. They are unwired because the built engine has no slot for them — see the notes column.
 
 | file | exists | dur | Hindi text | why it is not wired |
 |---|:-:|--:|---|---|
-| `vo_demo_start` | moved → `../_unused_MTG2A04/` | 1.8s | चलिए, शुरू करते हैं। | folded into both composed tutorial prompts |
-| `vo_p13_intro` | moved → `../_unused_MTG2A04/` | 9.5s | आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए। | the classroom free-play framing of PPT slide 16 is not built; P5 is a plain COUNT_HOW_MANY |
-| `vo_p13_place` | moved → `../_unused_MTG2A04/` | 2.2s | अब बेंच के लिए सही जगह चुनिए। | the 'choose the right space' step of PPT slide 16 is not built |
-| `vo_p3_child` | moved → `../_unused_MTG2A04/` | 4.6s | अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है। | DEMO_COUNT is autonomous — the child never lays blocks, so 'अब आगे आप मापिए' would ask for an action the slide cannot accept (needs the unbuilt MEASURE_STRIP mechanic) |
-| `vo_p3_explain` | moved → `../_unused_MTG2A04/` | 8.2s | इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे। फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे। | folded into the composed `vo_t2_prompt` |
-| `vo_p3_head` | moved → `../_unused_MTG2A04/` | 5.9s | यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं। | folded into the composed `vo_t2_prompt` |
-| `vo_p4_child` | moved → `../_unused_MTG2A04/` | 4.8s | अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है। | same as `vo_p3_child` |
-| `vo_p4_explain` | moved → `../_unused_MTG2A04/` | 5.6s | इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे और ऊपर तक जाएंगे। | folded into the composed `vo_t3_prompt` |
-| `vo_p4_head` | moved → `../_unused_MTG2A04/` | 7.7s | क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं। | folded into the composed `vo_t3_prompt` |
-| `vo_p5_ask` | moved → `../_unused_MTG2A04/` | 2.9s | अब बताइए, पलंग की लंबाई कितनी है? | MAKE_SET has no post-build question step; the slide ends when the set is correct |
-| `vo_p6_instr` | moved → `../_unused_MTG2A04/` | 2.4s | अलमारी की लंबाई ब्लॉक से मापिए। | G2 is COUNT_HOW_MANY — the blocks are pre-laid, so the 'measure it' instruction never applies; the page's question line `vo_p6_ask` is used instead |
-| `vo_p6b_ask` | moved → `../_unused_MTG2A04/` | 2.9s | अब बताइए, तकिये की लंबाई कितनी है? | PPT slide 9 has no slide in the built lesson |
-| `vo_p6b_instr` | moved → `../_unused_MTG2A04/` | 2.2s | तकिये की लंबाई ब्लॉक से मापिए। | PPT slide 9 (the तकिया page) has no slide in the built lesson — see the report |
-| `vo_p6b_ok` | moved → `../_unused_MTG2A04/` | 4.1s | शाबाश! तकिये की लंबाई 3 ब्लॉक्स है। | PPT slide 9 has no slide in the built lesson |
-| `vo_p7_ask` | moved → `../_unused_MTG2A04/` | 3.0s | अब बताइए, फ्रिज की लंबाई कितनी है? | same as `vo_p5_ask` |
-| `vo_rule` | moved → `../_unused_MTG2A04/` | 11.8s | अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। बीच में जगह न छोड़ें, और एक-दूसरे के ऊपर न रखें। | folded into both composed tutorial prompts |
+| `vo_p13_intro` | deleted | 9.5s | आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए। | the classroom free-play framing of PPT slide 16 is not built; P5 is a plain COUNT_HOW_MANY |
+| `vo_p13_place` | deleted | 2.2s | अब बेंच के लिए सही जगह चुनिए। | the 'choose the right space' step of PPT slide 16 is not built |
+| `vo_p4_child` | deleted | 4.8s | अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है। | same as `vo_p3_child` |
+| `vo_p4_explain` | deleted | 5.6s | इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे और ऊपर तक जाएंगे। | folded into the composed `vo_t3_prompt` |
+| `vo_p4_head` | deleted | 7.7s | क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं। | folded into the composed `vo_t3_prompt` |
+| `vo_p5_ask` | deleted | 2.9s | अब बताइए, पलंग की लंबाई कितनी है? | MAKE_SET has no post-build question step; the slide ends when the set is correct |
+| `vo_p6_instr` | deleted | 2.4s | अलमारी की लंबाई ब्लॉक से मापिए। | G2 is COUNT_HOW_MANY — the blocks are pre-laid, so the 'measure it' instruction never applies; the page's question line `vo_p6_ask` is used instead |
+| `vo_p6b_ask` | deleted | 2.9s | अब बताइए, तकिये की लंबाई कितनी है? | PPT slide 9 has no slide in the built lesson |
+| `vo_p6b_instr` | deleted | 2.2s | तकिये की लंबाई ब्लॉक से मापिए। | PPT slide 9 (the तकिया page) has no slide in the built lesson — see the report |
+| `vo_p6b_ok` | deleted | 4.1s | शाबाश! तकिये की लंबाई 3 ब्लॉक्स है। | PPT slide 9 has no slide in the built lesson |
+| `vo_p7_ask` | deleted | 3.0s | अब बताइए, फ्रिज की लंबाई कितनी है? | same as `vo_p5_ask` |
 
 ## Lines not taken from the PPT
 

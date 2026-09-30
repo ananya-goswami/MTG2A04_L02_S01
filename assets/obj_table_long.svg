@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 212" width="460" height="212" role="img" aria-label="लंबी टेबल">
+  <!-- The LONG table of slide T1 ("कौन-सी टेबल ज़्यादा लंबी है?"), drawn after the SME deck's page 2 art: a brown
+       wooden table seen a little from above - top slab, front edge, apron, two front legs and two back legs.
+       Legs end at the bottom edge (y 210) so the two tables stand on one floor line. -->
+  <defs>
+    <linearGradient id="lTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D99552"/><stop offset="1" stop-color="#C47D3E"/></linearGradient>
+    <linearGradient id="lEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B8723A"/><stop offset="1" stop-color="#9C5A26"/></linearGradient>
+    <linearGradient id="lApron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9E5B28"/><stop offset="1" stop-color="#B26D35"/></linearGradient>
+    <linearGradient id="lLeg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C07A3D"/><stop offset=".7" stop-color="#B06A30"/><stop offset="1" stop-color="#8E4F1F"/></linearGradient>
+    <linearGradient id="lLegR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#C07A3D"/><stop offset=".7" stop-color="#B06A30"/><stop offset="1" stop-color="#8E4F1F"/></linearGradient>
+    <linearGradient id="lBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A4219"/><stop offset="1" stop-color="#8E5122"/></linearGradient>
+  </defs>
+  <g stroke="#5A3314" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
+    <!-- back legs (further away: set in, and they end higher) -->
+    <path d="M52 80H74V188Q74 191 71 191H55Q52 191 52 188Z" fill="url(#lBack)"/>
+    <path d="M386 80H408V188Q408 191 405 191H389Q386 191 386 188Z" fill="url(#lBack)"/>
+    <!-- apron under the top -->
+    <path d="M30 54H430V84Q430 88 426 88H34Q30 88 30 84Z" fill="url(#lApron)"/>
+    <!-- front legs -->
+    <path d="M12 54H42V205Q42 210 37 210H17Q12 210 12 205Z" fill="url(#lLeg)"/>
+    <path d="M418 54H448V205Q448 210 443 210H423Q418 210 418 205Z" fill="url(#lLegR)"/>
+    <!-- top slab: the top face (a little perspective) and its front edge -->
+    <path d="M40 4H420Q428 4 433 10L453 34Q457 40 450 40H10Q3 40 7 34L27 10Q32 4 40 4Z" fill="url(#lTop)"/>
+    <path d="M6 40H454Q458 40 458 44V52Q458 58 452 58H8Q2 58 2 52V44Q2 40 6 40Z" fill="url(#lEdge)"/>
+  </g>
+  <!-- wood grain + light -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M60 14C130 11 200 17 262 13S368 10 404 15" stroke="#B86F33" stroke-width="2" opacity=".55"/>
+    <path d="M44 25C120 22 196 29 280 24S380 22 424 27" stroke="#B86F33" stroke-width="2" opacity=".5"/>
+    <path d="M120 33C190 31 250 35 330 32" stroke="#B86F33" stroke-width="1.6" opacity=".45"/>
+    <path d="M40 49C120 47 200 51 300 48S400 47 430 50" stroke="#8A4C1E" stroke-width="1.6" opacity=".45"/>
+    <path d="M14 38H446" stroke="#EDB27A" stroke-width="2.2" opacity=".85"/>
+    <path d="M44 7H416" stroke="#EFB983" stroke-width="2" opacity=".7"/>
+    <path d="M20 60V200" stroke="#D08C4E" stroke-width="3" opacity=".55"/>
+    <path d="M426 60V200" stroke="#D08C4E" stroke-width="3" opacity=".55"/>
+    <path d="M60 64C140 62 250 66 400 63" stroke="#8A4C1E" stroke-width="1.5" opacity=".4"/>
+  </g>
+</svg>

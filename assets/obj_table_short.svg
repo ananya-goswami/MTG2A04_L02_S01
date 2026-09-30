@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 182" width="320" height="182" role="img" aria-label="छोटी टेबल">
+  <!-- The SHORT table of slide T1 ("कौन-सी टेबल ज़्यादा लंबी है?"), drawn after the SME deck's page 2 art: a yellow top
+       on a green frame, seen a little from above. Legs end at the bottom edge (y 180) so the two tables stand on
+       one floor line. -->
+  <defs>
+    <linearGradient id="sTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD867"/><stop offset="1" stop-color="#F4BF3A"/></linearGradient>
+    <linearGradient id="sEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EDAE2E"/><stop offset="1" stop-color="#D89420"/></linearGradient>
+    <linearGradient id="sApron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6E9A3E"/><stop offset="1" stop-color="#86B04F"/></linearGradient>
+    <linearGradient id="sLeg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#92BC58"/><stop offset=".7" stop-color="#80AA4A"/><stop offset="1" stop-color="#5E8A33"/></linearGradient>
+    <linearGradient id="sLegR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#92BC58"/><stop offset=".7" stop-color="#80AA4A"/><stop offset="1" stop-color="#5E8A33"/></linearGradient>
+    <linearGradient id="sBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#557D2C"/><stop offset="1" stop-color="#679240"/></linearGradient>
+  </defs>
+  <!-- green frame -->
+  <g stroke="#3D5E1F" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M42 66H62V158Q62 161 59 161H45Q42 161 42 158Z" fill="url(#sBack)"/>
+    <path d="M258 66H278V158Q278 161 275 161H261Q258 161 258 158Z" fill="url(#sBack)"/>
+    <path d="M26 44H294V70Q294 74 290 74H30Q26 74 26 70Z" fill="url(#sApron)"/>
+    <path d="M12 44H38V175Q38 180 33 180H17Q12 180 12 175Z" fill="url(#sLeg)"/>
+    <path d="M282 44H308V175Q308 180 303 180H287Q282 180 282 175Z" fill="url(#sLegR)"/>
+  </g>
+  <!-- yellow top -->
+  <g stroke="#9A6A12" stroke-width="2.4" stroke-linejoin="round">
+    <path d="M34 4H286Q293 4 297 9L313 28Q317 33 311 33H9Q3 33 7 28L23 9Q27 4 34 4Z" fill="url(#sTop)"/>
+    <path d="M6 33H314Q318 33 318 37V43Q318 48 313 48H7Q2 48 2 43V37Q2 33 6 33Z" fill="url(#sEdge)"/>
+  </g>
+  <!-- grain + light -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M50 12C100 10 150 15 200 11S262 10 280 13" stroke="#E4A92C" stroke-width="1.8" opacity=".6"/>
+    <path d="M36 21C96 19 150 24 212 20S276 19 296 22" stroke="#E4A92C" stroke-width="1.8" opacity=".55"/>
+    <path d="M90 27C140 26 190 29 240 27" stroke="#E4A92C" stroke-width="1.5" opacity=".5"/>
+    <path d="M14 31H306" stroke="#FFEFA8" stroke-width="2" opacity=".9"/>
+    <path d="M36 7H284" stroke="#FFF2B8" stroke-width="1.8" opacity=".8"/>
+    <path d="M30 42C100 40 200 44 290 41" stroke="#B87A14" stroke-width="1.4" opacity=".45"/>
+    <path d="M19 50V172" stroke="#A9D06C" stroke-width="2.6" opacity=".6"/>
+    <path d="M289 50V172" stroke="#A9D06C" stroke-width="2.6" opacity=".6"/>
+  </g>
+</svg>

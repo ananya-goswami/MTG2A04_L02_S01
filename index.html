@@ -195,23 +195,31 @@
       "id": "T1",
       "phase": "tutorial",
       "eis": "iconic",
-      "type": "DEMO_COUNT",
+      "type": "PICK_EXTREME",
       "prompt_hi": "कौन-सी टेबल ज़्यादा लंबी है?",
       "audio": {
         "prompt": "vo_p2_ask",
-        "conclude": "vo_p2_fb"
+        "try_again": "vo_p2_fb",
+        "hint": "vo_p2_fb",
+        "reveal": "vo_p2_fb"
       },
       "data": {
-        "count": 3,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
-        },
-        "per_row": 3,
-        "scene_img": "mk_table_small"
+        "by": "length",
+        "look": "tables",
+        "wrong_cue": "show_correct",
+        "options": [
+          {
+            "src": "assets/obj_table_long.svg",
+            "w": 450,
+            "correct": true,
+            "emoji": "🪑"
+          },
+          {
+            "src": "assets/obj_table_short.svg",
+            "w": 308,
+            "emoji": "🪑"
+          }
+        ]
       },
       "signals": {
         "on_complete": []
@@ -221,23 +229,30 @@
       "id": "T2",
       "phase": "tutorial",
       "eis": "iconic",
-      "type": "DEMO_COUNT",
+      "type": "MEASURE_DEMO",
       "prompt_hi": "चलिए, टेबल की लंबाई मापते हैं।",
       "audio": {
-        "prompt": "vo_t2_prompt",
+        "prompt": "vo_p3_head",
+        "explain_a": "vo_p3_explain_a",
+        "explain_b": "vo_p3_explain_b",
+        "demo": "vo_demo_start",
+        "rule_a": "vo_rule_a",
+        "rule_b": "vo_rule_b",
+        "rule_c": "vo_rule_c",
+        "child": "vo_p3_child",
         "conclude": "vo_p3_done"
       },
       "data": {
-        "count": 6,
-        "object": {
-          "emoji": "🧱",
-          "word_hi": "ब्लॉक",
-          "word_pl": "ब्लॉक",
-          "g": "m",
-          "img": "mk_block"
+        "n": 6,
+        "demo": 2,
+        "table": {
+          "src": "assets/obj_table_long.svg",
+          "w": 380,
+          "ar": 0.4609,
+          "x0": 0.0043,
+          "x1": 0.9957
         },
-        "per_row": 5,
-        "scene_img": "mk_table_plain"
+        "unit_hi": "ब्लॉक्स"
       },
       "signals": {
         "on_complete": []
@@ -751,7 +766,14 @@
       "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
       "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
       "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.ogg",
-      "vo_t2_prompt": "assets/voiceover/vo_t2_prompt.ogg",
+      "vo_p3_head": "assets/voiceover/vo_p3_head.ogg",
+      "vo_p3_explain_a": "assets/voiceover/vo_p3_explain_a.ogg",
+      "vo_p3_explain_b": "assets/voiceover/vo_p3_explain_b.ogg",
+      "vo_demo_start": "assets/voiceover/vo_demo_start.ogg",
+      "vo_rule_a": "assets/voiceover/vo_rule_a.ogg",
+      "vo_rule_b": "assets/voiceover/vo_rule_b.ogg",
+      "vo_rule_c": "assets/voiceover/vo_rule_c.ogg",
+      "vo_p3_child": "assets/voiceover/vo_p3_child.ogg",
       "vo_t3_prompt": "assets/voiceover/vo_t3_prompt.ogg",
       "vo_total_1": "assets/voiceover/vo_total_1.ogg",
       "vo_total_2": "assets/voiceover/vo_total_2.ogg",
@@ -801,7 +823,14 @@
       "vo_pt_guided": "बहुत बढ़िया! अब हम साथ मिलकर शुरू करते हैं। चलिए, साथ में करें!",
       "vo_pt_practice": "वाह! अब आपकी बारी।",
       "vo_pt_tutorial": "ध्यान से देखिए और मेरे साथ जानिए। चलिए, शुरू करें!",
-      "vo_t2_prompt": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।  इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे। फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।  अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। बीच में जगह न छोड़ें, और एक-दूसरे के ऊपर न रखें।  चलिए, शुरू करते हैं।",
+      "vo_p3_head": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
+      "vo_p3_explain_a": "इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे।",
+      "vo_p3_explain_b": "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।",
+      "vo_demo_start": "चलिए, शुरू करते हैं।",
+      "vo_rule_a": "अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था।",
+      "vo_rule_b": "बीच में जगह न छोड़ें,",
+      "vo_rule_c": "और एक-दूसरे के ऊपर न रखें।",
+      "vo_p3_child": "अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है।",
       "vo_t3_prompt": "क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं।  इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे और ऊपर तक जाएंगे।  अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था। बीच में जगह न छोड़ें, और एक-दूसरे के ऊपर न रखें।  चलिए, शुरू करते हैं।",
       "vo_total_1": "कुल एक ब्लॉक",
       "vo_total_2": "कुल दो ब्लॉक्स",
@@ -817,7 +846,8 @@
     },
     "image": {
       "mk_block": "assets/mk_block.webp",
-      "mk_table_small": "assets/mk_table_small.webp",
+      "obj_table_long": "assets/obj_table_long.svg",
+      "obj_table_short": "assets/obj_table_short.svg",
       "obj_door": "assets/obj_door.webp",
       "obj_bed": "assets/obj_bed.webp",
       "obj_almirah": "assets/obj_almirah.webp",

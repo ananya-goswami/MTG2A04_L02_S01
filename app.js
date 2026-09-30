@@ -89,7 +89,7 @@ const XAPI = window.XAPI = (function(){
 })();
 /* signal -> verb, for the three that already have a 1:1 signal */
 const XAPI_MAP = { slide_entered:"screen_viewed", hint_shown:"hint_used", audio_replay:"audio_replayed" };
-const XAPI_ANSWERABLE = ["COUNT_HOW_MANY","MAKE_SET"];   /* slide types that send question_started */
+const XAPI_ANSWERABLE = ["COUNT_HOW_MANY","MAKE_SET","PICK_EXTREME"];   /* slide types that send question_started */
 
 /* [QA 01] The game's internal bus is GameBus (window.GameBus). The global SwiftPAL name belongs to
    the platform bridge (swiftpal-bridge.js, loaded first), which XAPI.send() hands each statement to.
@@ -573,7 +573,7 @@ function showBox(emoji, text, theme, audioSrc, onEnd){
 }
 
 /* ---------- 8. TAP-OPTION HELPER (shared by 5 slide types) ---------- */
-function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect, optionRenderer, columnsHint, mastery, hintAction, nudgeTarget, shuffle, onCorrect, onWrong}){
+function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect, optionRenderer, columnsHint, mastery, hintAction, nudgeTarget, shuffle, onCorrect, onWrong, reask}){
   state.attempts = 0; state.selectedKey = null; state.locked = false;
   state.audioReplays = 0; state.hintUsed = false; state.nudgeUsed = false; state.scaffoldLevel = 0;
   // idle hand-nudge target: defaults to the stimulus (re-listen), but a slide can pass
@@ -648,8 +648,9 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
             GameBus.emit("hint_shown", { slide_id: slide.id, manual: false });   // [QA 14] auto hint -> hint_used
             if(runHint) runHint(); else play(audioFor(slide, "hint") || audioFor(slide, "try_again") || null, ()=>{}); }
           else { state.scaffoldLevel = Math.max(state.scaffoldLevel, 1);
-            /* [QA 05] rung 1 = RE-LISTEN: the try-again line, then the question itself again */
-            play(audioFor(slide, "try_again") || null, ()=>{ if(!state.locked && !state.hintActive) play(audioFor(slide, "prompt") || null, ()=>{}); }); }
+            /* [QA 05] rung 1 = RE-LISTEN: the try-again line, then the question itself again
+               (reask:false = the try-again line only, where the deck's incorrect feedback is just that line) */
+            play(audioFor(slide, "try_again") || null, ()=>{ if(reask !== false && !state.locked && !state.hintActive) play(audioFor(slide, "prompt") || null, ()=>{}); }); }
         });
       }
     };
@@ -1019,8 +1020,7 @@ const MK = {
   mStart: "mk_marker_start", mEnd:   "mk_marker_end",
   errGap: "mk_err_gap",      errOver:"mk_err_overlap",
   sparkle:"mk_sparkle",      plate:  "mk_badge_blank",
-  sw: { idle:"mk_sw_idle", explain:"mk_sw_explain", count:"mk_sw_count", think:"mk_sw_think",
-        celebrate:"mk_sw_celebrate", guide:"mk_sw_guide", cheer:"mk_sw_cheer" }
+  sw: { explain:"mk_sw_explain", guide:"mk_sw_guide", cheer:"mk_sw_cheer" }
 };
 const mkSrc = (id)=> "assets/" + id + "." + IMG_EXT;
 /* is this a measuring slide? = the card gave it an object laid along a scene object */
@@ -1648,7 +1648,9 @@ const SlideModules = {
     // NO options — never a test, and no wrong tap is possible (a tap always counts the next unit).
     // Zero (N=0): empty tray, straight to the conclusion. data:{count, object} audio:{prompt?, conclude}
     mount(host, slide){
-      const d = slide.data, N = d.count, obj = d.object;
+      /* data.bare (review 2026-09-30, T1: "remove all the assets as shown in this screen"): NO counting art - no
+         units, badges, running count or result plate; the prompt plays, then the conclusion, then आगे unlocks. */
+      const d = slide.data, bare = !!d.bare, N = bare ? 0 : d.count, obj = d.object;
       state.ownsAudio = true; setNavActive(false); setSwMood("teach");
       const wrap = document.createElement("div"); wrap.className = "demo-stage";
       const counter = document.createElement("div"); counter.className = "demo-count";
@@ -1664,7 +1666,8 @@ const SlideModules = {
         row.appendChild(it); items.push(it);
       }
       if(N === 0){ row.classList.add("demo-empty"); }
-      wrap.appendChild(counter); wrap.appendChild(row); host.appendChild(wrap);
+      if(!bare){ wrap.appendChild(counter); wrap.appendChild(row); }
+      host.appendChild(wrap);
       /* [QA 04] TUTORIAL INTRO IS INTERACTIVE, NOT AUTO-PLAYING. The count used to run by itself;
          now the CHILD taps each unit to hear it counted: after the prompt, the hand points (below)
          at the next unit, a tap counts it - "placed" face + glow, badge, big running numeral,
@@ -1674,7 +1677,8 @@ const SlideModules = {
          has been heard AND the conclusion line has played. */
       let i = 0, busy = true, finished = false;
       const tutPrompt = ()=> document.querySelector("#slideHost .tut-prompt");
-      const conclude = ()=>{ stopNudge();
+      let concluded = false;                                         // (a replayed prompt must not conclude twice)
+      const conclude = ()=>{ if(concluded) return; concluded = true; stopNudge();
         /* [kit] the measurement lands on the sheet's own result plate - the count
            the child just made, restated as "<n> ब्लॉक्स" with the sparkle. */
         if(measuring && N > 0) mkShowResult(row, N);
@@ -1707,11 +1711,210 @@ const SlideModules = {
       /* replay = the prompt again (or the conclusion once done). While it plays the prompt wears the
          outline; the child's next tap is held until it ends, and the hand returns to the next unit. */
       state.replayAudio = ()=>{
-        if(finished || i >= N){ play(audioFor(slide, "conclude") || null, ()=>{}); return; }
+        if(finished || (!bare && i >= N)){ play(audioFor(slide, "conclude") || null, ()=>{}); return; }
         busy = true; stopNudge();
         const tp = tutPrompt(); if(tp) tp.classList.add("speaking");
-        play(audioFor(slide, "prompt") || null, ()=>{ if(tp) tp.classList.remove("speaking"); busy = false; nudgeNext(); });
+        play(audioFor(slide, "prompt") || null, ()=>{ if(tp) tp.classList.remove("speaking"); busy = false;
+          if(bare) setTimeout(conclude, 400); else nudgeNext(); });   // a bare slide: the replayed prompt still leads on to the conclusion
       };
+    }
+  },
+
+  MEASURE_DEMO: {
+    /* MTG2A04 T2 - the SME deck's page 3, built to its script step by step (review 2026-09-30: "add things and
+       animation as per the instruction completely"). Each step has its own VO line:
+         heading VO ........................ the table and the block tray come in
+         VO1 "...एक छोर से मापना शुरू करेंगे।" - a dashed line at the table's LEFT end appears and pulses;
+             "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।" - the RIGHT end
+         VO2 "चलिए, शुरू करते हैं" ............ Swiftee's hand drags blocks one by one from the tray: एक... दो...
+         VO3 "अब ध्यान रखें! ...जहाँ पिछला खत्म हुआ था।" - the previous block's end pulses;
+             "बीच में जगह न छोड़ें," ......... a block set down with a GAP, the gap boxed and pulsing, then taken back;
+             "और एक-दूसरे के ऊपर न रखें।" ..... a block set down OVERLAPPING, the overlap boxed, then taken back
+         child VO "अब आगे आप मापिए..." ...... a ghost drag, tray -> the next tile (the tile shows as the block moves)
+         child: drags each next block - dropped on the next tile it snaps flush and is counted aloud (vo_num_k);
+             dropped anywhere else it bounces back to the tray, then the ghost drag; idle 6s - the ghost drag
+         done: "शाबाश! यह टेबल 6 ब्लॉक्स लंबी है।" + "6 ब्लॉक्स" under the measured row; आगे unlocks.
+       As on the first screen, the units lie in their OWN row a little below the object, flush, and a dashed line
+       carries each end of it down to them. The blocks are the first screen's plain blue cubes (one slice each of
+       assets/cubes_blue_row.webp). data: { n, demo, table:{src, w, ar, x0, x1}, unit_hi } (x0/x1 = the tabletop's
+       ends, fractions of the picture). audio: prompt, explain_a, explain_b, demo, rule_a, rule_b, rule_c, child,
+       conclude (+ vo_num_k). CSS [T2 measure]. */
+    mount(host, slide){
+      const d = slide.data, N = d.n || 6, DEMO = Math.max(1, Math.min(d.demo || 2, N - 1));
+      const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+      state.ownsAudio = true; setNavActive(false); setSwMood("teach");
+      const scene = document.createElement("div"); scene.className = "md-stage"; host.appendChild(scene);
+      const card = host.closest(".tut-card"); if(card) card.classList.add("tc-measure");   // the scene sits right under the prompt (CSS)
+      const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
+      const STOP = {}, guard = ()=>{ if(!alive()) throw STOP; };
+      const px = v => v.toFixed(1) + "px";
+      /* ---- geometry (scene px = stage px) ---- */
+      const W = scene.offsetWidth || 1053, cx = W / 2;
+      const TW = d.table.w || 420, TH = TW * (d.table.ar || 212 / 460), TX = cx - TW / 2, TY = 0;
+      const XL = TX + TW * (d.table.x0 != null ? d.table.x0 : 2 / 460), XR = TX + TW * (d.table.x1 != null ? d.table.x1 : 458 / 460);
+      const BW = (XR - XL) / N, BH = BW, RY = TY + TH + 16;                  // the row: its own line, a little below the table
+      const TC = 3, TG = 8, TP = 12, TRW = TC * BW + (TC - 1) * TG + 2 * TP, TRH = Math.ceil(N / TC) * (BH + TG) - TG + 2 * TP;
+      const TRX = Math.min(W - TRW - 8, XR + 56), TRY = RY + BH - TRH + TP;   // the tray: right of the row, its floor on the row's line
+      scene.style.height = px(RY + BH + 64);
+      const add = (tag, cls, css)=>{ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; scene.appendChild(e); return e; };
+      const table = add("img", "md-table", "left:" + px(TX) + ";top:" + px(TY) + ";width:" + px(TW)); table.src = d.table.src; table.alt = "";
+      add("div", "md-shadow", "left:" + px(TX + TW * .04) + ";top:" + px(TY + TH - 14) + ";width:" + px(TW * .92));
+      add("div", "md-tray", "left:" + px(TRX) + ";top:" + px(TRY) + ";width:" + px(TRW) + ";height:" + px(TRH));
+      const lineTop = TY + 12, lineH = RY + BH + 16 - lineTop;
+      const lineL = add("div", "md-line", "left:" + px(XL - 4) + ";top:" + px(lineTop) + ";height:" + px(lineH));
+      const lineR = add("div", "md-line", "left:" + px(XR - 4) + ";top:" + px(lineTop) + ";height:" + px(lineH));
+      const slotXY = k => ({ x: XL + k * BW, y: RY });
+      const slots = [];
+      for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(add("div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(BW) + ";height:" + px(BH))); }
+      const STRIP = { src: "assets/cubes_blue_row.webp", w: 2102, h: 214, top: 2, bot: 211, cuts: [3, 208, 416, 626, 839, 1049, 1260, 1472, 1683, 1893, 2099] };
+      const trayXY = j => ({ x: TRX + TP + (j % TC) * (BW + TG), y: TRY + TP + Math.floor(j / TC) * (BH + TG) });
+      const blocks = [];
+      for(let j = 0; j < N; j++){
+        const c0 = STRIP.cuts[j % 10], c1 = STRIP.cuts[j % 10 + 1], kx = BW / (c1 - c0), ky = BH / (STRIP.bot - STRIP.top), p = trayXY(j);
+        const b = add("div", "md-block", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(BW) + ";height:" + px(BH) + ";--i:" + j + ";" +
+          "background-image:url(" + STRIP.src + ");background-size:" + px(STRIP.w * kx) + " " + px(STRIP.h * ky) + ";background-position:" + px(-c0 * kx) + " " + px(-STRIP.top * ky));
+        b._home = p; b._placed = false; blocks.push(b);
+      }
+      const hand = add("img", "md-hand"); hand.src = "assets/nudge_hand_new.svg"; hand.alt = "";
+      const TIPX = NH.TIP_X, TIPY = NH.TIP_Y;                                   // the engine's hand: fingertip inside its 86x108 box
+      /* ---- motion helpers ---- */
+      const wait = ms => new Promise(r => setTimeout(r, reduce ? Math.min(ms, 80) : ms));
+      const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      const knock = ()=> _tone([392, 311], "sine", 0.16, 0.1);                 // a soft wooden set-down
+      const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
+      const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
+      const grip = p => ({ x: p.x + BW * 0.52 - TIPX, y: p.y + BH * 0.56 - TIPY });   // the hand's box, fingertip pressing the block
+      const handOn = p =>{ setPos(hand, grip(p)); hand.classList.add("on"); };
+      const handOff = ()=>{ hand.classList.remove("on", "press"); };
+      /* the move is animated on the `translate` property, NOT `transform`: a lifted block (scale 1.07) and the pressing hand
+         (scale .9) carry a CSS `scale`, and CSS applies that scale to anything in `transform` - the block used to travel 107%
+         of the way and the hand 90%, so the fingertip slid up to 84px off the block. `translate` is applied outside the scale. */
+      const path = (dx, dy, up)=> [{ translate: "0px 0px" }, { translate: dx / 2 + "px " + (dy / 2 + up) + "px", offset: .5 }, { translate: dx + "px " + dy + "px" }];
+      function glide(el, to, ms, arc, withHand){                             // along a gentle arc (the hand rides with it)
+        return new Promise(res => {
+          const from = pos(el), dx = to.x - from.x, dy = to.y - from.y, up = arc ? -Math.min(80, 26 + Math.hypot(dx, dy) * 0.16) : 0;
+          let fin = false;
+          const done = ()=>{ if(fin) return; fin = true; setPos(el, to); if(withHand) setPos(hand, grip(to)); res(); };
+          if(reduce || ms <= 0){ done(); return; }
+          const o = { duration: ms, easing: "cubic-bezier(.45,.05,.35,1)" };
+          const a = el.animate(path(dx, dy, up), o);
+          if(withHand) hand.animate(path(dx, dy, up), o);
+          a.onfinish = done; a.oncancel = done;
+        });
+      }
+      const land = el =>{ if(!reduce) el.animate([{ transform: "scale(1.07,.9)" }, { transform: "scale(.98,1.03)" }, { transform: "none" }], { duration: 220, easing: "ease-out" }); knock(); };
+      async function handDrag(el, to){                                      // Swiftee's hand picks a block up and sets it down
+        handOn(pos(el)); await wait(320); guard();
+        hand.classList.add("press"); sfxTap(); el.classList.add("lift"); await wait(120);
+        await glide(el, to, 900, true, true); guard();
+        el.classList.remove("lift"); land(el); hand.classList.remove("press"); await wait(200); handOff();
+      }
+      /* ---- the ghost drag (the hint): a see-through block, tray -> the next tile, the tile showing as it moves ---- */
+      let placed = 0, phase = "demo", ghostTok = 0, idleT = 0, drag = null;
+      async function ghost(){
+        const tok = ++ghostTok, src = blocks.find(b => !b._placed); if(!src || placed >= N) return;
+        const g = src.cloneNode(false); g.classList.add("ghost"); g.classList.remove("lift"); scene.appendChild(g); setPos(g, pos(src));
+        const slot = slots[placed];
+        try{
+          handOn(pos(g)); await wait(300); if(tok !== ghostTok) throw STOP;
+          hand.classList.add("press"); slot.classList.add("show", "target");
+          await glide(g, slotXY(placed), 1100, true, true); if(tok !== ghostTok) throw STOP;
+          await wait(260);
+        } catch(e){ if(e !== STOP) throw e; }
+        g.remove(); if(tok === ghostTok){ handOff(); if(!drag) slot.classList.remove("show", "target"); }
+      }
+      const cancelGhost = ()=>{ ghostTok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); handOff(); hand.getAnimations().forEach(a => a.cancel()); };
+      const armIdle = ()=>{ clearTimeout(idleT); idleT = setTimeout(()=>{ if(alive() && phase === "child" && !drag) ghost().then(()=>{ if(alive() && phase === "child") armIdle(); }); }, 6000); };
+      /* ---- the child's drag ---- */
+      const local = ev =>{ const r = scene.getBoundingClientRect(), s = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / s, y: (ev.clientY - r.top) / s }; };
+      blocks.forEach(b =>{
+        b.addEventListener("pointerdown", ev =>{
+          if(!alive() || phase !== "child" || b._placed || drag) return;
+          ev.preventDefault(); clearTimeout(idleT); cancelGhost();
+          const p = local(ev), bp = pos(b);
+          drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false };
+          try{ b.setPointerCapture(ev.pointerId); }catch(e){}
+          b.classList.add("lift"); sfxTap(); slots[placed].classList.add("show", "target");
+        });
+        b.addEventListener("pointermove", ev =>{
+          if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
+          const p = local(ev); if(Math.hypot(p.x - drag.sx, p.y - drag.sy) > 6) drag.moved = true;
+          setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy });
+        });
+        const drop = ev =>{
+          if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
+          const dr = drag; drag = null; b.classList.remove("lift");
+          const at = pos(b), to = slotXY(placed), slot = slots[placed];
+          const hit = dr.moved && Math.abs(at.x - to.x) <= BW * 0.6 && Math.abs(at.y - to.y) <= BH * 0.85;
+          if(hit){                                                          // flush against the last one: counted aloud
+            b._placed = true; b.classList.add("placed"); slot.classList.remove("show", "target");
+            glide(b, to, reduce ? 0 : 120, false, false).then(()=> land(b));
+            placed++;
+            GameBus.emit("measure_unit_placed", { slide_id: slide.id, phase: slide.phase, count: placed, of: N });
+            const n = placed;
+            sayNum(n).then(()=>{ if(!alive()) return; if(n >= N) finish(); else armIdle(); });
+          } else {                                                          // bounce back to the tray, then show how
+            sfxWrongSoft(); slot.classList.remove("show", "target");
+            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: ++state.attempts });
+            glide(b, b._home, reduce ? 0 : 420, true, false).then(()=>{ if(!alive()) return;
+              if(!reduce) b.animate([{ transform: "translateY(-10px)" }, { transform: "translateY(0)" }, { transform: "translateY(-4px)" }, { transform: "none" }], { duration: 360, easing: "ease-out" });
+              setTimeout(()=>{ if(alive() && phase === "child" && !drag) ghost().then(()=>{ if(alive() && phase === "child") armIdle(); }); }, 350); });
+          }
+        };
+        b.addEventListener("pointerup", drop); b.addEventListener("pointercancel", drop);
+      });
+      /* ---- done: "6 ब्लॉक्स" under the measured row, the conclusion, आगे ---- */
+      function finish(){
+        phase = "done"; clearTimeout(idleT); cancelGhost();
+        const trayEl = scene.querySelector(".md-tray"); if(trayEl) trayEl.classList.add("empty");   // every block is used: the tray bows out
+        const res = add("div", "md-result", "left:" + px(XL - 40) + ";width:" + px(XR - XL + 80) + ";top:" + px(RY + BH + 12));
+        res.textContent = devNumeral(N) + " " + (d.unit_hi || "ब्लॉक्स");
+        requestAnimationFrame(()=> res.classList.add("in"));
+        setSwMood("happy");
+        play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); });
+      }
+      state.replayAudio = ()=>{
+        if(phase === "child"){ clearTimeout(idleT); say("child").then(()=>{ if(alive() && phase === "child") armIdle(); }); ghost(); }
+        else if(phase === "done") play(audioFor(slide, "conclude") || null, ()=>{ if(alive()) setNavActive(true); });
+      };
+      /* ---- the script ---- */
+      (async ()=>{
+        try{
+          const tp = document.querySelector("#slideHost .tut-prompt");
+          requestAnimationFrame(()=> scene.classList.add("in"));             // the table + tray come in
+          if(tp) tp.classList.add("speaking"); await say("prompt"); guard(); if(tp) tp.classList.remove("speaking");
+          lineL.classList.add("show", "pulse"); await say("explain_a"); guard(); lineL.classList.remove("pulse");
+          lineR.classList.add("show", "pulse"); await say("explain_b"); guard(); lineR.classList.remove("pulse");
+          await say("demo"); guard();
+          for(let k = 0; k < DEMO; k++){                                     // एक... दो...
+            await handDrag(blocks[k], slotXY(k)); guard();
+            blocks[k]._placed = true; blocks[k].classList.add("placed"); placed++;
+            await sayNum(placed); guard();
+          }
+          // the rule: start where the last one ends ...
+          const endAt = slotXY(DEMO).x, mark = add("div", "md-endmark", "left:" + px(endAt - 3) + ";top:" + px(RY - 10) + ";height:" + px(BH + 20));
+          await say("rule_a"); guard(); mark.classList.add("out"); setTimeout(()=> mark.remove(), 400);
+          // ... no gap between ...
+          const g = blocks[DEMO], gp = slotXY(DEMO), GAP = BW * 0.45;
+          const vGap = say("rule_b");
+          await handDrag(g, { x: gp.x + GAP, y: gp.y }); guard();
+          const gapBox = add("div", "md-box", "left:" + px(gp.x + 2) + ";top:" + px(RY - 8) + ";width:" + px(GAP - 4) + ";height:" + px(BH + 16));
+          await vGap; guard(); await wait(1000); guard();
+          gapBox.classList.add("out"); await handDrag(g, g._home); guard(); gapBox.remove();
+          // ... and not on top of each other
+          const vOver = say("rule_c");
+          g.classList.add("over");
+          await handDrag(g, { x: gp.x - GAP, y: gp.y }); guard();
+          const ovBox = add("div", "md-box", "left:" + px(gp.x - GAP) + ";top:" + px(RY - 8) + ";width:" + px(GAP) + ";height:" + px(BH + 16));
+          await vOver; guard(); await wait(1000); guard();
+          ovBox.classList.add("out"); await handDrag(g, g._home); guard(); ovBox.remove(); g.classList.remove("over");
+          // the child's turn: the ghost drag shows how while the VO asks
+          phase = "child";
+          const gh = ghost(); await say("child"); guard(); await gh; guard();
+          armIdle();
+        } catch(e){ if(e !== STOP) console.error("[MEASURE_DEMO]", e); }
+      })();
     }
   },
 
@@ -2426,18 +2629,38 @@ const SlideModules = {
     // PICK test: tap the object that is the MOST (सबसे बड़ा / सबसे लंबा / सबसे भारी). For weight, options
     // include a big-but-light distractor to break the bigger=heavier misconception. Reuses mountTapOptions
     // → tap-to-answer + speak-the-word-on-tap + mastery. data:{by, options:[{img/emoji/color,mag,label,audio,correct}]}.
+    // PICTURE OPTIONS (MTG2A04 T1 "कौन-सी टेबल ज़्यादा लंबी है?", review 2026-09-30): an option may carry its own
+    // asset path + display width, {src, w} - the picture keeps its own aspect instead of the square magnitude box,
+    // with a light glint across it; data.look names a CSS look for the row ("tables": no tile, the pictures stand
+    // on one floor line, CSS [T1 tables]); data.wrong_cue:"show_correct" = the deck's "Incorrect: pulsate / hand
+    // nudge on the right one" - on a wrong tap the right picture pulses and the hand points at it (the spoken
+    // line is the slide's try_again audio, via the usual scaffold).
     mount(host, slide){
       const d = slide.data;
       mountTapOptions({
         slide, host, signalName: "pick_extreme_correct", stimulus: null,
         options: d.options,
         optionRenderer: (o)=>{ const cell = document.createElement("div"); cell.className = "ord-pick";
-          cell.innerHTML = renderOrdObj(o, d.by) + (o.label ? `<span class="lbl">${o.label}</span>` : ""); return cell; },
+          if(o.correct === true) cell.dataset.right = "1";
+          const pic = o.src
+            ? `<span class="pk-pic"><span class="pk-in"><img class="pk-img" src="${o.src}" alt="" style="width:${o.w || 240}px">` +
+              `<span class="pk-shine" style="-webkit-mask-image:url(${o.src});mask-image:url(${o.src})"></span></span></span>`
+            : renderOrdObj(o, d.by);
+          cell.innerHTML = pic + (o.label ? `<span class="lbl">${o.label}</span>` : ""); return cell; },
         isCorrect: (o)=> o.correct === true,
         mastery: slide.phase === "mastery",
         columnsHint: d.options.length,
-        nudgeTarget: null
+        nudgeTarget: null,
+        onWrong: d.wrong_cue === "show_correct" ? (opt, cell)=>{
+          const right = host.querySelector('.opt-cell[data-right="1"]'); if(!right || right === cell) return;
+          right.classList.remove("pk-pulse"); void right.offsetWidth; right.classList.add("pk-pulse");   // restart the pulse
+          clearTimeout(right._pkT); right._pkT = setTimeout(()=> right.classList.remove("pk-pulse"), 2600);
+          setTimeout(()=>{ if(!state.locked && right.isConnected) placeNudge(right); }, 450);             // ...and the hand points at it
+        } : undefined,
+        reask: d.wrong_cue === "show_correct" ? false : undefined   // deck: "Incorrect: ... play VO: <that line>" - no re-ask after it
       });
+      if(d.look){ const g = host.querySelector(".opt-grid"); if(g) g.classList.add("pk-" + d.look);
+        const card = host.closest(".tut-card"); if(card) card.classList.add("tc-" + d.look); }   // the card's own look (CSS [T1 tables]: the floor)
     }
   },
 
@@ -3745,10 +3968,15 @@ function boot(){
     armStartPulse();
   };
   setStartBtnReady(false);   // grey + disabled from first paint, until the greeting has been heard
-  const releaseStart = ()=>{ clearTimeout(_startWatchT); if(onLandingNow()) setStartBtnReady(true); };
+  /* [landing intro] the gold pop waits for the whole intro too (title words -> cubes -> lines, "sg-intro-done"),
+     so the button is the LAST thing to arrive (review 2026-09-29). The 15s watchdog still forces it - never stranded. */
+  let _releasePending = false;
+  const releaseStart = (force)=>{ if(!force && !window.__sgIntroDone){ _releasePending = true; return; }
+    clearTimeout(_startWatchT); _releasePending = false; if(onLandingNow()) setStartBtnReady(true); };
+  document.addEventListener("sg-intro-done", ()=>{ if(_releasePending) releaseStart(); });
   const playLanding = ()=>{
     if(!onLandingNow()) return;
-    clearTimeout(_startWatchT); _startWatchT = setTimeout(releaseStart, 15000);   // watchdog
+    clearTimeout(_startWatchT); _startWatchT = setTimeout(()=> releaseStart(true), 15000);   // watchdog (forces it)
     /* released only when the greeting was really heard; a blocked/failed start leaves it grey for the
        child's first tap (or the watchdog) */
     play(landSrc, ()=>{ if(voEl.ended){ _greetingHeard = true; releaseStart(); } });
@@ -3757,6 +3985,55 @@ function boot(){
   window.addEventListener("pointerdown", ()=>{ if(onLandingNow() && !startWaiting()) armStartPulse(); }, true);
   const sgVo = $("sgVo"); if(sgVo) sgVo.onclick = (e)=>{ e.stopPropagation();
     if(replayTap(null, "landing_chip")) playLanding(); };   // [QA 11] the landing chip reports audio_replayed too
+  /* ---- [landing mascot player] (review 2026-09-29: "swifty is getting glitched ... at the starting only"). Measured
+     on the landing with a frame-by-frame screen recording: in about half the loads Chrome paints NOTHING where Swifty
+     is for 1-2 frames, exactly when the <img>'s animated WebP (560x550, alpha) steps to its next frame while the landing
+     is busy starting up - with the original HI01 file too. A canvas cannot blink like that: it keeps its last picture
+     until the next one is drawn. So where the browser can decode the file itself (WebCodecs ImageDecoder), Swifty is
+     drawn on a canvas at its displayed size, the next frame always decoded ahead. Anything missing or failing (no
+     ImageDecoder, file:// fetch, a decode error, not ready when the loader lifts) keeps the plain <img> and its restart
+     below, exactly as before. ---- */
+  const sgMascotPlayer = (()=>{
+    const img = document.querySelector(".sg-mascot");
+    if(!img || typeof ImageDecoder === "undefined" || typeof fetch === "undefined") return null;
+    const url = (img.getAttribute("src") || "").split("?")[0], TYPE = "image/webp";
+    let dec = null, count = 0, first = null, ok = false, dead = false;
+    (async ()=>{                                                   // decode starts at once, under the loader
+      if(ImageDecoder.isTypeSupported && !(await ImageDecoder.isTypeSupported(TYPE))) return;
+      const res = await fetch(url); if(!res.ok) return;
+      dec = new ImageDecoder({ data: await res.arrayBuffer(), type: TYPE });
+      await dec.tracks.ready; count = dec.tracks.selectedTrack.frameCount;
+      first = (await dec.decode({ frameIndex: 0 })).image;
+      ok = count > 0 && !dead;
+    })().catch(()=>{ ok = false; });
+    function start(){                                              // the loader lifting; false = keep the <img>
+      if(!ok || !img.isConnected){ dead = true; return false; }
+      try {
+        const r = img.getBoundingClientRect(), W = Math.max(1, Math.round(r.width * (window.devicePixelRatio || 1)));
+        const H = Math.max(1, Math.round(W * first.displayHeight / first.displayWidth));
+        const cv = document.createElement("canvas"); cv.className = img.className; cv.width = W; cv.height = H;
+        cv.setAttribute("role", "img"); cv.setAttribute("aria-label", img.getAttribute("alt") || "");
+        const ctx = cv.getContext("2d"); ctx.imageSmoothingQuality = "high";
+        const draw = f => { ctx.clearRect(0, 0, W, H); ctx.drawImage(f, 0, 0, W, H); };   // one task: never shown half-drawn
+        draw(first); img.replaceWith(cv);
+        let i = 0, cur = first, due = performance.now() + (cur.duration || 90000) / 1000;   // VideoFrame.duration is in us
+        let next = count > 1 ? dec.decode({ frameIndex: 1 }) : null;
+        const step = async ()=>{
+          if(!next){ cur.close(); dec.close(); return; }             // plays once: the last frame stays drawn
+          let n; try { n = (await next).image; } catch(e){ return; }  // a failed decode: the frame on show simply stays
+          const wait = due - performance.now();
+          if(wait > 1) await new Promise(res => setTimeout(res, wait));
+          draw(n); cur.close(); cur = n; i++;
+          due = Math.max(due, performance.now() - 30) + (n.duration || 90000) / 1000;
+          next = i + 1 < count ? dec.decode({ frameIndex: i + 1 }) : null;   // decoded while this one is on show
+          step();
+        };
+        step();
+        return true;
+      } catch(e){ dead = true; return false; }
+    }
+    return { start };
+  })();
   // ---- [engine JS] r4/P2 boot loader: loader.gif until assets warm, then it dismisses ITSELF into
   // the landing (NO tap gate). DUAL auto-dismiss (window 'load' OR a 2.5s watchdog — never strand the
   // child), deduped by .done. The same handler adds body.loaded (unblocks the concept-strip stagger)
@@ -3771,7 +4048,8 @@ function boot(){
          loader, so without a restart the one wave would be spent before the child sees it -
          re-point the src (cache-busted, same trick as peeking.webp) the moment the loader lifts. */
       const sgm = document.querySelector(".sg-mascot");
-      if(sgm){ const base = (sgm.getAttribute("src") || "").split("?")[0]; if(base) sgm.src = base + "?r=" + Date.now(); }
+      if(sgm && !(sgMascotPlayer && sgMascotPlayer.start())){       // the canvas player (above) when it can; else as before:
+        const base = (sgm.getAttribute("src") || "").split("?")[0]; if(base) sgm.src = base + "?r=" + Date.now(); }
       playLanding();
       setTimeout(()=> bl.remove(), 450);
     };
@@ -3793,7 +4071,7 @@ function boot(){
         auds.push(typeof v === "string" && v.indexOf("assets/") === 0 ? v : "assets/voiceover/" + k + "." + ext);
       });
       auds.push("assets/voiceover/sfx_celebrate." + ext);   /* [QA 02] the celebration sting (playSfx), not in the VO map */
-      [ "loader.gif","startnew_bg_plain.webp","start_card.webp","background_1st_screen.webp","pencil_purple.webp","new_landing_swiftee_anim.webp",
+      [ "loader.gif","startnew_bg_plain.webp","start_card.webp","background_1st_screen.webp","pencil_purple.webp","pencil_face_rig.webp","cubes_blue_row.webp","new_landing_swiftee_anim.webp",
         "end_screen.webp","peeking.webp","nudge_hand_new.svg","mascot.webp",
         "bgdeco_star.svg","bgdeco_star_o.svg","bgdeco_spark.svg",
         "sw_head_talking.webp","sw_head_celebrate.webp","sw_head_celebrate_anim.webp",
@@ -3811,8 +4089,7 @@ function boot(){
       ].forEach(f => imgs.push("assets/" + f + ".webp"));
       /* [kit] measurement art kit - the block states, markers, wrong-way figures,
          result plate and the Swiftie poses the feedback card reads. */
-      ["mk_table_plain","mk_table_small",
-       "mk_block","mk_block_placed","mk_block_ghost","mk_block_glow",
+      ["mk_block","mk_block_placed","mk_block_ghost","mk_block_glow",
        "mk_marker_start","mk_marker_end","mk_err_gap","mk_err_overlap",
        "mk_sparkle","mk_badge_blank",
        "mk_sw_explain","mk_sw_guide","mk_sw_cheer"   /* [QA 01] the three poses MK.sw actually reads */
@@ -3828,7 +4105,7 @@ function boot(){
       /* once fetched, drop the element's source: the bytes stay in the HTTP cache for play(),
          and the media player behind this element is released instead of held all session.
          canplaythrough fires BEFORE a long clip is fully downloaded, so the release waits until
-         the whole clip is buffered (or 15s) - releasing early aborted the tail of vo_t2_prompt. */
+         the whole clip is buffered (or 15s) - releasing early aborted the tail of a long clip (the old 24.8s T2 prompt). */
       const release = ()=>{ a.onprogress = null; try{ a.removeAttribute("src"); a.load(); }catch(e){} };
       const full = ()=>{ try{ return a.buffered.length && a.duration && a.buffered.end(a.buffered.length - 1) >= a.duration - 0.05; }catch(e){ return false; } };
       const once = ()=>{ if(!fired){ fired = true; a.oncanplaythrough = a.onerror = a.onabort = null;
@@ -3870,55 +4147,103 @@ function boot(){
     }, "tutorial");
   };
   /* ===== [landing title fx] लंबाई STRETCHES TO THE PENCIL NIB AND SPRINGS BACK; मापना BECOMES A RULER =====
-     (review 2026-09-28). Driven by the landing greeting's own clock (voEl.currentTime), so it lands on
-     the spoken word even when the greeting starts late (autoplay block) or is replayed.
-     WHEN: "लंबाई" is spoken 5.46-6.00s into vo_landing.ogg - edge-tts word boundaries of the same line,
-     aligned to this clip and mapped through the VO re-time (pause compression, x1.028).
-     HOW IT STAYS IDENTICAL AT REST: the heading is still the real CSS text. For the animation each
-     letter group (लं बा ई | मा प ना) is a copy of that text in the same .sg-title style, painted the way
-     one text run paints - every outline/shadow UNDER every fill - so swapping to the copies and back
-     is invisible. Each word is its own composited stack, so a fade never lets the white outline show
-     through a half-faded fill. The only drawn parts are the continuous top line, the ruler and the
-     dotted outline (SVG). This font breaks its top line between letters; during the animation one
-     continuous line takes its place, and the letters' own pieces return when it settles.
-     PHYSICS (लंबाई):
-       - pull: the left end is drawn to the pencil nib tip while the word is spoken; the right end is
-         the fixed end. Uniform strain: each letter group moves in proportion to its distance from the
-         fixed end, so ल's left edge lands exactly on the nib. The line is taut and straight.
-       - release: the spring snaps back, s(t) = D cos(w t) (1.8 Hz).
-       - HARD STOP: at rest the letters already touch - the word is at its SOLID length, like a coil
-         spring with closed coils - so it cannot compress past rest (letters never overlap). It hits the
-         stop at speed v = D w and rebounds with restitution e = .3 (v -> e v): a few smaller bounces,
-         each s(t) = (e v / w) sin(w t).
-       - CURL: at each impact the letters stop but the top line's own material keeps moving, so it
-         buckles into waves - m = 5 half-waves, a damped standing wave
-         y(u,t) = C v e^(-g t) sin(wl t) sin(m pi u)   (C .0105 s, wl 3.2 Hz, g 3.2 /s).
-         The (much heavier) letters hang from it and sway a little with it. The waves die away and the
-         line settles straight.
-     मापना: grey dotted outline -> a ruler draws in as its top line (tall ticks at the start, the end and
-     each letter join, 4 small ticks between; no numbers) -> it fills back to orange; the ruler stays. */
+     (review 2026-09-28/29). Starts on the spoken "आज" (आज हम सीखेंगे), 3.13s into vo_landing.ogg - 2.3s before "लंबाई"
+     (5.41s), so the animation has time to be unhurried and still ends when it did (edge-tts word
+     boundaries of the same line, aligned to this clip and mapped through the VO re-time). From that moment it runs
+     on the wall clock, so it is smooth and the same every time.
+     AT REST it is the real CSS heading. While it moves, each letter group (लं बा ई | मा प ना) is a copy of that text
+     in the same .sg-title style, painted as one text run paints (every blue/ambient shadow, then every white
+     outline, then every fill), so the swap to the copies and back is invisible. Each word is its own composited
+     stack, so a fade never shows the outline through a half-faded fill. This font breaks its top line between
+     letters; while the word moves one continuous line takes its place, and the letters' own pieces come back after.
+     ALL of it runs SLOW = 1.5x slower than the times written here (one clock for everything, so the rhythm is kept).
+     लंबाई (slow: ~1.0s stretch, 0.3s hold, ~2.5s spring back):
+       - pull: the right end (ई's right edge) is the FIXED end; the left end (ल's left edge) is drawn PAST the pencil
+         nib tip, by PAST_NIB px beyond it. Uniform strain between them: each letter group moves in proportion to its distance from the
+         fixed end. The line is taut and straight.
+       - release: the spring snaps back, s(t) = D cos(w t) (0.9 Hz).
+       - HARD STOP: at rest the letters already touch - the word is at its SOLID length, like a coil spring with
+         closed coils - so it cannot compress past rest and letters never overlap. It hits the stop at v = D w and
+         rebounds with restitution e = .3 (v -> e v): a few smaller bounces, each s(t) = (e v / w) sin(w t).
+       - CURL: at each impact the letters stop but the top line's own material keeps moving, so it buckles into a
+         damped standing wave, y(u,t) = C v e^(-g t) sin(wl t) sin(m pi u), m = 5 half-waves. The letters hang from
+         the line and stay joined to it: while it curls the word is drawn from its own outlines (font data) and each
+         letter's upper part bends with the line, easing to nothing at the baseline.
+       - SET: the first impact also bends the line for good, like an over-stretched spring - its rest shape becomes
+         the wave (dip first, 3 dips and 2 humps, height 4% of the word), reached critically damped while the curl
+         waves ring about it and die away. It STAYS wavy while मापना's ruler forms and shows, then straightens
+         TOGETHER with मापना's own reversal (same start, same end), and the real heading comes back.
+     मापना (starts only once लंबाई's animation is completely done - one after the other): the word goes
+     grey ("disabled") while its letters move apart - so each mark gets clean space of its own - then its ruler top
+     line forms one letter at a time - the line over मा only, with मा coming back
+     in orange along it, then प with its line, then ना with its line - with a start mark and a mark after each letter,
+     springing out through the line equally above and below it (no numbers). The finished ruler shows for a moment
+     (the heading has grown to the right; it is NOT re-centred), then BOTH words UNDO together: लंबाई's wave
+     straightens while मापना goes back to normal - the marks pull back into the line and the letters slide back
+     together - which by itself returns the heading to its centred place. ONLY THEN (review 2026-09-29: undo before
+     the words are placed at the centre) do the two words move in towards the centre, closer to each other (word gap
+     28px -> 14px, each word half the way), and the real heading returns with that closer gap. */
   (function(){
     const titleEl = $("sgTitle");
     if(!titleEl || titleEl.textContent.trim() !== "लंबाई मापना") return;
     const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const T_WORD = 5.46, T_WORD_END = 6.00;                  // "लंबाई" in vo_landing.ogg (seconds)
-    const BAND_TOP = 39.68, BAND_BOT = 32.6;                  // headline band, px above the baseline (Baloo 2 800 @64px)
-    const BAR_T = BAND_TOP - BAND_BOT, BAR_MID = (BAND_TOP + BAND_BOT) / 2;
-    const W0 = 2 * Math.PI * 1.8, RESTITUTION = 0.3, HALF_WAVES = 5;                        // spring + hard stop
-    const CURL_C = 0.0105, CURL_W = 2 * Math.PI * 3.2, CURL_G = 3.2, CURL_MAX = 9, SWAY = 0.35; // line buckling at impact
+    const T_WORD = 3.13;                                       // "आज" (आज हम सीखेंगे) starts, in vo_landing.ogg (seconds) - review 2026-09-29 (was "लंबाई", 5.46)
+    const PULL = 0.6, HOLD = 0.15;                             // stretch, then a short hold at full stretch (tightened 2026-09-29: the
+                                                               // whole first screen must stay short - 15 slides follow)
+    const PAST_NIB = 5;                                        // stage px: ल's left edge is pulled this far PAST the pencil nib tip.
+                                                               // Review 2026-09-29: "keep the stretch just ahead of the nib only" -
+                                                               // a few px beyond the tip (was 16, earlier 50/70). The spring-back/
+                                                               // bounce/curl scale with the stretch.
+    const BAND_TOP = 39.68, BAND_BOT = 32.6;                   // headline band, px above the baseline (Baloo 2 800 @64px)
+    const BAR_T = BAND_TOP - BAND_BOT, BAR_MID = (BAND_TOP + BAND_BOT) / 2, HOLE_TOP = 0.3, HOLE_KEEP = 0.6, BAR_R = 2.4;
+    const W0 = 2 * Math.PI * 0.9, RESTITUTION = 0.3, HALF_WAVES = 5;                         // spring + hard stop
+    const CURL_C = 0.016, CURL_W = 2 * Math.PI * 1.6, CURL_G = 1.4, CURL_MAX = 7;           // line buckling at impact
+    const SET_A = 0.04, SET_G = 5;                                                           // the wave it keeps: height / word length, settling rate
+    const SLOW = 1.5;                                                                        // one clock for the whole title animation: 1.5x slower, and it starts on "आज", 2.33s earlier -
+                                                                                             // so it still ENDS when it did (5.04s -> 7.5s, same end; review 2026-09-29: no rushed animation, first screen not longer)
+    const W2_START = 1.0;                                                                    // मापना starts this long (s) into लंबाई's spring-back, not only once it is fully still
+    const GAP_END = 14;                                                                      // word-spacing (px) the heading ENDS with: the words a little closer than at the start (28)
     // the heading's sticker look (.sg-title text-shadow) for the drawn parts: white pen, blue extrusion, ambient
-    const OUT_W = 8.4, EXT_DY = 4.8, ORANGE = "#F85A00", BLUE = "#2F82DE", GREY = "#9A9AA6", GREY_DOT = "#6F6F7B";
-    const W2_PATHS = ["M26.3 -21.57V-13.5H16.83Q16.06 -10.69 14.08 -9.31Q12.1 -7.94 8.96 -7.94Q5.06 -7.94 3.1 -9.82Q1.15 -11.71 1.15 -14.27Q1.15 -15.36 1.5 -16.45Q1.86 -17.54 2.5 -18.56H3.78Q6.85 -18.56 6.85 -22.02V-34.37H17.34V-21.57ZM29.76 -32.13H0.64Q-0.96 -32.13 -1.6 -33.12Q-2.24 -34.11 -2.24 -36.03Q-2.24 -36.8 -2.02 -37.95Q-1.79 -39.1 -1.54 -39.68H27.65Q30.53 -39.68 30.53 -35.9Q30.53 -35.07 30.3 -33.89Q30.08 -32.7 29.76 -32.13ZM26.3 -35.97H36.8V0Q36.1 0.26 34.94 0.48Q33.79 0.7 32.26 0.7Q28.8 0.7 27.55 -0.42Q26.3 -1.54 26.3 -4.03ZM42.56 -32.13H22.66Q21.06 -32.13 20.42 -33.12Q19.78 -34.11 19.78 -36.03Q19.78 -36.8 20 -37.95Q20.22 -39.1 20.48 -39.68H40.45Q43.33 -39.68 43.33 -35.9Q43.33 -35.07 43.1 -33.89Q42.88 -32.7 42.56 -32.13ZM45.38 -35.97H55.87V0Q55.17 0.26 54.02 0.48Q52.86 0.7 51.33 0.7Q47.87 0.7 46.62 -0.42Q45.38 -1.54 45.38 -4.03ZM61.63 -32.13H41.73Q40.13 -32.13 39.49 -33.12Q38.85 -34.11 38.85 -36.03Q38.85 -36.8 39.07 -37.95Q39.3 -39.1 39.55 -39.68H59.52Q62.4 -39.68 62.4 -35.9Q62.4 -35.07 62.18 -33.89Q61.95 -32.7 61.63 -32.13Z", "M30.53 -32.13H0Q-1.6 -32.13 -2.24 -33.12Q-2.88 -34.11 -2.88 -36.03Q-2.88 -36.8 -2.66 -37.95Q-2.43 -39.1 -2.18 -39.68H28.42Q31.3 -39.68 31.3 -35.9Q31.3 -35.07 31.07 -33.89Q30.85 -32.7 30.53 -32.13ZM2.88 -32.96H13.38V-24.32Q13.38 -20.8 14.82 -19.33Q16.26 -17.86 19.07 -17.86Q20.54 -17.86 21.82 -18.34Q23.1 -18.82 23.74 -19.46L28.35 -15.1Q26.69 -12.74 23.71 -11.17Q20.74 -9.6 16.64 -9.6Q10.18 -9.6 6.53 -13.28Q2.88 -16.96 2.88 -23.81ZM23.23 -35.97H33.73V0Q33.02 0.26 31.87 0.48Q30.72 0.7 29.18 0.7Q25.73 0.7 24.48 -0.42Q23.23 -1.54 23.23 -4.03ZM39.49 -32.13H19.58Q17.98 -32.13 17.34 -33.12Q16.7 -34.11 16.7 -36.03Q16.7 -36.8 16.93 -37.95Q17.15 -39.1 17.41 -39.68H37.38Q40.26 -39.68 40.26 -35.9Q40.26 -35.07 40.03 -33.89Q39.81 -32.7 39.49 -32.13Z", "M9.66 -24.26H27.26V-16.19H14.98Q13.95 -16.19 13.34 -15.62Q12.74 -15.04 12.74 -13.76V-10.62Q11.65 -10.05 10.62 -9.76Q9.6 -9.47 8.51 -9.47Q5.95 -9.47 3.94 -11.36Q1.92 -13.25 1.92 -16.77Q1.92 -20.22 4.03 -22.24Q6.14 -24.26 9.66 -24.26ZM27.01 -32.13H0.32Q-1.28 -32.13 -1.92 -33.12Q-2.56 -34.11 -2.56 -36.03Q-2.56 -36.8 -2.34 -37.95Q-2.11 -39.1 -1.86 -39.68H24.9Q27.78 -39.68 27.78 -35.9Q27.78 -35.07 27.55 -33.89Q27.33 -32.7 27.01 -32.13ZM23.55 -35.97H34.05V0Q33.34 0.26 32.19 0.48Q31.04 0.7 29.5 0.7Q26.05 0.7 24.8 -0.42Q23.55 -1.54 23.55 -4.03ZM39.81 -32.13H19.9Q18.3 -32.13 17.66 -33.12Q17.02 -34.11 17.02 -36.03Q17.02 -36.8 17.25 -37.95Q17.47 -39.1 17.73 -39.68H37.7Q40.58 -39.68 40.58 -35.9Q40.58 -35.07 40.35 -33.89Q40.13 -32.7 39.81 -32.13ZM42.62 -35.97H53.12V0Q52.42 0.26 51.26 0.48Q50.11 0.7 48.58 0.7Q45.12 0.7 43.87 -0.42Q42.62 -1.54 42.62 -4.03ZM58.88 -32.13H38.98Q37.38 -32.13 36.74 -33.12Q36.1 -34.11 36.1 -36.03Q36.1 -36.8 36.32 -37.95Q36.54 -39.1 36.8 -39.68H56.77Q59.65 -39.68 59.65 -35.9Q59.65 -35.07 59.42 -33.89Q59.2 -32.7 58.88 -32.13Z"];   // मापना outlines per letter group: px, origin = the group's pen, y down from the baseline
+    const OUT_W = 8.4, EXT_DY = 4.8, ORANGE = "#F85A00", BLUE = "#2F82DE", AMB = "rgba(0,40,120,.26)", GREY = "#9A9AA6", GREY_DOT = "#6F6F7B";
+    const DATA = {"w1_flat":[[[[29.5,-10.82],[28.69,-10.58],[27.88,-10.39],[27.07,-10.24],[26.25,-10.13],[25.39,-10.07],[24.51,-10.05],[23.54,-10.1],[22.69,-10.26],[21.95,-10.52],[21.32,-10.89],[20.8,-11.36],[20.3,-12.07],[19.94,-12.89],[19.72,-13.81],[19.65,-14.85],[19.67,-15.7],[19.74,-16.53],[19.86,-17.35],[20.02,-18.14],[20.23,-18.92],[20.18,-18.93],[20.13,-18.94],[19.27,-19.09],[18.43,-19.14],[17.54,-19.09],[16.72,-18.95],[15.99,-18.71],[15.35,-18.38],[14.78,-17.96],[14.3,-17.44],[13.83,-16.74],[13.46,-16.0],[13.2,-15.21],[13.04,-14.38],[12.99,-13.5],[13.04,-12.49],[13.19,-11.56],[13.44,-10.71],[13.79,-9.94],[14.24,-9.25],[14.76,-8.63],[15.34,-8.08],[15.97,-7.59],[16.65,-7.17],[17.38,-6.82],[18.32,-6.45],[19.26,-6.17],[20.19,-5.96],[21.12,-5.82],[21.17,-5.48],[21.18,-5.09],[21.18,-4.35],[21.13,-3.48],[20.97,-2.65],[20.7,-1.86],[20.32,-1.12],[19.84,-0.42],[19.41,0.03],[18.9,0.41],[18.3,0.73],[17.61,0.97],[16.84,1.14],[15.98,1.25],[15.04,1.28],[14.21,1.25],[13.4,1.16],[12.59,1.01],[11.8,0.8],[11.01,0.52],[10.24,0.19],[9.49,-0.2],[8.76,-0.63],[8.06,-1.12],[7.4,-1.66],[6.76,-2.24],[6.14,-2.88],[5.65,-3.46],[5.18,-4.08],[4.74,-4.72],[4.34,-5.4],[3.96,-6.11],[3.61,-6.85],[3.3,-7.62],[3.02,-8.42],[2.78,-9.24],[2.58,-10.09],[2.43,-10.97],[2.33,-11.87],[2.26,-12.8],[2.24,-13.76],[2.26,-14.65],[2.32,-15.52],[2.41,-16.35],[2.55,-17.15],[2.72,-17.92],[2.93,-18.66],[3.18,-19.37],[3.47,-20.05],[3.8,-20.7],[4.16,-21.31],[4.66,-22.04],[5.19,-22.72],[5.76,-23.36],[6.37,-23.95],[7.01,-24.5],[7.69,-25.0],[8.4,-25.45],[9.15,-25.86],[9.93,-26.22],[10.71,-26.53],[11.51,-26.79],[12.32,-27.01],[13.14,-27.18],[13.98,-27.3],[14.82,-27.37],[15.68,-27.39],[16.65,-27.37],[17.57,-27.3],[18.44,-27.19],[19.27,-27.04],[20.06,-26.84],[20.81,-26.59],[21.5,-26.3],[22.47,-25.83],[23.36,-25.32],[24.19,-24.78],[24.84,-25.26],[25.54,-25.7],[26.19,-26.05],[26.87,-26.37],[27.58,-26.64],[28.31,-26.87],[29.07,-27.06],[29.86,-27.2],[30.67,-27.31],[31.52,-27.37],[32.38,-27.39],[33.35,-27.37],[34.27,-27.3],[35.14,-27.19],[35.14,-28.01],[35.14,-28.83],[35.14,-29.66],[35.14,-30.48],[35.14,-31.3],[35.14,-32.13],[34.33,-32.13],[33.53,-32.13],[32.73,-32.13],[31.93,-32.13],[31.12,-32.13],[30.32,-32.13],[29.52,-32.13],[28.72,-32.13],[27.92,-32.13],[27.11,-32.13],[26.31,-32.13],[25.51,-32.13],[24.71,-32.13],[23.9,-32.13],[23.1,-32.13],[22.3,-32.13],[21.5,-32.13],[20.7,-32.13],[19.89,-32.13],[19.09,-32.13],[18.29,-32.13],[17.49,-32.13],[16.68,-32.13],[15.88,-32.13],[15.08,-32.13],[14.28,-32.13],[13.48,-32.13],[12.67,-32.13],[11.87,-32.13],[11.07,-32.13],[10.27,-32.13],[9.46,-32.13],[8.66,-32.13],[7.86,-32.13],[7.06,-32.13],[6.26,-32.13],[5.45,-32.13],[4.65,-32.13],[3.85,-32.13],[3.05,-32.13],[2.24,-32.13],[1.44,-32.13],[0.64,-32.13],[-0.32,-32.24],[-1.07,-32.57],[-1.6,-33.12],[-1.96,-33.88],[-2.17,-34.86],[-2.24,-36.03],[-2.18,-36.9],[-2.02,-37.95],[-1.78,-38.96],[-1.54,-39.68],[-0.73,-39.68],[0.08,-39.68],[0.88,-39.68],[1.69,-39.68],[2.5,-39.68],[3.3,-39.68],[4.11,-39.68],[4.92,-39.68],[5.72,-39.68],[6.53,-39.68],[7.34,-39.68],[8.14,-39.68],[8.95,-39.68],[9.76,-39.68],[10.56,-39.68],[11.37,-39.68],[12.18,-39.68],[12.98,-39.68],[13.79,-39.68],[14.6,-39.68],[15.4,-39.68],[16.21,-39.68],[17.02,-39.68],[17.82,-39.68],[18.63,-39.68],[19.44,-39.68],[20.24,-39.68],[21.05,-39.68],[21.86,-39.68],[22.66,-39.68],[23.47,-39.68],[24.28,-39.68],[25.08,-39.68],[25.89,-39.68],[26.7,-39.68],[27.5,-39.68],[28.31,-39.68],[29.11,-39.68],[29.92,-39.68],[30.73,-39.68],[31.53,-39.68],[32.34,-39.68],[33.15,-39.68],[33.95,-39.68],[34.76,-39.68],[35.57,-39.68],[36.37,-39.68],[37.18,-39.68],[37.99,-39.68],[38.79,-39.68],[39.6,-39.68],[40.41,-39.68],[41.21,-39.68],[42.02,-39.68],[42.83,-39.68],[43.63,-39.68],[44.44,-39.68],[45.25,-39.68],[46.05,-39.68],[46.86,-39.68],[47.67,-39.68],[48.47,-39.68],[49.28,-39.68],[49.95,-39.62],[50.54,-39.44],[51.03,-39.15],[51.44,-38.74],[51.75,-38.2],[51.98,-37.56],[52.11,-36.79],[52.16,-35.9],[52.1,-34.98],[51.94,-33.89],[51.69,-32.86],[51.39,-32.13],[50.57,-32.13],[49.75,-32.13],[48.92,-32.13],[48.1,-32.13],[47.28,-32.13],[46.45,-32.13],[45.63,-32.13],[45.63,-31.32],[45.63,-30.52],[45.63,-29.72],[45.63,-28.92],[45.63,-28.11],[45.63,-27.31],[45.63,-26.51],[45.63,-25.7],[45.63,-24.9],[45.63,-24.1],[45.63,-23.29],[45.63,-22.49],[45.63,-21.69],[45.63,-20.88],[45.63,-20.08],[45.63,-19.28],[45.63,-18.47],[45.63,-17.67],[45.63,-16.87],[45.63,-16.06],[45.63,-15.26],[45.63,-14.46],[45.63,-13.65],[45.63,-12.85],[45.63,-12.05],[45.63,-11.24],[45.63,-10.44],[45.63,-9.64],[45.63,-8.84],[45.63,-8.03],[45.63,-7.23],[45.63,-6.43],[45.63,-5.62],[45.63,-4.82],[45.63,-4.02],[45.63,-3.21],[45.63,-2.41],[45.63,-1.61],[45.63,-0.8],[45.63,0.0],[44.82,0.25],[43.78,0.48],[42.97,0.6],[42.07,0.68],[41.09,0.7],[40.0,0.67],[39.03,0.58],[38.18,0.42],[37.46,0.21],[36.86,-0.07],[36.38,-0.42],[35.93,-0.92],[35.59,-1.53],[35.34,-2.26],[35.19,-3.09],[35.14,-4.03],[35.14,-4.87],[35.14,-5.71],[35.14,-6.55],[35.14,-7.39],[35.14,-8.22],[35.14,-9.06],[35.14,-9.9],[35.14,-10.74],[35.14,-11.58],[35.14,-12.42],[35.14,-13.25],[35.14,-14.09],[35.14,-14.93],[35.14,-15.77],[35.14,-16.61],[35.14,-17.45],[35.14,-18.28],[35.14,-19.12],[34.95,-19.13],[34.75,-19.14],[33.84,-19.08],[33.02,-18.92],[32.3,-18.65],[31.67,-18.27],[31.13,-17.78],[30.69,-17.18],[30.41,-16.66],[30.17,-16.05],[29.97,-15.37],[29.8,-14.62],[29.67,-13.78],[29.58,-12.87],[29.52,-11.88],[29.5,-10.82]],[[34.5,-49.66],[34.56,-50.56],[34.76,-51.4],[35.08,-52.19],[35.54,-52.92],[36.13,-53.6],[36.7,-54.1],[37.33,-54.51],[38.01,-54.82],[38.74,-55.05],[39.54,-55.19],[40.38,-55.23],[41.21,-55.19],[41.98,-55.05],[42.7,-54.82],[43.37,-54.51],[43.98,-54.1],[44.54,-53.6],[45.12,-52.92],[45.57,-52.19],[45.89,-51.4],[46.08,-50.56],[46.14,-49.66],[46.08,-48.77],[45.89,-47.93],[45.57,-47.14],[45.12,-46.41],[44.54,-45.73],[43.98,-45.23],[43.37,-44.82],[42.7,-44.5],[41.98,-44.28],[41.21,-44.14],[40.38,-44.1],[39.54,-44.14],[38.74,-44.28],[38.01,-44.5],[37.33,-44.82],[36.7,-45.23],[36.13,-45.73],[35.54,-46.41],[35.08,-47.14],[34.76,-47.93],[34.56,-48.77],[34.5,-49.66]]],[[[59.9,-32.13],[59.08,-32.13],[58.26,-32.13],[57.44,-32.13],[56.61,-32.13],[55.79,-32.13],[54.97,-32.13],[54.14,-32.13],[54.14,-31.32],[54.14,-30.52],[54.14,-29.72],[54.14,-28.92],[54.14,-28.11],[54.14,-27.31],[54.14,-26.51],[54.14,-25.7],[54.14,-24.9],[54.14,-24.1],[54.14,-23.29],[54.14,-22.49],[54.14,-21.69],[54.14,-20.88],[54.14,-20.08],[54.14,-19.28],[54.14,-18.47],[54.14,-17.67],[54.14,-16.87],[54.14,-16.06],[54.14,-15.26],[54.14,-14.46],[54.14,-13.65],[54.14,-12.85],[54.14,-12.05],[54.14,-11.24],[54.14,-10.44],[54.14,-9.64],[54.14,-8.84],[54.14,-8.03],[54.14,-7.23],[54.14,-6.43],[54.14,-5.62],[54.14,-4.82],[54.14,-4.02],[54.14,-3.21],[54.14,-2.41],[54.14,-1.61],[54.14,-0.8],[54.14,0.0],[53.33,0.25],[52.29,0.48],[51.48,0.6],[50.58,0.68],[49.6,0.7],[48.51,0.67],[47.54,0.58],[46.7,0.42],[45.97,0.21],[45.37,-0.07],[44.9,-0.42],[44.45,-0.92],[44.1,-1.53],[43.85,-2.26],[43.7,-3.09],[43.65,-4.03],[43.65,-4.83],[43.65,-5.64],[43.65,-6.44],[43.65,-7.24],[43.65,-8.05],[43.65,-8.85],[43.65,-9.65],[43.65,-10.45],[43.65,-11.26],[43.65,-12.06],[43.65,-12.86],[43.65,-13.66],[43.65,-14.47],[43.65,-15.27],[43.65,-16.07],[43.65,-16.88],[43.65,-17.68],[43.65,-18.48],[43.65,-19.28],[43.65,-20.09],[43.65,-20.89],[43.65,-21.69],[43.65,-22.5],[43.65,-23.3],[43.65,-24.1],[43.65,-24.9],[43.65,-25.71],[43.65,-26.51],[43.65,-27.31],[43.65,-28.11],[43.65,-28.92],[43.65,-29.72],[43.65,-30.52],[43.65,-31.33],[43.65,-32.13],[42.79,-32.13],[41.93,-32.13],[41.08,-32.13],[40.22,-32.13],[39.36,-32.13],[38.5,-32.13],[37.64,-32.13],[36.79,-32.13],[35.93,-32.13],[35.07,-32.13],[35.07,-31.32],[35.07,-30.52],[35.07,-29.72],[35.07,-28.92],[35.07,-28.11],[35.07,-27.31],[35.07,-26.51],[35.07,-25.7],[35.07,-24.9],[35.07,-24.1],[35.07,-23.29],[35.07,-22.49],[35.07,-21.69],[35.07,-20.88],[35.07,-20.08],[35.07,-19.28],[35.07,-18.47],[35.07,-17.67],[35.07,-16.87],[35.07,-16.06],[35.07,-15.26],[35.07,-14.46],[35.07,-13.65],[35.07,-12.85],[35.07,-12.05],[35.07,-11.24],[35.07,-10.44],[35.07,-9.64],[35.07,-8.84],[35.07,-8.03],[35.07,-7.23],[35.07,-6.43],[35.07,-5.62],[35.07,-4.82],[35.07,-4.02],[35.07,-3.21],[35.07,-2.41],[35.07,-1.61],[35.07,-0.8],[35.07,0.0],[34.26,0.25],[33.22,0.48],[32.41,0.6],[31.51,0.68],[30.53,0.7],[29.44,0.67],[28.47,0.58],[27.62,0.42],[26.9,0.21],[26.3,-0.07],[25.82,-0.42],[25.37,-0.92],[25.03,-1.53],[24.78,-2.26],[24.63,-3.09],[24.58,-4.03],[24.58,-4.87],[24.58,-5.7],[23.72,-5.26],[22.81,-4.88],[21.86,-4.54],[21.13,-4.34],[20.36,-4.17],[19.55,-4.03],[18.7,-3.92],[17.8,-3.84],[16.86,-3.79],[15.87,-3.78],[14.99,-3.8],[14.12,-3.86],[13.28,-3.95],[12.46,-4.09],[11.66,-4.27],[10.88,-4.49],[10.12,-4.74],[9.39,-5.04],[8.67,-5.38],[7.9,-5.8],[7.17,-6.26],[6.49,-6.76],[5.84,-7.31],[5.24,-7.9],[4.68,-8.53],[4.16,-9.21],[3.68,-9.92],[3.3,-10.59],[2.96,-11.28],[2.67,-12.0],[2.42,-12.74],[2.22,-13.51],[2.06,-14.3],[1.95,-15.12],[1.88,-15.96],[1.86,-16.83],[1.88,-17.78],[1.96,-18.69],[2.1,-19.57],[2.29,-20.42],[2.53,-21.24],[2.83,-22.03],[3.18,-22.79],[3.58,-23.52],[4.04,-24.21],[4.53,-24.87],[5.07,-25.48],[5.65,-26.06],[6.27,-26.59],[6.93,-27.09],[7.64,-27.55],[8.38,-27.97],[9.08,-28.3],[9.79,-28.6],[10.53,-28.86],[11.29,-29.07],[12.07,-29.25],[12.88,-29.39],[13.7,-29.49],[14.55,-29.55],[15.42,-29.57],[16.45,-29.53],[17.39,-29.42],[18.24,-29.22],[19.01,-28.96],[19.69,-28.61],[20.29,-28.19],[20.89,-27.6],[21.35,-26.92],[21.69,-26.16],[21.89,-25.31],[21.95,-24.38],[21.88,-23.48],[21.66,-22.56],[21.34,-21.7],[20.93,-20.99],[20.42,-21.11],[19.81,-21.22],[19.06,-21.29],[18.18,-21.31],[17.07,-21.26],[16.08,-21.09],[16.73,-20.61],[17.39,-20.13],[18.04,-19.64],[18.69,-19.16],[19.35,-18.68],[20.0,-18.19],[20.65,-17.71],[21.31,-17.23],[21.96,-16.75],[22.62,-16.26],[23.27,-15.78],[23.92,-15.3],[24.58,-14.81],[24.58,-15.64],[24.58,-16.46],[24.58,-17.29],[24.58,-18.11],[24.58,-18.94],[24.58,-19.76],[24.58,-20.59],[24.58,-21.41],[24.58,-22.23],[24.58,-23.06],[24.58,-23.88],[24.58,-24.71],[24.58,-25.53],[24.58,-26.36],[24.58,-27.18],[24.58,-28.01],[24.58,-28.83],[24.58,-29.65],[24.58,-30.48],[24.58,-31.3],[24.58,-32.13],[23.77,-32.13],[22.96,-32.13],[22.15,-32.13],[21.34,-32.13],[20.53,-32.13],[19.72,-32.13],[18.92,-32.13],[18.11,-32.13],[17.3,-32.13],[16.49,-32.13],[15.68,-32.13],[14.87,-32.13],[14.07,-32.13],[13.26,-32.13],[12.45,-32.13],[11.64,-32.13],[10.83,-32.13],[10.02,-32.13],[9.21,-32.13],[8.41,-32.13],[7.6,-32.13],[6.79,-32.13],[5.98,-32.13],[5.17,-32.13],[4.36,-32.13],[3.55,-32.13],[2.75,-32.13],[1.94,-32.13],[1.13,-32.13],[0.32,-32.13],[-0.64,-32.24],[-1.39,-32.57],[-1.92,-33.12],[-2.28,-33.88],[-2.49,-34.86],[-2.56,-36.03],[-2.5,-36.9],[-2.34,-37.95],[-2.1,-38.96],[-1.86,-39.68],[-1.05,-39.68],[-0.24,-39.68],[0.56,-39.68],[1.37,-39.68],[2.17,-39.68],[2.98,-39.68],[3.79,-39.68],[4.59,-39.68],[5.4,-39.68],[6.2,-39.68],[7.01,-39.68],[7.82,-39.68],[8.62,-39.68],[9.43,-39.68],[10.23,-39.68],[11.04,-39.68],[11.85,-39.68],[12.65,-39.68],[13.46,-39.68],[14.27,-39.68],[15.07,-39.68],[15.88,-39.68],[16.68,-39.68],[17.49,-39.68],[18.3,-39.68],[19.1,-39.68],[19.91,-39.68],[20.71,-39.68],[21.52,-39.68],[22.33,-39.68],[23.13,-39.68],[23.94,-39.68],[24.74,-39.68],[25.55,-39.68],[26.36,-39.68],[27.16,-39.68],[27.97,-39.68],[28.77,-39.68],[29.58,-39.68],[30.39,-39.68],[31.19,-39.68],[32.0,-39.68],[32.8,-39.68],[33.61,-39.68],[34.42,-39.68],[35.22,-39.68],[36.03,-39.68],[36.83,-39.68],[37.64,-39.68],[38.45,-39.68],[39.25,-39.68],[40.06,-39.68],[40.86,-39.68],[41.67,-39.68],[42.48,-39.68],[43.28,-39.68],[44.09,-39.68],[44.9,-39.68],[45.7,-39.68],[46.51,-39.68],[47.31,-39.68],[48.12,-39.68],[48.93,-39.68],[49.73,-39.68],[50.54,-39.68],[51.34,-39.68],[52.15,-39.68],[52.96,-39.68],[53.76,-39.68],[54.57,-39.68],[55.37,-39.68],[56.18,-39.68],[56.99,-39.68],[57.79,-39.68],[58.47,-39.62],[59.05,-39.44],[59.55,-39.15],[59.95,-38.74],[60.27,-38.2],[60.49,-37.56],[60.63,-36.79],[60.67,-35.9],[60.62,-34.98],[60.45,-33.89],[60.2,-32.86],[59.9,-32.13]],[[21.17,-12.48],[20.48,-13.0],[19.79,-13.52],[19.1,-14.04],[18.41,-14.56],[17.72,-15.08],[17.03,-15.6],[16.34,-16.12],[15.65,-16.65],[14.97,-17.17],[14.28,-17.69],[13.59,-18.21],[12.9,-18.73],[12.59,-18.02],[12.41,-17.26],[12.35,-16.45],[12.42,-15.66],[12.61,-14.95],[12.94,-14.3],[13.4,-13.72],[13.98,-13.22],[14.66,-12.79],[15.4,-12.46],[16.18,-12.22],[17.03,-12.08],[17.92,-12.03],[18.81,-12.06],[19.64,-12.14],[20.43,-12.28],[21.17,-12.48]]],[[[37.38,-32.13],[36.46,-32.13],[35.55,-32.13],[34.63,-32.13],[33.72,-32.13],[32.8,-32.13],[31.89,-32.13],[30.98,-32.13],[30.98,-31.29],[30.98,-30.45],[30.98,-29.61],[30.98,-28.77],[30.98,-27.93],[30.98,-27.09],[30.98,-26.25],[30.98,-25.41],[30.88,-24.43],[30.59,-23.63],[30.11,-23.01],[29.43,-22.56],[28.55,-22.3],[27.46,-22.21],[26.62,-22.21],[25.78,-22.21],[24.95,-22.21],[24.11,-22.21],[23.27,-22.21],[22.43,-22.21],[21.6,-22.21],[20.76,-22.21],[19.92,-22.21],[19.09,-22.21],[18.25,-22.21],[17.41,-22.21],[16.58,-22.21],[15.5,-22.13],[14.67,-21.91],[14.08,-21.54],[13.55,-20.78],[13.38,-19.84],[13.46,-19.19],[13.73,-18.66],[14.12,-18.22],[14.59,-17.86],[15.42,-18.07],[16.24,-18.25],[17.05,-18.4],[17.86,-18.53],[18.66,-18.63],[19.46,-18.7],[20.26,-18.74],[21.06,-18.75],[22.01,-18.74],[22.93,-18.69],[23.81,-18.61],[24.66,-18.51],[25.47,-18.37],[26.24,-18.2],[26.97,-18.0],[27.67,-17.77],[28.33,-17.51],[28.95,-17.22],[29.53,-16.9],[30.08,-16.54],[30.59,-16.16],[31.2,-15.63],[31.74,-15.06],[32.22,-14.46],[32.64,-13.84],[32.99,-13.18],[33.28,-12.49],[33.5,-11.76],[33.66,-11.01],[33.76,-10.22],[33.79,-9.41],[33.76,-8.5],[33.66,-7.64],[33.49,-6.82],[33.26,-6.04],[32.95,-5.31],[32.59,-4.61],[32.15,-3.97],[31.65,-3.36],[31.09,-2.8],[30.48,-2.27],[29.83,-1.78],[29.14,-1.34],[28.39,-0.93],[27.6,-0.56],[26.77,-0.23],[25.89,0.06],[25.11,0.28],[24.32,0.48],[23.5,0.64],[22.66,0.79],[21.81,0.91],[20.93,1.01],[20.03,1.08],[19.11,1.13],[19.9,1.76],[20.7,2.37],[21.46,2.91],[22.2,3.42],[22.94,3.92],[23.67,4.4],[24.38,4.85],[25.09,5.28],[25.79,5.7],[25.71,6.57],[25.54,7.38],[25.28,8.15],[24.94,8.87],[24.51,9.53],[24.0,10.14],[23.41,10.68],[22.76,11.12],[22.03,11.46],[21.24,11.71],[20.38,11.86],[19.46,11.9],[18.53,11.85],[17.65,11.69],[16.82,11.43],[16.04,11.06],[15.3,10.59],[14.79,10.18],[14.28,9.69],[13.78,9.12],[13.29,8.48],[12.8,7.75],[12.32,6.96],[11.84,6.08],[11.45,5.32],[11.06,4.56],[10.67,3.8],[10.28,3.04],[9.89,2.28],[9.51,1.52],[9.12,0.76],[8.14,0.5],[7.23,0.2],[6.37,-0.14],[5.58,-0.51],[4.84,-0.93],[4.16,-1.38],[3.51,-1.9],[2.97,-2.45],[2.52,-3.04],[2.17,-3.67],[1.93,-4.33],[1.78,-5.03],[1.73,-5.76],[1.8,-6.68],[2.02,-7.51],[2.38,-8.26],[2.88,-8.93],[3.68,-9.68],[4.53,-10.26],[5.44,-10.69],[5.99,-10.23],[6.6,-9.78],[7.25,-9.33],[7.95,-8.89],[8.7,-8.45],[9.49,-8.02],[10.34,-7.58],[11.03,-7.27],[11.75,-6.99],[12.5,-6.75],[13.28,-6.54],[14.1,-6.38],[14.94,-6.25],[15.82,-6.15],[16.73,-6.1],[17.66,-6.08],[18.71,-6.11],[19.64,-6.2],[20.45,-6.36],[21.15,-6.57],[21.73,-6.85],[22.46,-7.43],[22.89,-8.16],[23.04,-9.02],[22.9,-9.77],[22.49,-10.38],[21.79,-10.85],[21.24,-11.07],[20.56,-11.24],[19.78,-11.36],[18.87,-11.43],[17.86,-11.46],[16.87,-11.42],[15.88,-11.33],[14.88,-11.17],[13.9,-10.97],[12.95,-10.74],[12.03,-10.5],[11.23,-10.75],[10.41,-11.06],[9.57,-11.43],[8.71,-11.85],[7.84,-12.32],[7.12,-12.76],[6.45,-13.24],[5.81,-13.76],[5.21,-14.33],[4.65,-14.93],[4.13,-15.58],[3.67,-16.28],[3.29,-17.03],[3.0,-17.83],[2.79,-18.68],[2.67,-19.59],[2.62,-20.54],[2.66,-21.4],[2.77,-22.22],[2.94,-22.99],[3.19,-23.72],[3.51,-24.41],[3.9,-25.05],[4.37,-25.65],[4.9,-26.21],[5.5,-26.72],[6.1,-27.14],[6.73,-27.51],[7.39,-27.85],[8.09,-28.13],[8.83,-28.38],[9.61,-28.57],[10.41,-28.73],[11.26,-28.84],[12.14,-28.91],[13.06,-28.93],[13.88,-28.93],[14.71,-28.93],[15.53,-28.93],[16.36,-28.93],[17.18,-28.93],[18.01,-28.93],[18.83,-28.93],[19.66,-28.93],[20.48,-28.93],[20.48,-29.99],[20.48,-31.06],[20.48,-32.13],[19.67,-32.13],[18.87,-32.13],[18.06,-32.13],[17.25,-32.13],[16.45,-32.13],[15.64,-32.13],[14.84,-32.13],[14.03,-32.13],[13.22,-32.13],[12.42,-32.13],[11.61,-32.13],[10.8,-32.13],[10.0,-32.13],[9.19,-32.13],[8.38,-32.13],[7.58,-32.13],[6.77,-32.13],[5.96,-32.13],[5.16,-32.13],[4.35,-32.13],[3.55,-32.13],[2.74,-32.13],[1.93,-32.13],[1.13,-32.13],[0.32,-32.13],[-0.64,-32.24],[-1.39,-32.57],[-1.92,-33.12],[-2.28,-33.88],[-2.49,-34.86],[-2.56,-36.03],[-2.5,-36.9],[-2.34,-37.95],[-2.1,-38.96],[-1.86,-39.68],[-1.05,-39.68],[-0.24,-39.68],[0.56,-39.68],[1.37,-39.68],[2.18,-39.68],[2.98,-39.68],[3.79,-39.68],[4.59,-39.68],[5.4,-39.68],[6.21,-39.68],[7.01,-39.68],[7.82,-39.68],[8.63,-39.68],[9.43,-39.68],[10.24,-39.68],[11.05,-39.68],[11.85,-39.68],[12.66,-39.68],[13.46,-39.68],[14.27,-39.68],[15.08,-39.68],[15.88,-39.68],[16.69,-39.68],[17.5,-39.68],[18.3,-39.68],[19.11,-39.68],[19.92,-39.68],[19.25,-40.49],[18.66,-41.38],[18.27,-42.06],[17.95,-42.78],[17.69,-43.53],[17.48,-44.31],[17.33,-45.12],[17.25,-45.97],[17.22,-46.85],[17.26,-47.81],[17.37,-48.72],[17.57,-49.59],[17.84,-50.42],[18.19,-51.2],[18.62,-51.94],[19.12,-52.62],[19.68,-53.26],[20.29,-53.83],[20.96,-54.35],[21.68,-54.82],[22.46,-55.23],[23.17,-55.54],[23.9,-55.8],[24.64,-56.01],[25.41,-56.17],[26.2,-56.29],[27.01,-56.36],[27.84,-56.38],[28.79,-56.35],[29.66,-56.25],[30.46,-56.07],[31.2,-55.83],[31.86,-55.52],[32.45,-55.14],[33.05,-54.59],[33.51,-53.95],[33.85,-53.21],[34.05,-52.38],[34.11,-51.46],[34.04,-50.6],[33.82,-49.7],[33.53,-48.87],[33.22,-48.26],[32.86,-48.31],[32.54,-48.35],[32.22,-48.38],[31.81,-48.38],[30.79,-48.32],[29.86,-48.14],[29.02,-47.83],[28.26,-47.39],[27.74,-46.93],[27.33,-46.33],[27.05,-45.59],[26.87,-44.72],[26.82,-43.71],[26.88,-42.94],[27.06,-42.16],[27.36,-41.38],[27.88,-40.45],[28.52,-39.68],[29.37,-39.68],[30.21,-39.68],[31.05,-39.68],[31.89,-39.68],[32.74,-39.68],[33.58,-39.68],[34.42,-39.68],[35.26,-39.68],[35.94,-39.62],[36.52,-39.44],[37.02,-39.15],[37.42,-38.74],[37.74,-38.2],[37.96,-37.56],[38.1,-36.79],[38.14,-35.9],[38.09,-34.98],[37.92,-33.89],[37.67,-32.86],[37.38,-32.13]]]]};   // w1_flat: लंबाई group outlines (overlaps merged) as point rings. px, origin = group pen, y down from the baseline
     titleEl.innerHTML = '<span class="tfx-w1">लंबाई</span> <span class="tfx-w2">मापना</span>';
-    const WORDS = { w1: { el: titleEl.querySelector(".tfx-w1"), groups: [[0, 2, "लं", -2.24], [2, 4, "बा", -2.56], [4, 5, "ई", -2.56]], barL: -2.25, barR: 38.02 },
-                    w2: { el: titleEl.querySelector(".tfx-w2"), groups: [[0, 2, "मा", -2.24], [2, 3, "प", -2.88], [3, 5, "ना", -2.56]], barL: -2.29, barR: 57.28 } };
+    /* बा separates too when लंबाई stretches (review 2026-09-29): ब and its vowel sign ा become two groups. A span holding
+       "ा" alone would render with a dotted circle (◌ा), so BOTH groups draw the whole "बा" run and each is clipped to its
+       half. SPLIT_BA = the middle of the gap between ब's right stroke (ink ends x 35.07) and ा's stroke (starts 43.65) -
+       only the headline crosses it, and that is cut out / redrawn as one line while the word moves. The two clips overlap
+       by SPLIT_OVL so the halves meet without an antialiasing seam when they sit together. */
+    const SPLIT_BA = 39.36, SPLIT_OVL = 0.5;
+    // [group range in the word, text, ink left, ink right, optional {x0,x1} clip] (px from the group's pen, Baloo 2 800 @64px)
+    const WORDS = { w1: { el: titleEl.querySelector(".tfx-w1"), groups: [[0, 2, "लं", -2.24, 52.16], [2, 4, "बा", -2.56, SPLIT_BA, { x1: SPLIT_BA + SPLIT_OVL }],
+                                                                    [2, 4, "बा", SPLIT_BA, 60.67, { x0: SPLIT_BA - SPLIT_OVL }], [4, 5, "ई", -2.56, 38.14]] },
+                    w2: { el: titleEl.querySelector(".tfx-w2"), groups: [[0, 2, "मा", -2.24, 62.4], [2, 3, "प", -2.88, 40.26], [3, 5, "ना", -2.56, 59.65]] } };
+    /* the outline rings लंबाई is drawn from while it curls, one list per group in WORDS.w1 order: बा's rings are split
+       at SPLIT_BA (Sutherland-Hodgman against a vertical line, same SPLIT_OVL overlap), so ब and ा bend and move apart
+       exactly like their text halves */
+    const clipX = (ring, lo, hi)=>{
+      let pts = ring;
+      for(const [edge, keepBelow] of [[hi, true], [lo, false]]){
+        if(!isFinite(edge)) continue;
+        const inside = p => keepBelow ? p[0] <= edge : p[0] >= edge, out = [];
+        for(let k = 0; k < pts.length; k++){
+          const c = pts[k], p = pts[(k + pts.length - 1) % pts.length];
+          const cut = ()=> [edge, p[1] + (edge - p[0]) / (c[0] - p[0]) * (c[1] - p[1])];
+          if(inside(c)){ if(!inside(p)) out.push(cut()); out.push(c); } else if(inside(p)) out.push(cut());
+        }
+        pts = out;
+      }
+      return pts;
+    };
+    const splitRings = (rings, lo, hi)=> rings.map(r => clipX(r, lo, hi)).filter(r => r.length >= 3);
+    const W1_RINGS = [DATA.w1_flat[0], splitRings(DATA.w1_flat[1], -Infinity, SPLIT_BA + SPLIT_OVL),
+                      splitRings(DATA.w1_flat[1], SPLIT_BA - SPLIT_OVL, Infinity), DATA.w1_flat[2]];
     const NS = "http://www.w3.org/2000/svg";
     const svgEl = (tag, attrs)=>{ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); return e; };
     const div = cls => { const d = document.createElement("div"); d.className = cls; return d; };
     let fx = null;   // built lazily, the first time it is needed (fonts + layout ready by then)
     function build(){
-      /* the stage's own scale factor - NOT rect.width / offsetWidth: offsetWidth is rounded to a whole
-         pixel, and that error grew letter by letter (0.3px off by ना, a visible shimmer at the swap) */
+      /* the stage's own scale factor - NOT rect.width / offsetWidth: offsetWidth is rounded to a whole pixel and that
+         error grew letter by letter (0.3px off by ना, a shimmer at the swap) */
       const tr = titleEl.getBoundingClientRect();
       const sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || (tr.width / (titleEl.offsetWidth || 1));
       const probe = document.createElement("span"); probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
@@ -3926,175 +4251,376 @@ function boot(){
       const root = div("tfx"); root.setAttribute("aria-hidden", "true"); titleEl.appendChild(root);
       const nibImg = document.querySelector(".sg-art img"), nr = nibImg ? nibImg.getBoundingClientRect() : null;
       const nibX = nr && nr.width ? (nr.left + nr.width * (6 / 1658) - tr.left) / sc : null;   // pencil_purple.webp: nib tip 6px in from the left of 1658
-      const hole = "M-80 -80H320V260H-80Z M-80 " + (base - BAND_TOP - .4).toFixed(2) + "H320V" + (base - BAND_BOT + .4).toFixed(2) + "H-80Z";
-      /* The heading's text-shadow, split in two. One text run paints ALL letters' blue/ambient shadows,
-         then ALL letters' white outline, then the fills; letter-by-letter copies would paint the next
-         letter's blue over the previous letter's white outline at every join. Three layers restore it. */
+      /* the band cut out of the letters: from 0.3px above the top line to 0.6px ABOVE its bottom - the letter keeps a thin
+         sliver of its own top line there, so its cut edge lies on the drawn bar (no pale seam) and the bar can be exactly
+         the letters' own top-line thickness */
+      const holeFor = (X0, X1)=> "M" + X0 + " -80H" + X1 + "V260H" + X0 + "Z M" + X0 + " " + (base - BAND_TOP - HOLE_TOP).toFixed(2) + "H" + X1 + "V" + (base - BAND_BOT - HOLE_KEEP).toFixed(2) + "H" + X0 + "Z";
+      const hole = holeFor(-80, 320);
+      // the heading's text-shadow, split: all blue/ambient shadows, then all white outline, then fills (see above)
       const shadows = [], ts = getComputedStyle(titleEl).textShadow || "none";
       let depth = 0, cur = "";
       for(const ch of ts){ if(ch === "(") depth++; if(ch === ")") depth--; if(ch === "," && depth === 0){ shadows.push(cur.trim()); cur = ""; } else cur += ch; }
       if(cur.trim() && cur.trim() !== "none") shadows.push(cur.trim());
       const isWhite = t => /rgb\(\s*255,\s*255,\s*255\s*\)|#fff\b|#ffffff\b|\bwhite\b/i.test(t);
       const shWhite = shadows.filter(isWhite).join(", ") || "none", shBlue = shadows.filter(t => !isWhite(t)).join(", ") || "none";
-      const out = { root, base, nibX };
-      const mkPath = (parent, attrs)=>{ const e = svgEl("path", Object.assign({ fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, attrs)); parent.appendChild(e); return e; };
+      const out = { root, base, nibX, gapHalf: Math.max(0, (parseFloat(getComputedStyle(titleEl).wordSpacing) || 0) - GAP_END) / 2 };
+      const mkPath = (parent, attrs)=>{ const e = svgEl("path", Object.assign({ fill: "none", "stroke-linecap": "butt", "stroke-linejoin": "round" }, attrs)); parent.appendChild(e); return e; };
+      const filters = (defs, id)=>{ defs.innerHTML = '<filter id="tfxExt' + id + '" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation=".4"/></filter>' +
+        '<filter id="tfxAmb' + id + '" x="-30%" y="-150%" width="160%" height="400%"><feGaussianBlur stdDeviation="6"/></filter>'; };
       let fid = 0;
       for(const key of ["w1", "w2"]){
-        const w = WORDS[key], txt = w.el.firstChild;
-        /* per word, two complete stacks, each one composited unit (a fade can't show through):
-           full = the letters as they are;  cut = letters without their own top line + the drawn line */
+        const w = WORDS[key], txt = w.el.firstChild, id = ++fid;
+        /* two complete stacks per word, each one composited unit:
+           full = the letters as they are;  cut = the letters minus their own top line + one continuous drawn line */
         const full = div("tfx-word"), cut = div("tfx-word");
         const fBl = div("tfx-sh"), fSh = div("tfx-sh"), fFi = div("tfx-fi"), under = svgEl("svg", { class: "tfx-svg" }),
-              cBl = div("tfx-sh"), cSh = div("tfx-sh"), over = svgEl("svg", { class: "tfx-svg" }), cFi = div("tfx-fi");
+              cBl = div("tfx-sh"), mid = svgEl("svg", { class: "tfx-svg" }), cSh = div("tfx-sh"), over = svgEl("svg", { class: "tfx-svg" }), cFi = div("tfx-fi");
         [fBl, cBl].forEach(l => { l.style.textShadow = shBlue; }); [fSh, cSh].forEach(l => { l.style.textShadow = shWhite; });
-        full.append(fBl, fSh, fFi); cut.append(under, cBl, cSh, over, cFi);
-        const defs = svgEl("defs", {}); const ext = "tfxExt" + (++fid), amb = "tfxAmb" + fid;
-        defs.innerHTML = '<filter id="' + ext + '" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation=".4"/></filter>' +
-                         '<filter id="' + amb + '" x="-30%" y="-150%" width="160%" height="400%"><feGaussianBlur stdDeviation="6"/></filter>';
-        under.appendChild(defs);
-        root.append(full, cut);
+        full.append(fBl, fSh, fFi); cut.append(under, cBl, mid, cSh, over, cFi);
+        const defs = svgEl("defs", {}); filters(defs, id); under.appendChild(defs);
+        // मापना only: a grey "disabled" copy of the word (the heading's own layers through a greyscale filter)
+        let dis = null, dBl = null, dSh = null, dFi = null;
+        if(key === "w2"){ dis = div("tfx-word tfx-dis"); dBl = div("tfx-sh"); dSh = div("tfx-sh"); dFi = div("tfx-fi");
+          dBl.style.textShadow = shBlue; dSh.style.textShadow = shWhite; dis.append(dBl, dSh, dFi); }
+        root.append(...(dis ? [full, dis, cut] : [full, cut]));
         const groups = [];
-        for(const [a, b, str, inkL] of w.groups){
+        for(const [a, b, str, inkL, inkR, clip] of w.groups){
           const r = document.createRange(); r.setStart(txt, a); r.setEnd(txt, b);
           const x = (r.getBoundingClientRect().left - tr.left) / sc;
+          const X0 = clip && clip.x0 != null ? clip.x0 : -80, X1 = clip && clip.x1 != null ? clip.x1 : 320;   // a split group shows only its half
           const mk = (layer, isCut)=>{ const s = document.createElement("span"); s.className = "tfx-g"; s.textContent = str; s.style.left = x + "px";
-            if(isCut) s.style.clipPath = 'path(evenodd, "' + hole + '")'; layer.appendChild(s); return s; };
-          groups.push({ x, inkL: x + inkL, spans: [mk(fBl), mk(fSh), mk(fFi), mk(cBl, true), mk(cSh, true), mk(cFi, true)] });
+            if(isCut) s.style.clipPath = 'path(evenodd, "' + (clip ? holeFor(X0, X1) : hole) + '")';
+            else if(clip) s.style.clipPath = 'path("M' + X0 + ' -80H' + X1 + 'V260H' + X0 + 'Z")';
+            layer.appendChild(s); return s; };
+          const cutSpans = [mk(cBl, true), mk(cSh, true), mk(cFi, true)];
+          groups.push({ x, inkL: x + inkL, inkR: x + inkR, cutSpans, spans: [mk(fBl), mk(fSh), mk(fFi), ...cutSpans].concat(dis ? [mk(dBl), mk(dSh), mk(dFi)] : []) });
         }
-        const barL = groups[0].x + w.barL, barR = groups[groups.length - 1].x + w.barR;
-        const line = [ mkPath(under, { stroke: "rgba(0,40,120,.26)", "stroke-width": BAR_T + OUT_W, filter: "url(#" + amb + ")", transform: "translate(0 8)" }),
-                       mkPath(under, { stroke: BLUE, "stroke-width": BAR_T + OUT_W, filter: "url(#" + ext + ")", transform: "translate(0 " + EXT_DY + ")" }),
-                       mkPath(under, { stroke: "#fff", "stroke-width": BAR_T + OUT_W }),
-                       mkPath(over, { stroke: ORANGE, "stroke-width": BAR_T }) ];
-        out[key] = { w, full, cut, under, over, ext, groups, barL, barR, line, yMid: base - BAR_MID, yTop: base - BAND_TOP };
+        const barL = groups[0].inkL, barR = groups[groups.length - 1].inkR;
+        /* the straight top line: a ROUNDED BAR (corner radius like the font's own headline ends), exactly as thick as the
+           letters' own top line, so लंबाई and मापना match */
+        const barTop = base - BAND_TOP - HOLE_TOP, barH = BAR_T + HOLE_TOP;   // = the letters' own top line (+0.3 to cover the cut)
+        const mkRect = (parent, attrs)=>{ const e = svgEl("rect", Object.assign({ y: barTop, height: barH, rx: BAR_R, ry: BAR_R, x: 0, width: 0 }, attrs)); parent.appendChild(e); return e; };
+        const line = [ mkRect(under, { fill: AMB, filter: "url(#tfxAmb" + id + ")", transform: "translate(0 8)" }),
+                       mkRect(under, { fill: BLUE, stroke: BLUE, "stroke-width": OUT_W, "stroke-linejoin": "round", filter: "url(#tfxExt" + id + ")", transform: "translate(0 " + EXT_DY + ")" }),
+                       mkRect(mid, { fill: "#fff", stroke: "#fff", "stroke-width": OUT_W, "stroke-linejoin": "round" }),   // above ALL blue: an even outline in the gaps
+                       mkRect(over, { fill: ORANGE }) ];
+        out[key] = { w, full, cut, dis, under, mid, over, id, groups, barL, barR, line, letterLayers: [cBl, cSh, cFi], yMid: base - BAR_MID, yTop: base - BAND_TOP,
+                     yBarMid: barTop + barH / 2 };
+        // strain reference: the first group's LEFT edge moves the full stretch, the last group's RIGHT edge stays fixed
+        const n = groups.length;
+        groups.forEach((g, i)=>{ const f = n > 1 ? i / (n - 1) : 0; g.ref = g.inkL + (g.inkR - g.inkL) * f; });
       }
-      // मापना extras: grey dotted outline + grey ruler (their own layer), and the ruler ticks in the cut stack
-      const w2 = out.w2, dots = svgEl("svg", { class: "tfx-svg" }); dots.style.opacity = 0; root.appendChild(dots);
-      W2_PATHS.forEach((d, i)=>{ const tf = "translate(" + w2.groups[i].x.toFixed(2) + " " + base.toFixed(2) + ")";
-        for(const [stroke, sw] of [["rgba(255,255,255,.75)", 5.2], [GREY_DOT, 3]])
-          dots.appendChild(svgEl("path", { d, transform: tf, fill: "none", stroke, "stroke-width": sw, "stroke-dasharray": "0.01 5.6",
-            "stroke-linecap": "round", "stroke-linejoin": "round" })); });
-      const x0 = w2.barL + BAR_T / 2, x1 = w2.barR - BAR_T / 2, y0 = w2.yTop + 0.5;
-      const greyLine = svgEl("line", { x1: x0, x2: x1, y1: w2.yMid, y2: w2.yMid, stroke: GREY, "stroke-width": BAR_T, "stroke-linecap": "round" });
-      dots.appendChild(greyLine);
-      const majors = [x0, w2.groups[1].x, w2.groups[2].x, x1], ticks = [];
-      majors.forEach((x, i)=>{ ticks.push({ x, h: 15, sw: 3.4 });
-        if(i < majors.length - 1) for(let k = 1; k <= 4; k++) ticks.push({ x: x + (majors[i + 1] - x) * k / 5, h: 8, sw: 2.6 }); });
-      ticks.sort((p, q)=> p.x - q.x);
+      /* लंबाई while the line curls: the word drawn from its outlines so the letters can bend with the line.
+         Same sticker layers as the heading: ambient, blue extrusion, white outline, orange fill. */
+      const w1 = out.w1, bend = svgEl("svg", { class: "tfx-svg tfx-bend" }), bdefs = svgEl("defs", {}); filters(bdefs, "B"); bend.appendChild(bdefs);
+      const layer = (attrs)=>{ const gEl = svgEl("g", attrs); bend.appendChild(gEl); return gEl; };
+      const L = { amb: layer({ fill: AMB, filter: "url(#tfxAmbB)", transform: "translate(0 8)" }),
+                  ext: layer({ fill: BLUE, stroke: BLUE, "stroke-width": OUT_W, "stroke-linejoin": "round", filter: "url(#tfxExtB)", transform: "translate(0 " + EXT_DY + ")" }),
+                  wht: layer({ fill: "#fff", stroke: "#fff", "stroke-width": OUT_W, "stroke-linejoin": "round" }),
+                  org: layer({ fill: ORANGE }) };
+      w1.bendEls = w1.groups.map(()=> [L.amb, L.ext, L.wht, L.org].map(p => { const e = svgEl("path", {}); p.appendChild(e); return e; }));
+      // the continuous top line while it curls: a band, painted exactly like the letters (each layer's fill and outline)
+      w1.bendLine = [L.amb, L.ext, L.wht, L.org].map(p => { const e = svgEl("path", {}); p.appendChild(e); return e; });
+      bend.style.opacity = 0; root.appendChild(bend); w1.bend = bend;
+      /* मापना's ruler: a START mark, then one mark after मा, after प and after ना, in the heading's sticker style.
+         The letters move apart by GAP each (मा stays, प +GAP, ना +2*GAP) - enough for the marks, but well under the space
+         between the two words, so मापना still reads as ONE word. Each mark stands in the middle of its own gap. */
+      const GAP = 16, w2 = out.w2; w2.off = [0, GAP, 2 * GAP];
+      const ms = w2.barL - GAP / 2, m0 = w2.groups[1].x + GAP / 2, m1 = w2.groups[2].x + GAP * 1.5, m2 = w2.barR + 2 * GAP + GAP / 2;
+      const TICK_OUT = 1, TICK_W = 7, TICK_OUTLINE = OUT_W;   // marks as heavy as the line, as SHORT as possible: 1px + the 3.5px round end ~ 4.5px out on each side;
+                                                              // the SAME white outline as the bar, so mark and line outline meet flush
+      const x0 = ms - TICK_W / 2, x1 = m2 + TICK_W / 2, y0 = w2.yBarMid;   // the line runs flush from the start mark to the last mark
+      const TICK_H = BAR_T + HOLE_TOP + 2 * TICK_OUT;   // sticks out TICK_OUT px on BOTH sides of the bar
+      const ticks = [ms, m0, m1, m2].map(x => ({ x }));
       for(const t of ticks){
         const mkT = (parent, attrs)=>{ const e = svgEl("line", Object.assign({ x1: t.x, x2: t.x, y1: y0, y2: y0, "stroke-linecap": "round" }, attrs)); parent.appendChild(e); return e; };
-        t.els = [ mkT(dots, { stroke: GREY, "stroke-width": t.sw }),
-                  mkT(w2.under, { stroke: BLUE, "stroke-width": t.sw + OUT_W, filter: "url(#" + w2.ext + ")", transform: "translate(0 " + EXT_DY + ")" }),
-                  mkT(w2.under, { stroke: "#fff", "stroke-width": t.sw + OUT_W }),
-                  mkT(w2.over, { stroke: ORANGE, "stroke-width": t.sw }) ];
+        t.els = [ mkT(w2.under, { stroke: BLUE, "stroke-width": TICK_W + TICK_OUTLINE, filter: "url(#tfxExt" + w2.id + ")", transform: "translate(0 " + EXT_DY + ")" }),
+                  mkT(w2.mid, { stroke: "#fff", "stroke-width": TICK_W + TICK_OUTLINE }),   // above all blue shadows: a complete outline
+                  mkT(w2.over, { stroke: ORANGE, "stroke-width": TICK_W }) ];
       }
-      w2.dots = dots; w2.ruler = { greyLine, ticks, x0, x1, y0 };
+      w2.ruler = { ticks, x0, x1, y0, h: TICK_H };
+      w2.seg = [x0, m0, m1, x1];   // the ruler's three segments: over मा, over प, over ना (each ends at that letter's mark)
+      // after the ruler the heading has grown to the right by this much x2 (kept for reference: no longer glided -
+      // the undo shrinks it back first, which re-centres it by itself)
+      w2.centreShift = (x1 + TICK_OUTLINE / 2 - w2.barR) / 2;
       return out;
     }
     const clamp01 = v => Math.max(0, Math.min(1, v));
     const smoother = v => { v = clamp01(v); return v * v * v * (v * (v * 6 - 15) + 10); };
     const op = (el, v)=>{ el.style.opacity = v; };
-    const showCopy = (word, on)=> word.w.el.classList.toggle("tfx-off", on);   // hide the real word while its copy is up
-    function linePath(x0, x1, y, amp){
-      if(Math.abs(amp) < 0.05) return "M" + x0.toFixed(2) + " " + y.toFixed(2) + "H" + x1.toFixed(2);
-      let d = ""; const n = 60;
-      for(let i = 0; i <= n; i++){ const u = i / n, x = x0 + (x1 - x0) * u, yy = y - amp * Math.sin(HALF_WAVES * Math.PI * u);
-        d += (i ? "L" : "M") + x.toFixed(2) + " " + yy.toFixed(2); }
-      return d;
+    const showCopy = (word, on)=> word.w.el.classList.toggle("tfx-off", on);   // the real word goes transparent (still read by screen readers)
+    const wave = (u, amp)=> -amp * Math.sin(HALF_WAVES * Math.PI * u);         // y offset of the line at u (0..1 along it), px, - = up
+    /* the curling top line as a band, bent EXACTLY like the letters' own top-line pieces (each point moved straight up or
+       down by the wave at its x), so the two coincide - a stroke would be thicker on the slopes and end in slanted cuts.
+       Its ends sit LINE_IN px inside the word's first and last letters, so their own rounded headline ends show. */
+    const LINE_IN = 3;
+    function bandPath(xL, xR, base, amp){
+      const S = xR - xL, a = xL + LINE_IN, b = xR - LINE_IN, n = 72; let top = "", bot = "";
+      for(let i = 0; i <= n; i++){ const x = a + (b - a) * i / n, dy = wave(clamp01((x - xL) / S), amp);
+        top += (i ? "L" : "M") + x.toFixed(2) + " " + (base - BAND_TOP + dy).toFixed(2);
+        bot = "L" + x.toFixed(2) + " " + (base - BAND_BOT + dy).toFixed(2) + bot; }
+      return top + bot + "Z";
     }
-    const setLine = (word, d)=> word.line.forEach(e => e.setAttribute("d", d));
-    /* ---- लंबाई: one frame at extension s (px, >= 0: stretched toward the nib) and curl amplitude amp ---- */
+    const setBar = (word, xa, xb)=>{ const wd = Math.max(0, xb - xa);            // the straight rounded bar, from xa to xb
+      word.line.forEach(e => { e.setAttribute("x", xa.toFixed(2)); e.setAttribute("width", wd.toFixed(2)); e.style.visibility = wd > 0.5 ? "" : "hidden"; }); };
+    /* ---- लंबाई: one frame at extension s (px, >= 0: stretched toward the nib) and curl amplitude amp ----
+       mode "text": the text copies (straight line only);  bendOp > 0: the outline-drawn word fades in on top (curl) */
     let D = 0, Wlen = 0;
-    function frameW1(s, amp, cutOp, fullOp){
-      const w = fx.w1, xR = w.barR, xL = w.barL - s, S = xR - xL;
-      setLine(w, linePath(xL + BAR_T / 2, xR - BAR_T / 2, w.yMid, amp));
-      w.groups.forEach((g, i)=>{
-        const dx = -s * (xR - g.inkL) / Wlen;                                  // uniform strain from the fixed right end
-        const next = i + 1 < w.groups.length ? w.groups[i + 1].inkL : xR;
-        const u = clamp01(((g.inkL + next) / 2 + dx - xL) / S);                // letter centre along the line
-        const dy = -SWAY * amp * Math.sin(HALF_WAVES * Math.PI * u);           // the letters sway a little with it
-        const tf = "translate(" + dx.toFixed(2) + "px," + dy.toFixed(2) + "px)";
-        g.spans.forEach(e => { e.style.transform = tf; });
-      });
-      op(w.full, fullOp); op(w.cut, cutOp);   // the cut stack fades ON TOP of the full one; the full one is hidden while the line curls (it would show a second, straight line)
+    function frameW1(s, amp, cutOp, fullOp, bendOp){
+      const w = fx.w1, xR = w.barR, xL = w.barL - s, S = xR - xL, g0 = w.groups[0];
+      const dxOf = g => -s * (xR - g.ref) / (xR - g0.ref);                     // uniform strain: ref of group 0 moves s, the fixed end 0
+      if(cutOp > 0 || fullOp > 0){
+        setBar(w, xL, xR);
+        w.groups.forEach(g => { const tf = "translate(" + dxOf(g).toFixed(2) + "px,0px)"; g.spans.forEach(e => { e.style.transform = tf; }); });
+      }
+      op(w.full, fullOp); op(w.cut, cutOp);
+      op(w.bend, bendOp);
+      if(bendOp > 0){
+        const base = fx.base;
+        w.groups.forEach((g, i)=>{
+          const gx = g.x + dxOf(g); let d = "";
+          for(const ring of W1_RINGS[i]){
+            for(let k = 0; k < ring.length; k++){
+              const px = ring[k][0] + gx, py = ring[k][1];                        // py: px below the baseline (negative = up)
+              const f = clamp01(-py / BAND_BOT);                                  // 1 on the top line and above, easing to 0 at the baseline
+              const yy = base + py + wave(clamp01((px - xL) / S), amp) * f;
+              d += (k ? "L" : "M") + px.toFixed(2) + " " + yy.toFixed(2);
+            }
+            d += "Z";
+          }
+          w.bendEls[i].forEach(e => e.setAttribute("d", d));
+        });
+        const band = bandPath(xL, xR, base, amp); w.bendLine.forEach(e => e.setAttribute("d", band));
+      }
     }
-    function restW1(){ const w = fx.w1; op(w.full, 0); op(w.cut, 0); w.groups.forEach(g => g.spans.forEach(e => { e.style.transform = ""; })); showCopy(w, false); }
-    /* ---- मापना: the ruler sequence, t = seconds since it started. Returns true when finished. ---- */
-    const M = { dotIn: 0.30, draw: 0.60, hold: 0.15, back: 0.45 };
-    const tickSpring = tau => { if(tau <= 0) return 0; const z = .35, w0 = 2 * Math.PI * 3.2, wd = w0 * Math.sqrt(1 - z * z);
+    function restW1(){ pen.rest(); const w = fx.w1; op(w.full, 0); op(w.cut, 0); op(w.bend, 0); w.groups.forEach(g => g.spans.forEach(e => { e.style.transform = ""; })); showCopy(w, false); }
+    /* ---- मापना: the ruler sequence, t = seconds since it started. Returns true when finished.
+       grey ("disabled"), then one segment per letter: the line draws over that letter only, and the letter is uncovered
+       in orange right behind the line's tip (a wipe over its grey copy, never a fade, so the outline and shadow layers
+       never mix into a washed-out look); at the end of the segment its mark springs out through the line, equally above
+       and below it. मा, then प, then ना. The START mark springs up as the line begins. ---- */
+    const M = { disIn: 0.25, seg: 0.35, gap: 0.06, settle: 0.3 };   // tightened 2026-09-29 (was .35/.55/.12, settle .6)
+    const setTick = (tk, k)=>{ const R = fx.w2.ruler, half = R.h / 2 * k;      // a mark, grown out both ways from the line (k 0: hidden in it)
+      tk.els.forEach(e => { e.setAttribute("y1", (R.y0 - half).toFixed(2)); e.setAttribute("y2", (R.y0 + half).toFixed(2));
+        e.style.visibility = k > 0 ? "" : "hidden"; }); };
+    const tickSpring = tau => { if(tau <= 0) return 0; const z = .4, w0 = 2 * Math.PI * 2.2, wd = w0 * Math.sqrt(1 - z * z);
       return 1 - Math.exp(-z * w0 * tau) * (Math.cos(wd * tau) + z / Math.sqrt(1 - z * z) * Math.sin(wd * tau)); };
     function frameW2(t){
-      const w = fx.w2, R = w.ruler;
-      const a = smoother(t / M.dotIn);                                        // orange word fades out, dotted outline in
-      const tb = t - M.dotIn - M.draw - M.hold, b = smoother(tb / M.back);    // grey -> orange again, ruler kept
-      op(w.full, 1 - a); op(w.dots, a * (1 - b)); op(w.cut, b);
-      const pd = clamp01((t - M.dotIn) / M.draw), len = R.x1 - R.x0, drawn = len * smoother(pd);
-      R.greyLine.setAttribute("stroke-dasharray", drawn.toFixed(2) + " " + (len + 20).toFixed(0));
-      op(R.greyLine, pd > 0 ? 1 : 0);
-      setLine(w, "M" + R.x0.toFixed(2) + " " + w.yMid.toFixed(2) + "H" + R.x1.toFixed(2));
-      for(const tk of R.ticks){
-        /* each tick springs up the moment the drawing line reaches it - computed from its position, not
-           caught by a frame, so a skipped frame (or jumping straight to the end) can't leave it flat */
-        if(tk.t0 === undefined){ const f = clamp01((tk.x - R.x0) / len); let lo = 0, hi = 1;
-          for(let i = 0; i < 24; i++){ const mid = (lo + hi) / 2; if(smoother(mid) < f) lo = mid; else hi = mid; }
-          tk.t0 = M.dotIn + M.draw * hi; }
-        const k = tickSpring(t - tk.t0), y1 = (R.y0 - tk.h * k).toFixed(2);
-        tk.els.forEach(e => e.setAttribute("y2", y1));
-        tk.els.forEach(e => { e.style.visibility = k > 0 ? "" : "hidden"; }); op(tk.els[0], 1);
+      const w = fx.w2, R = w.ruler, B = w.seg, a = smoother(t / M.disIn);
+      op(w.dis, a); op(w.full, a < 1 ? 1 : 0); op(w.cut, t >= M.disIn ? 1 : 0);    // grey comes in over the orange word
+      w.groups.forEach((g, i)=>{ const tf = "translate(" + (w.off[i] * a).toFixed(2) + "px,0px)"; g.spans.forEach(e => { e.style.transform = tf; }); });   // ...as its letters move apart
+      let tip = B[0];
+      setTick(R.ticks[0], tickSpring(t - M.disIn));                           // the start mark, as the line begins
+      for(let i = 0; i < 3; i++){
+        const s0 = M.disIn + i * (M.seg + M.gap), q = smoother((t - s0) / M.seg);
+        if(q > 0) tip = B[i] + (B[i + 1] - B[i]) * q;                           // the line's tip, inside segment i
+        setTick(R.ticks[i + 1], tickSpring(t - (s0 + M.seg)));                // the mark after letter i
       }
-      return tb >= M.back;
+      setBar(w, R.x0, tip);                                                    // the ruler line, grown to the tip
+      eyeAt(tip, R.y0);                                                        // the eyes follow the ruler as it forms
+      const end = M.disIn + 3 * M.seg + 2 * M.gap;
+      const revealX = t < M.disIn ? B[0] - 14 : (t >= end ? R.x1 + 14 : tip);
+      const clip = "inset(-80px calc(100% - " + revealX.toFixed(2) + "px) -80px -80px)";
+      w.letterLayers.forEach(l => { l.style.clipPath = clip; });
+      if(t >= end) op(w.dis, 0);
+      return t >= end + M.settle;                                              // the last mark has settled
     }
-    /* ---- driver: one rAF loop while something is moving ---- */
-    let phase = "idle", relWall = 0, w2Start = 0, w2Done = false, lastCt = 0, raf = 0, quietAt = 0;
+    /* ---- मापना back to normal, u = seconds since the finished ruler's moment on show. Returns true when done.
+       The marks pull back into the line first (a mark of length 0 hides inside the line), then the letters slide back
+       together and the ruler's two ends move in with them, until it is exactly the word's own top line again - the
+       heading's centring shift shrinks with it, so the heading stays centred and both words come closer; the
+       letters' own top line then comes back under the drawn one (a short fade, as लंबाई does - the drawn line is 0.3px
+       taller) and the real heading takes over (centred, as at the start: मापना is back to its own width). ---- */
+    const CL = { show: 0.35, marks: 0.2, slideAt: 0.15, slide: 0.4, fade: 0.2 };   // tightened 2026-09-29 (was .6/.3/.2/.6/.25)
+    function closeW2(u){
+      const w = fx.w2, R = w.ruler, km = 1 - smoother(u / CL.marks), q = smoother((u - CL.slideAt) / CL.slide);
+      R.ticks.forEach(tk => setTick(tk, km));
+      w.groups.forEach((g, i)=>{ const tf = "translate(" + (w.off[i] * (1 - q)).toFixed(2) + "px,0px)"; g.spans.forEach(e => { e.style.transform = tf; }); });
+      setBar(w, R.x0 + (w.barL - R.x0) * q, R.x1 + (w.barR - R.x1) * q);
+      /* UNDO FIRST, CENTRE AFTER (review 2026-09-29): no sideways shift here - the heading never glided, so as मापना
+         shrinks back to its own width the heading is simply back in its centred place. The words' move to the centre
+         (the closer gap) is its own step after this ("gap" in tick). */
+      const closed = CL.slideAt + CL.slide, f = clamp01((u - closed) / CL.fade);
+      op(w.full, u >= closed ? 1 : 0); op(w.cut, 1 - f);
+      if(f >= 1){ restW2(); return true; }                                     // back to normal, still at the starting gap
+      return false;
+    }
+    function restW2(){ const w = fx.w2; op(w.cut, 0); op(w.dis, 0); op(w.full, 0); w.ruler.ticks.forEach(tk => setTick(tk, 0));
+      w.groups.forEach(g => g.spans.forEach(e => { e.style.transform = ""; })); w.letterLayers.forEach(l => { l.style.clipPath = ""; }); showCopy(w, false);
+      setCentre(0); setGap(0); }
+    /* the words coming closer, k 0..1: लंबाई moves right and मापना left by half the lost spacing each (so the heading stays
+       centred) - the real words by a relative offset (no reflow), their copies with them */
+    function setGap(k){
+      const g = fx ? fx.gapHalf * k : 0, on = Math.abs(g) > 0.001;
+      [[WORDS.w1.el, g], [WORDS.w2.el, -g]].forEach(([e, d]) => { e.style.position = on ? "relative" : ""; e.style.left = on ? d.toFixed(2) + "px" : ""; });
+      if(fx){ const t = d => on ? "translateX(" + d.toFixed(2) + "px)" : "";
+        [fx.w1.full, fx.w1.cut, fx.w1.bend].forEach(e => { e.style.transform = t(g); }); [fx.w2.full, fx.w2.dis, fx.w2.cut].forEach(e => { e.style.transform = t(-g); }); }
+    }
+    function commitGap(){                                                      // the end: that closer spacing becomes the heading's own
+      if(!fx || !fx.gapHalf) return;
+      if(phase === "pull" || phase === "recoil"){ restW1(); phase = "idle"; }   // (never the case in the normal order - लंबाई is done well before)
+      setGap(0); titleEl.style.wordSpacing = GAP_END + "px";                  // the real layout now puts both words exactly where they moved to
+      fx.root.remove(); fx = null;                                            // the copies were measured at the old spacing: rebuilt when next needed
+    }
+    /* ---- the PENCIL stretches with लंबाई (review 2026-09-29: "when लंबाई is getting stretched can the pencil also get
+       stretched along?"). Its nib is pulled out to the left by PEN_K x the word's pull (~45px), on the SAME spring - out,
+       hold, snap back, the same bounces - with the eraser end fixed. The word's own pull is NOT changed by this (review:
+       "don't increase the stretch length of लंबाई, keep it same"): it still ends PAST_NIB beyond the nib's REST position,
+       so at full stretch the stretched nib reaches further left than the word.
+       Only the plain barrel (pencil image x PEN_BAR0..PEN_BAR1 of its 1658px) lengthens: the nib and wood, the face, the
+       band and the eraser keep their shape. While it moves the pencil is drawn on a canvas over the real <img> (made
+       transparent, so it keeps its place in the layout); at rest the <img> shows again - so the nib maths above, the
+       cubes' measure and every `.sg-art img` lookup only ever see the pencil at rest. ---- */
+    /* the pencil's eyes (app.js [pencil eyes]) watch the title move: x, y in the heading's own stage px */
+    let eyeTr = null, eyeTrAt = -1e9;                                         // the heading's box, re-read at most every 150ms
+    const eyeAt = (x, y)=>{ const E = window.SGEyes; if(!E) return; const tn = performance.now();
+      if(tn - eyeTrAt > 150){ const r = titleEl.getBoundingClientRect(); eyeTrAt = tn;
+        eyeTr = { l: r.left, t: r.top, sc: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || 1 }; }
+      E.look("title", { x: eyeTr.l + x * eyeTr.sc, y: eyeTr.t + y * eyeTr.sc }, 7, 300); };
+    let winced = false;                                                        // the eyes' flinch at लंबाई's first impact, once per stretch
+    const PEN_K = 2 / 3, PEN_BAR0 = 260 / 1658, PEN_BAR1 = 920 / 1658;
+    const pen = (function(){
+      let cv = null, ctx = null, img = null, maxE = 0, cssW = 0, cssH = 0, on = false;
+      function prepare(e){                                                     // before each stretch: fit the canvas to the pencil as it is NOW
+        const hero = $("sgHero"); img = hero && hero.querySelector("img");
+        if(!img || !img.complete || !img.naturalWidth || !img.offsetWidth){ img = null; return; }
+        // measure the pencil BEFORE the canvas is inserted: a canvas still in the flex row would shift the pencil
+        maxE = Math.ceil(e) + 2; cssW = img.offsetWidth; cssH = img.offsetHeight;
+        const offL = img.offsetLeft, offT = img.offsetTop;
+        if(!cv){ cv = document.createElement("canvas"); cv.className = "sg-pen-stretch"; cv.setAttribute("aria-hidden", "true"); ctx = cv.getContext("2d"); }
+        const sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || 1;
+        const k = Math.min(2, sc * (window.devicePixelRatio || 1));            // crisp, but capped for low-end GPUs
+        cv.width = Math.round((cssW + maxE) * k); cv.height = Math.round(cssH * k); ctx.setTransform(k, 0, 0, k, 0, 0);
+        cv.style.cssText = "position:absolute;pointer-events:none;display:none;left:" + (offL - maxE) + "px;top:" + offT +
+          "px;width:" + (cssW + maxE) + "px;height:" + cssH + "px;filter:" + getComputedStyle(img).filter;
+        if(cv.previousElementSibling !== img) img.insertAdjacentElement("afterend", cv);   // out of the flow already (absolute)
+      }
+      function set(e){
+        if(!img || !cv) return;
+        e = Math.max(0, Math.min(e, maxE - 2));
+        if(e < 0.3){ rest(); return; }                                      // the last third of a pixel is invisible: back to the real <img>
+        const nw = img.naturalWidth, nh = img.naturalHeight, f = cssW / nw, b0 = PEN_BAR0 * nw, b1 = PEN_BAR1 * nw, x0 = maxE - e;
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+        ctx.clearRect(0, 0, cssW + maxE, cssH);
+        ctx.drawImage(img, b0, 0, b1 - b0, nh, x0 + b0 * f - 0.5, 0, (b1 - b0) * f + e + 1, cssH);   // the barrel, lengthened (0.5px under each seam)
+        ctx.drawImage(img, 0, 0, b0, nh, x0, 0, b0 * f, cssH);                                    // nib + wood, moved out by e
+        ctx.drawImage(img, b1, 0, nw - b1, nh, maxE + b1 * f, 0, (nw - b1) * f, cssH);            // face, band, eraser: fixed
+        if(!on){ cv.style.display = "block"; img.style.opacity = "0"; on = true; }
+      }
+      function rest(){ if(on){ cv.style.display = "none"; img.style.opacity = ""; on = false; } }
+      return { prepare, set, rest };
+    })();
+    /* ---- driver: two timelines, each started by its spoken word, then run on the wall clock ---- */
+    let w1Quiet = false;                                                       // लंबाई fully settled: the undo (its straightening) may start
+    let phase = "idle", w1Done = false, tStart = 0, w2Phase = "wait", w2Start = 0, w2Gap = 0, w2Close = 0, lastCt = 0, raf = 0, backAt = 0, gapPending = false;
+    const GAP_MOVE = 350;                                                      // ms (animation clock): the words' move in to the centre, after the undo
+    // centring shift (k 0 = none). Only ever reset to 0 now: the heading is no longer glided while the ruler shows
+    const setCentre = k => { titleEl.style.transform = k > 0 && fx ? "translateX(" + (-fx.w2.centreShift * k).toFixed(2) + "px)" : ""; };
+    function measureNib(){                                                      // nib tip in the heading's own coordinates, as it is NOW
+      const tr = titleEl.getBoundingClientRect(), sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || 1;
+      const im = document.querySelector(".sg-art img"), nr = im ? im.getBoundingClientRect() : null;
+      return nr && nr.width ? (nr.left + nr.width * (6 / 1658) - tr.left) / sc : null;
+    }
+    function finishNow(){                                                      // leaving the landing mid-animation: put everything at rest
+      if(!fx) return;
+      if(phase === "pull" || phase === "recoil"){ restW1(); phase = "idle"; }
+      if(w2Phase === "run" || w2Phase === "close" || w2Phase === "gap"){ restW2(); w2Phase = "done"; commitGap(); }
+      if(gapPending){ gapPending = false; commitGap(); }
+    }
+    function recoilState(tau){                                                 // s, curl amplitude, and whether it has settled
+      const half = Math.PI / W0;
+      let s = tau < half / 2 ? D * Math.cos(W0 * tau) : 0, amp = 0, env = 0, stopped = false;
+      let tk = half / 2, vk = D * W0;                                          // first impact: a quarter period, speed D w
+      /* the permanent set: from the first impact the line's rest shape is the wave (amp < 0: dip first), approached
+         critically damped - A (1 - (1 + x) e^-x) - so it never overshoots; the curl waves below ring about it */
+      if(tau >= tk){ const x = SET_G * (tau - tk), rem = (1 + x) * Math.exp(-x), A = SET_A * Wlen; amp -= A * (1 - rem); env += A * rem; }
+      while(tk <= tau){
+        const dt = tau - tk, a = Math.min(CURL_MAX, CURL_C * vk) * Math.exp(-CURL_G * dt);
+        amp -= a * Math.sin(CURL_W * dt); env += a;                            // this impact's curl wave (it buckles the way it sets: dip first)
+        const vOut = RESTITUTION * vk;
+        if(vOut / W0 <= 0.3){ stopped = true; break; }                          // rebound too small to see: it rests on the stop
+        if(dt < half) s = (vOut / W0) * Math.sin(W0 * dt);                      // rebound flight, back after half a period
+        tk += half; vk = vOut;
+      }
+      return { s, amp, quiet: stopped && env < 0.5 };                          // under half a pixel of wobble: settled in its wave
+    }
+    // a word noticed a little late still starts from its beginning: at most 50ms is caught up, never a visible jump
+    const startAt = (now, ct, tw)=> now - Math.min(0.05, Math.max(0, ct - tw)) * 1000 / SLOW;
     function tick(now){
       raf = 0;
-      const gate = $("startGate"); if(!gate || gate.classList.contains("hidden")) return;   // left the landing: stop
+      now /= SLOW;                                                             // the animation's own clock: every duration below runs SLOW x longer
+      const gate = $("startGate");
+      if(!gate || gate.classList.contains("hidden")){ finishNow(); return; }  // left the landing: stop, at rest
       const onLanding = (voEl.getAttribute("src") || "").indexOf("vo_landing") >= 0;
       const ct = onLanding ? voEl.currentTime : 0;
       if(onLanding && ct + 0.3 < lastCt && (phase === "pull" || phase === "recoil")){ restW1(); phase = "idle"; }   // greeting restarted
       if(onLanding) lastCt = ct;
-      if((phase === "idle" || phase === "done") && onLanding && isPlaying && ct >= T_WORD - 0.05 && ct < T_WORD_END){
+      const speaking = onLanding && isPlaying;
+      // लंबाई: on the word (again on a replay)
+      if(phase === "idle" && speaking && ct >= T_WORD - 0.03 && ct < T_WORD + 0.5){
+        if(gapPending){ gapPending = false; commitGap(); }                    // (a replay right at the very end: settle first)
         fx = fx || build();
         const w = fx.w1; Wlen = w.barR - w.barL;
-        D = (fx.nibX !== null && fx.nibX < w.barL) ? (w.barL - fx.nibX) : 0;
-        if(D > 0 && !reduce){ showCopy(w, true); frameW1(0, 0, 0, 1); phase = "pull"; }
-        else { phase = "settled"; w2Start = now; }                             // nothing to stretch to / reduced motion
+        fx.nibX = measureNib();                                                // afresh: the layout may have changed since
+        D = (fx.nibX !== null && fx.nibX < w.barL) ? (w.barL - fx.nibX) + PAST_NIB : 0;
+        if(w2Phase === "run" || w2Phase === "close" || w2Phase === "gap") restW2();   // a replay: मापना plays again after लंबाई
+        w2Phase = "wait"; w1Done = false; w1Quiet = false;
+        if(D > 0 && !reduce){ tStart = startAt(now, ct, T_WORD); showCopy(w, true); frameW1(0, 0, 0, 1, 0); pen.prepare(PEN_K * D); phase = "pull"; winced = false; if(window.SGEyes) SGEyes.react("surprise"); }
+        else w1Done = true;                                                    // nothing to stretch to / reduced motion: मापना may go
       }
+      const t = (now - tStart) / 1000;
       if(phase === "pull"){
-        const p = (ct - T_WORD) / (T_WORD_END - T_WORD);
-        if(p >= 1 || !isPlaying || !onLanding){ phase = "recoil"; relWall = now - Math.max(0, ct - T_WORD_END) * 1000; quietAt = 0; }
-        else frameW1(D * smoother(p), 0, clamp01(p / 0.25), 1);                // continuous line fades in over the letters' own
+        if(t >= PULL + HOLD){ phase = "recoil"; backAt = 0; }
+        else {
+          /* the stretch is drawn from the font OUTLINES (as the curl is): there बा is split into ब and ा as shapes, so each
+             half keeps its own round outline and shadow while they move apart - the text copies cut "बा" with a straight
+             vertical clip, which sliced both halves' outline and shadow into hard vertical edges in the gap (review
+             2026-09-29: "non smooth lines when लंबाई is stretched"). It fades in over the real-text copy in the first
+             0.12s, while the word has barely moved (the two differ by a hairline of outline). */
+          const bIn = clamp01(t / 0.12), sNow = D * smoother(t / PULL);
+          frameW1(sNow, 0, 0, bIn < 1 ? 1 : 0, bIn); pen.set(PEN_K * sNow); eyeAt(fx.w1.barL - sNow, fx.base - BAR_MID);
+        }
       }
       if(phase === "recoil"){
-        const tau = (now - relWall) / 1000, half = Math.PI / W0;
-        // flight back to the stop: s = D cos(w t); first impact at a quarter period, speed D w
-        let s = tau < half / 2 ? D * Math.cos(W0 * tau) : 0, amp = 0, env = 0, stopped = false;
-        let tk = half / 2, vk = D * W0;
-        while(tk <= tau){
-          const dt = tau - tk, a = Math.min(CURL_MAX, CURL_C * vk) * Math.exp(-CURL_G * dt);
-          amp += a * Math.sin(CURL_W * dt); env += a;                            // this impact's curl wave
-          const vOut = RESTITUTION * vk;
-          if(vOut / W0 <= 0.3){ stopped = true; break; }                          // rebound too small to see: it rests on the stop
-          if(dt < half) s = (vOut / W0) * Math.sin(W0 * dt);                      // rebound flight, back after half a period
-          tk += half; vk = vOut;
-        }
-        if(stopped && env < 0.3 && !quietAt) quietAt = tau;
-        const back = quietAt ? clamp01((tau - quietAt) / 0.25) : 0;             // the letters' own top line returns
-        frameW1(s, amp, 1 - back, quietAt ? 1 : 0);
-        if(back >= 1){ restW1(); phase = "settled"; w2Start = now; }
+        const tau = t - PULL - HOLD, r = recoilState(tau);
+        if(r.quiet) w1Quiet = true;                                            // settled in its wave (it stays in it until the undo)
+        if(r.quiet || tau >= W2_START) w1Done = true;                          // मापना may go - early, while लंबाई still rings down
+        // the wave eases back straight TOGETHER with मापना's undo (before the words move to the centre)
+        const kS = !r.quiet ? 0 : w2Phase === "close" ? smoother(Math.max(0, now - w2Close) / 1000 / (CL.slideAt + CL.slide)) : (w2Phase === "gap" || w2Phase === "done") ? 1 : 0;
+        if(kS >= 1 && !backAt) backAt = now;                                   // straight again: back to the real heading
+        /* the bent word and the straight copy under it only ever meet while the line is straight, and always by a short
+           fade (their outlines differ by a hairline): at the start the bent word fades in, then the straight copy fades
+           out - both before the first impact bends the line - so it never peeks out of the dips or behind ई's hook; at
+           the end the straight copy fades back in under it, the bent word fades out, and the letters' own top line returns */
+        const b = backAt ? (now - backAt) / 1000 : 0;
+        const bendOp = backAt ? 1 - clamp01((b - 0.15) / 0.3) : 1;           // (up since the stretch)
+        const cutOp = backAt ? Math.min(clamp01(b / 0.15), 1 - clamp01((b - 0.45) / 0.3)) : 0;
+        frameW1(backAt ? 0 : r.s, backAt ? 0 : r.amp * (1 - kS), cutOp, backAt && b >= 0.45 ? 1 : 0, bendOp);
+        pen.set(backAt ? 0 : PEN_K * r.s);
+        if(!backAt) eyeAt(fx.w1.barL - r.s, fx.base - BAR_MID);             // the eyes ride the snap-back and its bounces
+        if(!winced && tau >= Math.PI / W0 / 2){ winced = true; if(window.SGEyes) SGEyes.react("wince"); }   // ...and flinch at the hard stop
+        if(b >= 0.75){ restW1(); phase = "idle"; }                             // लंबाई is completely done
       }
-      if(phase === "settled"){
-        if(w2Done){ phase = "done"; }
-        else {
-          showCopy(fx.w2, true);
-          if(reduce){ frameW2(60); w2Done = true; phase = "done"; }
-          else if(frameW2((now - w2Start) / 1000)){ w2Done = true; phase = "done"; }
-        }
+      // मापना: only once लंबाई is completely done; the ruler forms, shows for a moment, BOTH words undo (मापना back to
+      // normal, लंबाई's wave straight), and only THEN do the two words move in to the centre (review 2026-09-29)
+      if(w2Phase === "wait" && w1Done){
+        if(reduce){ w2Phase = "done"; titleFxDone(); }                        // reduced motion: मापना simply stays as it is
+        else { fx = fx || build(); showCopy(fx.w2, true); w2Start = now; w2Phase = "run"; if(window.SGEyes) SGEyes.react("curious"); }
       }
-      if(phase === "pull" || phase === "recoil" || phase === "settled" || (phase === "idle" && onLanding && isPlaying)) raf = requestAnimationFrame(tick);
+      if(w2Phase === "run" && frameW2((now - w2Start) / 1000)){ w2Phase = "close"; w2Close = now + CL.show * 1000; }   // no glide: hold, then undo
+      if(w2Phase === "close" && now >= w2Close && !w1Quiet && phase === "recoil") w2Close = now;     // ruler shown its full CL.show; if लंबाई still rings, hold until it is still
+      if(w2Phase === "close" && now >= w2Close && closeW2((now - w2Close) / 1000)){ w2Phase = "gap"; w2Gap = now; }
+      if(w2Phase === "gap"){ const k = smoother((now - w2Gap) / GAP_MOVE); setGap(k); if(k >= 1){ w2Phase = "done"; gapPending = true; titleFxDone(); } }   // both words in to the centre
+      if(gapPending && phase !== "pull" && phase !== "recoil"){ gapPending = false; commitGap(); }   // both words at rest: the closer gap is the heading's own
+      // keep ticking while something moves, or while the greeting plays (so each word is caught on time)
+      if(phase === "pull" || phase === "recoil" || w2Phase === "run" || w2Phase === "close" || w2Phase === "gap" || gapPending || speaking) raf = requestAnimationFrame(tick);
     }
     const kick = ()=>{ if(!raf) raf = requestAnimationFrame(tick); };
+    /* the landing intro's next step (the measuring cubes, app.js [landing measure]) starts when the title animation is done */
+    function titleFxDone(){ if(window.SGEyes) SGEyes.release("title"); if(!window.__sgTitleFxDone){ window.__sgTitleFxDone = true; document.dispatchEvent(new Event("sg-title-fx-done")); } }
     voEl.addEventListener("playing", kick); voEl.addEventListener("timeupdate", kick);
+    // back on the landing (QA nav 'home'): make sure nothing is left mid-way
+    new MutationObserver(kick).observe($("startGate"), { attributes: true, attributeFilter: ["class"] });
   })();
 
   // tapping आगे clears any pending nav-nudge
@@ -4883,11 +5409,15 @@ boot();
    - TUMBLES. Flakes glint as they rotate to face the sun: brightness pulses ^3.
    - DEPTH. z 0..1: far = tiny, sharp, slow, dim; near = larger, softer (out of
      focus), faster across the screen (parallax). Most dust is far.
+   - COMES FROM THE WINDOW (review 2026-09-29: "the particles coming from the direction of
+     sunlight?" - 80 dim specks drifting ~5px/s were too faint to see): the draught blows ALONG the
+     light (26deg, down-right), most specks re-enter in the sunlit window and fade in there, and
+     there are more, slightly larger, brighter specks.
    Pauses off the landing and when the tab is hidden; one static frame under
    prefers-reduced-motion. Coordinates are .sg-fx-local design px (1096x438). */
 (function(){
   const cv = document.getElementById("sgDust"); if(!cv || !cv.getContext) return;
-  const ctx = cv.getContext("2d"), W = 1096, H = 438, N = 80;
+  const ctx = cv.getContext("2d"), W = 1096, H = 438, N = 120;
   const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // soft round sprite (one draw per mote); small sizes read as crisp points
@@ -4908,19 +5438,22 @@ boot();
   function light(x, y){
     const dx = x - sun.x, dy = y - sun.y;
     const s = dx * LC + dy * LS, c = -dx * LS + dy * LC;       // along / across the spill
-    const sa = s >= 0 ? s / 430 : s / 150;                     // reaches far into the room, little behind the sun
-    return Math.exp(-(sa * sa + (c / 200) * (c / 200)));
+    const sa = s >= 0 ? s / 520 : s / 150;                     // reaches far into the room, little behind the sun
+    return Math.exp(-(sa * sa + (c / 230) * (c / 230)));
   }
 
   const rnd = (a, b) => a + Math.random() * (b - a);
   function spawn(p, fresh){
     p.z = Math.pow(Math.random(), 1.8);                        // bias far
-    // start anywhere on screen the first time; later re-enter from the window side
+    // start anywhere on screen the first time; later mostly re-enter IN the sunlit window (fading in there,
+    // so they visibly come out of the light), the rest from the window-side edges
+    const r0 = Math.random();
     if(fresh){ p.x = rnd(-20, W * .75); p.y = rnd(-10, H); }
-    else if(Math.random() < .6){ p.x = rnd(-30, -5); p.y = rnd(0, H * .8); }
-    else { p.x = rnd(0, W * .45); p.y = rnd(-30, -5); }
+    else if(r0 < .7){ p.x = sun.x + rnd(-130, 70); p.y = sun.y + rnd(-60, 90); }
+    else if(r0 < .85){ p.x = rnd(-30, -5); p.y = rnd(0, H * .6); }
+    else { p.x = rnd(0, W * .4); p.y = rnd(-30, -5); }
     p.vx = rnd(-2, 2); p.vy = rnd(-2, 2);
-    p.r  = .7 + p.z * 3.2;                                     // radius px
+    p.r  = 1.1 + p.z * 3.4;                                    // radius px
     p.f1 = rnd(.07, .19); p.f2 = rnd(.11, .27); p.ph1 = rnd(0, 6.3); p.ph2 = rnd(0, 6.3);
     p.spin = rnd(.6, 2.2); p.sph = rnd(0, 6.3);
     p.fade = fresh ? 1 : 0;                                    // ease in after respawn
@@ -4939,8 +5472,9 @@ boot();
 
   function step(p, t, dt){
     const par = .45 + p.z * .9;                                // parallax: near crosses faster
-    // room draught from the window + slow global gusts
-    const wx = 5.5 + 2.5 * Math.sin(t * .09), wy = 1.6 + 1.2 * Math.sin(t * .07 + 1.3);
+    // room draught from the window, ALONG the light (LA) + slow global gusts
+    const ws = 13 + 4 * Math.sin(t * .09);
+    const wx = ws * LC, wy = ws * LS + 1.2 * Math.sin(t * .07 + 1.3);
     // smooth turbulence (two incommensurate sines per axis = no visible loop)
     const tx = 7 * Math.sin(t * p.f1 + p.ph1) + 4 * Math.sin(t * p.f2 * 1.7 + p.ph2);
     const ty = 6 * Math.cos(t * p.f2 + p.ph2) + 3 * Math.sin(t * p.f1 * 2.3 + p.ph1);
@@ -4960,9 +5494,9 @@ boot();
     for(const p of P){
       const L = light(p.x, p.y);
       if(L < .02) continue;                                    // in shade: invisible, like real dust
-      const glint = .35 + .65 * Math.pow(Math.max(0, Math.sin(t * p.spin + p.sph)), 3);
+      const glint = .5 + .5 * Math.pow(Math.max(0, Math.sin(t * p.spin + p.sph)), 3);
       const depth = .45 + .55 * (1 - Math.abs(p.z - .35));     // far dim, very near slightly defocused
-      const a = Math.min(1, L * 1.3) * glint * depth * p.fade;
+      const a = Math.min(1, L * 1.7) * glint * depth * p.fade;
       if(a < .02) continue;
       const d = p.r * 2 * (p.z > .7 ? 1.35 : 1);               // near = out-of-focus blur disc
       ctx.globalAlpha = p.z > .7 ? a * .6 : a;
@@ -4985,4 +5519,421 @@ boot();
   window.addEventListener("load", fit);
   if(reduce){ for(let i = 0; i < 240; i++) for(const p of P) step(p, i / 30, 1 / 30); draw(8); }
   else requestAnimationFrame(frame);
+})();
+
+/* ---------- [landing measure] blocks (cubes) appear one by one under the landing pencil ----------
+   How we measure length (review 2026-09-29, the bench-and-hand-spans example): the units lie in their OWN row a little
+   BELOW the object - they do not touch it - laid in ONE ROW with NO GAPS, and a dashed line dropped from each end of the
+   object carries its length down to them. Here: N cubes span exactly the pencil's ink (pencil_purple.webp is framed on
+   a 1658x283 canvas: tip x 7, eraser end x 1650, ink rows 7..276), GAP px under it, with a blue start line at the tip
+   and a pink end line at the eraser end. Runs AFTER the title animation (see ORDER below), then releases the play button. */
+(function(){
+  /* CUBES: N flush cubes spanning the pencil, GAP px under it (only ~71 px lie between the pencil and the CTA).
+     N = 7 (review 2026-09-29: "increase the size of cubes ... ok if some cubes don't fit, remove them", then "a bit
+     more"): the same cubes, 10/7 = 1.43x their first size - the first 7 of the strip, scaled so those 7 span the
+     pencil exactly (whole cubes only, none cut by the dotted lines).
+     LINES (review: "a lot of glow ... reduce their size"): plain rounded dashes, no glow, LINE_W px wide (CSS .sgm-mark);
+     both PINK (review 2026-09-29). */
+  const N = 7, GAP = 8, LINE_W = 8, LINE_TOP = 10, LINE_END = 14;   // lines: bold 8x12 dashes (review: "too small")
+  /* CUBE ART (review 2026-09-29: "replace the cubes with this"): the supplied row of 10 glossy blue cubes,
+     cleaned (haze/specks removed, bodies solid; faces painted out, review 2026-09-29: "remove the faces of the cubes")
+     into assets/cubes_blue_row.webp, 2102x214. Its cubes already TOUCH
+     (the dark "gaps" are only their rounded corners meeting) - flush, as the game's no-gaps rule wants. Each block div
+     shows ITS cube as a slice of that one strip (cuts = the seams between cubes, x px), and the strip is scaled so its
+     cube span equals the pencil exactly - so the art is shown as drawn and the blocks still arrive one by one. */
+  const ROW = { src: "assets/cubes_blue_row.webp", w: 2102, h: 214, top: 2, bot: 211,
+                cuts: [3, 208, 416, 626, 839, 1049, 1260, 1472, 1683, 1893, 2099] };
+
+  const TIP = 7 / 1658, END = 1650 / 1658, INK_TOP = 7 / 283, INK_BOT = 276 / 283;
+  /* ORDER (review 2026-09-29): the title words animate on the VO's लंबाई -> THEN the dashed lines at both ends (they mark
+     where the pencil starts and stops) -> THEN the cubes, one by one, between them -> THEN the play button pops
+     ("sg-intro-done"). 0.35s of lines, then one cube every STEP ms.
+     STEP (review 2026-09-30: "the cubes are getting placed very fast"): was 140ms - all 7 popped in within 0.84s, one
+     sweep rather than blocks placed one by one. 400ms is a clear one-by-one pace: the 7th lands ~3.3s after the lines
+     start (was ~1.7s). Their shadows, the pencil's eyes and the play button's release all follow STEP. */
+  const MARK_DUR = 350, CUBES_AFTER = 120, STEP = 400, CUBE_DUR = 420, WATCHDOG = 16000;   // ms; watchdog: never wait for the title fx forever
+  const FIRST = MARK_DUR + CUBES_AFTER;                                                    // the first cube, once the lines are in
+  let built = false;
+  function build(){
+    const hero = document.getElementById("sgHero"), pen = hero && hero.querySelector("img");
+    if(!pen || !pen.complete || !pen.offsetWidth) return false;
+    const x0 = pen.offsetLeft + pen.offsetWidth * TIP, x1 = pen.offsetLeft + pen.offsetWidth * END;
+    const yTop = pen.offsetTop + pen.offsetHeight * INK_TOP, yBot = pen.offsetTop + pen.offsetHeight * INK_BOT;
+    const C = ROW.cuts, k = (x1 - x0) / (C[N] - C[0]);                 // strip px -> stage px: cube span = pencil span
+    const top = yBot + GAP - ROW.top * k, h = ROW.h * k, cubeBot = yBot + GAP + (ROW.bot - ROW.top) * k;
+    const box = document.createElement("div"); box.className = "sg-measure"; box.setAttribute("aria-hidden", "true");
+    /* SHADOWS on the table (review 2026-09-29: "make it look like the cubes are placed on the table ... and the cubes
+       making shadow on the table"): the cubes' bases stand on the tabletop, ~27px in front of its back edge, so each
+       cube gets a soft contact shadow ON the table - darkest right at its base, fading out in front of it - laid down
+       BEHIND the cubes and the dashed lines (first in the box). The light comes from the window on the left, so the
+       row's shadow sits SH_DX px to the right and trails a little further past the last cube. Each shadow grows in as
+       its own cube lands (same delay: CSS .sgm-shadow). */
+    const SH_UP = 5, SH_H = 21, SH_DX = 3, SH_TAIL = 16;              // stage px
+    for(let i = 0; i < N; i++){
+      const l = x0 + (C[i] - C[0]) * k + SH_DX, wd = (C[i + 1] - C[i]) * k + (i === N - 1 ? SH_TAIL : 0);
+      const sh = document.createElement("div"); sh.className = "sgm-shadow" + (i === 0 ? " first" : "") + (i === N - 1 ? " last" : "");
+      sh.style.cssText = "left:" + l.toFixed(2) + "px;top:" + (cubeBot - SH_UP).toFixed(2) + "px;width:" + wd.toFixed(2) + "px;height:" + SH_H + "px;--d:" + (FIRST + i * STEP) + "ms";
+      box.appendChild(sh);
+    }
+    /* once the last cube has landed, the strips give way to ONE shadow of exactly the same shape: side by side, the
+       strips' antialiased edges left faint light seams at the cube joins */
+    const swapAt = FIRST + (N - 1) * STEP + CUBE_DUR;
+    box.style.setProperty("--swap", swapAt + "ms");
+    const row = document.createElement("div"); row.className = "sgm-shadow-row";
+    row.style.cssText = "left:" + (x0 + SH_DX).toFixed(2) + "px;top:" + (cubeBot - SH_UP).toFixed(2) + "px;width:" + (x1 - x0 + SH_TAIL).toFixed(2) + "px;height:" + SH_H + "px";
+    box.appendChild(row);
+    for(let i = 0; i < N; i++){
+      const b = document.createElement("div"); b.className = "sgm-block";
+      b.style.cssText = "left:" + (x0 + (C[i] - C[0]) * k).toFixed(2) + "px;top:" + top.toFixed(2) + "px;width:" + ((C[i + 1] - C[i]) * k).toFixed(2) + "px;height:" + h.toFixed(2) + "px;--d:" + (FIRST + i * STEP) + "ms;" +
+        "background-image:url(" + ROW.src + ");background-size:" + (ROW.w * k).toFixed(2) + "px " + h.toFixed(2) + "px;background-position:" + (-C[i] * k).toFixed(2) + "px 0";
+      box.appendChild(b);
+    }
+    /* dashed end lines, centred on the tip and on the eraser end. Length as marked on the review screenshot
+       (2026-09-29, "this much lining would be fine"): from LINE_TOP px below the pencil's top down to LINE_END px
+       below the blocks (measured there: 58 -> ~221 px on a 1.144x screenshot = top+10 .. blocks+14 stage px) */
+    const DASH = 12, PERIOD = 19;                                       // CSS .sgm-mark: a 12px dash every 19px, from the top
+    const y0 = yTop + LINE_TOP, want = cubeBot + LINE_END - y0;
+    const nDash = Math.max(Math.round((want + PERIOD - DASH) / PERIOD), Math.ceil((cubeBot + 6 - y0 + PERIOD - DASH) / PERIOD));
+    const y1 = y0 + nDash * PERIOD - (PERIOD - DASH);                  // ends on a WHOLE dash (review: the last one was cut off), still below the cubes
+    const marksAt = 0;                                                  // the lines come FIRST, then the cubes
+    [["start", x0], ["end", x1]].forEach(([k, x])=>{
+      const e = document.createElement("div"); e.className = "sgm-mark " + k;
+      e.style.cssText = "left:" + (x - LINE_W / 2).toFixed(2) + "px;top:" + y0.toFixed(2) + "px;width:" + LINE_W + "px;height:" + (y1 - y0).toFixed(2) + "px;--d:" + marksAt + "ms";
+      box.appendChild(e);
+    });
+    hero.appendChild(box);                                          // AFTER the pencil: it stays the first .sg-art img
+    built = box; return true;
+  }
+  let started = false;
+  const introDone = ()=>{ if(!window.__sgIntroDone){ window.__sgIntroDone = true; document.dispatchEvent(new Event("sg-intro-done")); } };
+  function run(){                                                    // the cubes, then the lines, then the play button
+    if(started) return;
+    if(!built && !build()){ setTimeout(run, 120); return; }
+    started = true;
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce){ built.classList.add("static"); introDone(); return; }
+    built.classList.add("go");
+    setTimeout(introDone, FIRST + (N - 1) * STEP + CUBE_DUR);         // once the last cube has landed
+    const eyes = window.SGEyes;                                        // the pencil's eyes (app.js [pencil eyes]) watch its own measuring
+    if(eyes){
+      const marks = built.querySelectorAll(".sgm-mark"), blocks = built.querySelectorAll(".sgm-block");
+      if(marks[0]) eyes.look("measure", marks[0], 7, 220);
+      setTimeout(()=>{ if(marks[1]) eyes.look("measure", marks[1], 7, FIRST - 200 + 60); }, 200);
+      blocks.forEach((b, i)=> setTimeout(()=> eyes.look("measure", b, 7, STEP + 80), FIRST + i * STEP));
+      setTimeout(()=>{ eyes.react("happy"); if(blocks[3]) eyes.look("measure", blocks[3], 7, 800); }, FIRST + (N - 1) * STEP + CUBE_DUR * 0.7);
+    }
+  }
+  // step 1 is the title animation (it fires "sg-title-fx-done"); a watchdog from the loader lifting covers a title
+  // animation that never runs (autoplay blocked, a different title)
+  if(window.__sgTitleFxDone) run(); else document.addEventListener("sg-title-fx-done", run, { once: true });
+  const armWatchdog = ()=> setTimeout(run, WATCHDOG);
+  if(document.body.classList.contains("loaded")) armWatchdog();
+  else new MutationObserver((_, o)=>{ if(document.body.classList.contains("loaded")){ o.disconnect(); armWatchdog(); } })
+         .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+})();
+
+/* ---------- [pencil eyes] the landing pencil's eyes come alive ----------
+   Review 2026-09-29: "add life to the eye of the pencil - wherever something is happening the eyeballs look towards
+   that animation and express with the eyes". The painted face is turned a quarter turn: its UP points to the eraser
+   (screen +x). So its brows sit to the right of its eyes, its upper lids close from right to left, and its lower lids
+   rise from the left.
+   RIG: the eyes are drawn live on a small canvas over the face (in #sgHero, above the pencil <img> and its stretch
+   canvas - the face is on the part of the pencil that never stretches). Per eye, clipped to the painted eyeball's
+   inner edge (measured on pencil_purple.webp: one ellipse per eye): a white eyeball with soft shading, an iris ~13%
+   smaller than the painted one (so the look direction reads at this size), a pupil that widens and narrows, two
+   shines, and eyelids in the barrel's own purple (its row colours, taken from the art) with a lash line. The brows
+   are cut from the art (assets/pencil_face_rig.webp: the barrel with the brows removed, plus each brow) and lift and
+   tilt as pieces.
+   BRAIN: each landing animation says where it is - SGEyes.look(id, element | {x,y} | fn, priority, ms) - and the
+   eyes watch the most important live one; otherwise they wander between the child (straight out), Swifty and, once
+   it is up, the play button. They move like real eyes: a fast jump (saccade, 50-170ms) to each new target, smooth
+   following for moving things (with catch-up jumps), tiny drifts while they rest, a blink every 2-5s and often with a
+   big jump. SGEyes.react(name) adds an expression for a moment: surprise (eyes grow, pupils narrow, brows up), wince
+   (a squeeze blink, brows down), happy (lower lids up "^^", pupils wide), curious (one brow up, pupils wide).
+   SAFE: canvas draws only; the loop stops off the landing; reduced motion = eyes that look at the child and blink;
+   any error removes the overlay, which leaves the painted eyes. */
+(function(){
+  "use strict";
+  const ART_W = 1658, ART_H = 283;
+  // eyeball outline per eye: centre + semi-axes of its OUTER edge (art px); the outline is RING px wide
+  const EYES = [ { cx: 1232.5, cy: 84.9, a: 48.0, b: 45.4 }, { cx: 1231.8, cy: 189.9, a: 48.4, b: 43.8 } ];
+  const FACE = { x: 1232, y: 137 };                          // between the eyes: where "the pencil" looks from
+  const RING = 4.8, IRIS_R = 30.5, PUPIL_R = 16.5;
+  const SHINE = [13.7, -10.9, 7.8], SHINE2 = [-10.5, 10.5, 2.8];   // on the iris: [dx, dy, r] - the painted shine's place
+  const REG_X = 1170, REG_W = 176;                           // the canvas covers art x 1170..1346, full height
+  const RIG_SRC = "assets/pencil_face_rig.webp";
+  // rig sheet tiles (x offset of the clean patch and of the brow; the tile's art box; the brow's pivot)
+  const BROWS = [ { clean: 0,   brow: 72,  box: [1268, 34, 70, 80],  c: [1306.0, 71.8],  tilt: 1 },
+                  { clean: 144, brow: 216, box: [1268, 160, 70, 82], c: [1306.1, 203.5], tilt: -1 } ];
+  const BROW_UP = 5, BROW_DOWN = 4;                          // art px the brows travel (toward the eraser = up)
+  // the barrel's colour every 3 art px from y 33 (its stripes run along the pencil): the eyelids' skin
+  const LID_Y0 = 33, LID_DY = 3, LID_COL = ("dcc2ff,d0acfd,cda0fb,cc9ffb,cc9dfc,cf9dfb,cd9efb,cfa2ff,cfa3fd,cda3ff,d0a6fd,d1aafd,d1aafd,d0acff," +
+    "d0acfd,d2affd,d2b1fe,d1b0fd,d1b0fd,d3b5fc,d4b6fe,d3b8ff,d3b8fd,d5bafe,d6bbfd,d7bdfc,d8befd,cda6fc,ca9afc,c996fe,c996fe,c592fc,c78eff," +
+    "c88cfe,c68dfe,c68dfe,c58dfb,c78bfd,c286fc,c286fc,c485fc,c485fc,c485fc,c280fd,c280fd,c37fff,c07bfd,bf79fe,c079fc,bf77fd,c177fd,be70fc," +
+    "ab5fe4,a259d9,a259d9,9f58d4,9c56d0,9c56d0,9c56d0,9b55cf,9b55cf,9a54ce,9a54ce,9a54ce,9653c9,9754ca,9754ca,9754ca,8b4cba,7d41a7").split(",");
+  const Z = 70;                                              // screen px "in front of" the eyes: how a screen point maps to a look direction
+  const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const now = ()=> performance.now();
+  const lerp = (a, b, k)=> a + (b - a) * k, clamp01 = v => Math.max(0, Math.min(1, v));
+
+  /* ---- expressions: every value springs toward its target; a reaction holds its targets for a while ---- */
+  const NEUTRAL = { scale: 1, pupil: 1, lidU: 0, lidL: 0, lidH: 0, lift: 0, tilt: 0, liftB: 0 };
+  const EXPR = {
+    surprise: { ms: 900,  v: { scale: 1.07, pupil: 0.72, lift: 1, tilt: -0.08 } },
+    wince:    { ms: 420,  v: { lift: -0.8, tilt: 0.2 } },     // + a squeeze: the lids snap shut and hold (see react)
+    happy:    { ms: 1300, v: { lidH: 0.7, pupil: 1.12, lift: 0.5, tilt: -0.1 } },
+    curious:  { ms: 1000, v: { pupil: 1.15, liftB: 1 } }
+  };
+  const P = {}; for(const k in NEUTRAL) P[k] = { v: NEUTRAL[k], vel: 0 };
+  let expr = null, exprUntil = 0;
+  const lidsBusy = tn => !!(expr && tn < exprUntil + 250 && expr.v.lidH) || P.lidH.v > 0.05;   // no natural blink across a happy squint
+  function springs(dt, tn){
+    const e = expr && tn < exprUntil ? expr : null;
+    for(const k in P){
+      const p = P[k], tgt = e && k in e.v ? e.v[k] : NEUTRAL[k];
+      const K = k === "scale" ? 700 : 380, C = k === "scale" ? 24 : 36;         // the eyes pop a touch when they grow
+      p.vel += (K * (tgt - p.v) - C * p.vel) * dt; p.v += p.vel * dt;
+    }
+  }
+
+  /* ---- attention: id -> { t: Element | {x,y} | fn, pri, until, at } ---- */
+  const src = new Map();
+  const api = {
+    look(id, t, pri, ms){ if(!t) return; const old = src.get(id);
+      src.set(id, { t, pri: pri || 1, until: now() + (ms || 250), at: old && old.t === t ? old.at : now() }); },
+    release(id){ src.delete(id); },
+    react(name){ if(reduce || !EXPR[name]) return; expr = EXPR[name]; exprUntil = now() + expr.ms;
+      if(name === "wince") blink(now(), 170, true); }
+  };
+  window.SGEyes = api;
+
+  /* layout reads are cached (80-500ms): the eyes must never force the page to re-layout on every frame (low-end tablets) */
+  let mascotAt = -1e9, mascotP = null;
+  const mascot = ()=>{ const tn = now(); if(tn - mascotAt < 400) return mascotP; mascotAt = tn; mascotP = null;
+    for(const m of document.querySelectorAll(".sg-mascot")){ const r = m.getBoundingClientRect(), cs = getComputedStyle(m);
+      if(r.width && r.height && cs.visibility !== "hidden" && +cs.opacity > 0.05){ mascotP = { x: r.left + r.width * 0.5, y: r.top + r.height * 0.3 }; break; } }
+    return mascotP; };
+  const rects = new WeakMap();
+  function centreOf(el, tn){ let c = rects.get(el);
+    if(!c || tn - c.t > 80){ const r = el.getBoundingClientRect(); c = { t: tn, p: r.width || r.height ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null }; rects.set(el, c); }
+    return c.p; }
+  const idle = { t: "child", until: 0 };
+  function chooseIdle(){
+    const btn = document.getElementById("sgBtn"), btnOn = !!(window.__sgIntroDone && btn), r = Math.random();
+    if(btnOn && r < 0.32) return btn;                          // the play button, once it is up: an invitation
+    if(r < (btnOn ? 0.47 : 0.3)) return mascot;
+    if(r < 0.88) return "child";
+    const card = document.querySelector(".sg-card"); if(!card) return "child";
+    const c = card.getBoundingClientRect();                     // a glance somewhere on the card
+    return { x: c.left + c.width * (0.15 + 0.7 * Math.random()), y: c.top + c.height * (0.2 + 0.6 * Math.random()) };
+  }
+  function pickTarget(tn){
+    let best = null;
+    for(const [id, s] of src){ if(s.until < tn){ src.delete(id); continue; }
+      if(!best || s.pri > best.pri || (s.pri === best.pri && s.at > best.at)) best = s; }
+    if(best) return best.t;
+    if(tn >= idle.until){ idle.t = chooseIdle(); idle.until = tn + 1300 + Math.random() * 1900; }
+    return idle.t;
+  }
+
+  /* ---- gaze: a look direction g in the unit disc (0,0 = straight out at the child), shared by both eyes ---- */
+  const E = { x: 0, y: 0 };                                  // the face on screen, updated every frame
+  let g = { x: -0.8, y: 0 }, sac = null, jit = { x: 0, y: 0 }, nextJit = 0;
+  function aim(t, tn){
+    if(t === "child") return { x: 0, y: 0 };
+    let p = t;
+    if(typeof t === "function") p = t();
+    else if(t && t.getBoundingClientRect) p = centreOf(t, tn);
+    if(!p) return { x: 0, y: 0 };
+    const dx = p.x - E.x, dy = p.y - E.y, n = Math.sqrt(dx * dx + dy * dy + Z * Z);
+    return { x: dx / n, y: dy / n };
+  }
+  function gaze(dt, tn, T){
+    const a = aim(T, tn);
+    if(tn > nextJit){ const m = 0.04 + Math.random() * 0.06, th = Math.random() * 6.2832;   // tiny drifts while it rests
+      jit = { x: m * Math.cos(th), y: m * Math.sin(th) }; nextJit = tn + 700 + Math.random() * 1100; }
+    const tx = a.x + jit.x, ty = a.y + jit.y, dx = tx - g.x, dy = ty - g.y, dist = Math.hypot(dx, dy);
+    if(sac){                                                   // a saccade lands on where the target is NOW
+      const k = Math.min(1, (tn - sac.t0) / sac.ms), e = 1 - Math.pow(1 - k, 3);
+      g.x = sac.x0 + (tx - sac.x0) * e; g.y = sac.y0 + (ty - sac.y0) * e; if(k >= 1) sac = null;
+    } else if(dist > 0.16){
+      sac = { t0: tn, ms: 50 + 70 * Math.min(dist, 1.7), x0: g.x, y0: g.y };
+      if(dist > 0.55 && tn - lastBlink > 1200 && !lidsBusy(tn) && Math.random() < 0.35) blink(tn);   // big jumps often come with a blink
+    } else { const k = 1 - Math.exp(-dt * 12); g.x += dx * k; g.y += dy * k; }        // smooth following
+  }
+
+  /* ---- blinks ---- */
+  let blinkAt = -1, blinkHold = 25, lastBlink = 0, nextBlink = 0, dbl = 0;
+  function blink(tn, hold, force){                           // hold: ms fully shut (a blink 25, the wince's squeeze longer)
+    if(blinkAt >= 0 && !force) return;
+    blinkAt = tn; blinkHold = hold || 25; lastBlink = tn; nextBlink = tn + 2200 + Math.random() * 3300;
+    if(!hold && Math.random() < 0.12) dbl = tn + 330;        // now and then a double blink
+  }
+  function blinkU(tn){
+    if(blinkAt < 0) return 0;
+    const t = tn - blinkAt, o = 70 + blinkHold;
+    if(t < 70){ const k = t / 70; return k * k; }            // closes fast...
+    if(t < o) return 1;
+    if(t < o + 135){ const k = (t - o) / 135; return (1 - k) * (1 - k); }   // ...opens a little slower
+    blinkAt = -1; return 0;
+  }
+
+  /* ---- drawing (in art px: the canvas transform maps the pencil art onto it) ---- */
+  let cv = null, ctx = null, img = null, rig = null, irisC = null, S = 1, layoutKey = "";
+  const sclera = [], lidGrad = [], lidLight = [];
+  function makeIris(){
+    const R = IRIS_R, K = 5, c = document.createElement("canvas"); c.width = c.height = Math.ceil(2 * R * K);
+    const x = c.getContext("2d"); x.scale(K, K); x.translate(R, R);
+    const gr = x.createRadialGradient(0, 0, 0, 0, 0, R);
+    [[0, "#4a2106"], [0.5, "#7d3d0c"], [0.66, "#a15616"], [0.8, "#b46a22"], [0.9, "#8a4611"], [0.96, "#4b1f05"], [1, "#2a1003"]].forEach(s => gr.addColorStop(s[0], s[1]));
+    x.beginPath(); x.arc(0, 0, R, 0, 6.2832); x.fillStyle = gr; x.fill(); x.save(); x.clip();
+    let seed = 7; const rnd = ()=> (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for(let k = 0; k < 44; k++){                               // the iris's fibres, light and dark in turn
+      const th = k / 44 * 6.2832 + rnd() * 0.08, r0 = R * (0.52 + rnd() * 0.06), r1 = R * (0.82 + rnd() * 0.12);
+      x.strokeStyle = (k % 2 ? "rgba(222,150,72," : "rgba(58,22,4,") + (0.18 + rnd() * 0.2).toFixed(2) + ")"; x.lineWidth = 0.6 + rnd() * 1.1;
+      x.beginPath(); x.moveTo(Math.cos(th) * r0, Math.sin(th) * r0); x.lineTo(Math.cos(th) * r1, Math.sin(th) * r1); x.stroke();
+    }
+    x.strokeStyle = "rgba(30,10,2,.55)"; x.lineWidth = 2.2; x.beginPath(); x.arc(0, 0, R - 1.1, 0, 6.2832); x.stroke();   // limbal ring
+    x.restore(); return c;
+  }
+  function makeGradients(){
+    EYES.forEach((e, i)=>{
+      const ia = e.a - RING, ib = e.b - RING;
+      const s = ctx.createRadialGradient(-0.2 * ia, -0.12 * ib, 2, 0, 0, Math.max(ia, ib) * 1.02);
+      [[0, "#ffffff"], [0.55, "#fcfafa"], [0.8, "#f1edec"], [0.93, "#e2dcdc"], [1, "#cfc7cb"]].forEach(st => s.addColorStop(st[0], st[1]));
+      sclera[i] = s;
+      const y0 = LID_Y0 - e.cy, y1 = LID_Y0 + LID_DY * (LID_COL.length - 1) - e.cy, l = ctx.createLinearGradient(0, y0, 0, y1);
+      LID_COL.forEach((c, k)=> l.addColorStop(k / (LID_COL.length - 1), "#" + c));
+      lidGrad[i] = l;
+      const s2 = ctx.createLinearGradient(0, -ib, 0, ib);     // a lid is a dome over the eyeball: lit from above, shaded below
+      s2.addColorStop(0, "rgba(255,255,255,.16)"); s2.addColorStop(0.5, "rgba(255,255,255,0)"); s2.addColorStop(1, "rgba(60,20,100,.16)");
+      lidLight[i] = s2;
+    });
+  }
+  /* EYELIDS (eye-local art px; t = y / ib from -1 to 1 along the eye). A lid covers the eye from one side up to its edge
+     x(t) = x1 + (x0 - x1)(1 - t^2): x1 at the ends, x0 in the middle. Blinks: the upper lid (from +x, the face's top) and
+     the lower lid (from -x) meet on the closed line x = XM - BM (1 - t^2) - bowed toward the face's bottom, like a
+     closed eye. Happy: the lower lid rises with its edge bowed the other way, a "^". */
+  const XM = -0.1, BM = 0.34, XH = 0.05, BH = 0.38;          // fractions of the eye's inner half-width ia
+  function lid(i, ia, ib, side, x1, x0, lashW, lashCol, shadowDx){
+    const xc = 2 * x0 - x1, path = ()=>{ ctx.beginPath(); ctx.moveTo(side, -ib - 5); ctx.lineTo(x1, -ib - 5); ctx.lineTo(x1, -ib);
+      ctx.quadraticCurveTo(xc, 0, x1, ib); ctx.lineTo(x1, ib + 5); ctx.lineTo(side, ib + 5); ctx.closePath(); };
+    const edge = ()=>{ ctx.beginPath(); ctx.moveTo(x1, -ib); ctx.quadraticCurveTo(xc, 0, x1, ib); };
+    path(); ctx.save(); ctx.shadowColor = "rgba(60,20,90,.35)"; ctx.shadowBlur = 5 * S; ctx.shadowOffsetX = shadowDx * S;
+    ctx.fillStyle = lidGrad[i]; ctx.fill(); ctx.restore();                       // the skin (the barrel's own colour at each row)
+    ctx.save(); path(); ctx.clip();
+    ctx.fillStyle = lidLight[i]; ctx.fillRect(-ia - 6, -ib - 6, 2 * ia + 12, 2 * ib + 12);
+    edge(); ctx.lineWidth = 8; ctx.strokeStyle = "rgba(60,20,95,.2)"; ctx.stroke();   // the lid's thickness along its edge
+    ctx.restore();
+    edge(); ctx.lineWidth = lashW; ctx.lineCap = "round"; ctx.strokeStyle = lashCol; ctx.stroke();   // lash line
+  }
+  function lids(i, ia, ib, u, ul, h){
+    const xm = XM * ia, bm = BM * ia;
+    if(ul > 0.005){ const x1 = lerp(-ia - 2, xm, ul); lid(i, ia, ib, -ia - 6, x1, x1 - bm, 2.4, "rgba(34,16,38,.75)", 1); }
+    if(h > 0.005){ const x1 = lerp(-ia - 2 - BH * ia, XH * ia, h); lid(i, ia, ib, -ia - 6, x1, x1 + BH * ia, 2.6, "rgba(34,16,38,.85)", 1); }
+    if(u > 0.005){ const x1 = lerp(ia + bm + 2, xm, u); lid(i, ia, ib, ia + 6, x1, x1 - bm, 3.6, "#221026", -1.2); }
+  }
+  function drawEye(e, i, bU){
+    const ia = e.a - RING, ib = e.b - RING, sc = P.scale.v;
+    const mx = ia - IRIS_R - 1.5, my = ib - IRIS_R - 1.5;
+    let ox = g.x * mx * 1.25, oy = g.y * my * 1.25;
+    const q = Math.hypot(ox / mx, oy / my); if(q > 1){ ox /= q; oy /= q; }      // the iris stays inside the eyeball
+    ctx.save(); ctx.translate(e.cx, e.cy); if(Math.abs(sc - 1) > 0.001) ctx.scale(sc, sc);
+    ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, ia + 0.9, ib + 0.9, 0, 0, 6.2832); ctx.clip();
+    ctx.fillStyle = sclera[i]; ctx.fillRect(-ia - 3, -ib - 3, 2 * ia + 6, 2 * ib + 6);
+    ctx.drawImage(irisC, ox - IRIS_R, oy - IRIS_R, 2 * IRIS_R, 2 * IRIS_R);
+    ctx.fillStyle = "#080302"; ctx.beginPath(); ctx.arc(ox, oy, PUPIL_R * P.pupil.v, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(ox + SHINE[0], oy + SHINE[1], SHINE[2], 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(ox + SHINE2[0], oy + SHINE2[1], SHINE2[2], 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+    const sh = ctx.createLinearGradient(ia, 0, 0.4 * ia, 0);   // the soft shadow under the brow side of the eye
+    sh.addColorStop(0, "rgba(80,50,110,.16)"); sh.addColorStop(1, "rgba(80,50,110,0)"); ctx.fillStyle = sh; ctx.fillRect(0.4 * ia, -ib - 3, 0.6 * ia + 3, 2 * ib + 6);
+    const u = clamp01(Math.max(bU, P.lidU.v)), ul = clamp01(Math.max(bU, P.lidL.v));
+    lids(i, ia, ib, u, ul, clamp01(P.lidH.v));
+    ctx.restore();
+    if(sc > 1.002){ ctx.lineWidth = 3.8; ctx.strokeStyle = "rgba(36,16,43,.92)"; ctx.beginPath(); ctx.ellipse(0, 0, e.a - RING / 2, e.b - RING / 2, 0, 0, 6.2832); ctx.stroke(); }
+    const shut = Math.min(u, ul);                              // closed: the lid's skin softens the eyeball's dark outline, so it reads as a lid, not a hole
+    if(shut > 0.3){ ctx.globalAlpha = 0.5 * (shut - 0.3) / 0.7; ctx.lineWidth = RING + 1; ctx.strokeStyle = lidGrad[i];
+      ctx.beginPath(); ctx.ellipse(0, 0, e.a - RING / 2, e.b - RING / 2, 0, 0, 6.2832); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.restore();
+  }
+  function draw(bU){
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(S, 0, 0, S, -REG_X * S, 0);
+    BROWS.forEach(br => { const [x, y, w, h] = br.box; ctx.drawImage(rig, br.clean, 0, w, h, x, y, w, h); });   // the barrel, brows removed
+    BROWS.forEach((br, i)=>{
+      const [x, y, w, h] = br.box, [bx, by] = br.c, L = P.lift.v + (i === 1 ? P.liftB.v : 0), dx = L >= 0 ? L * BROW_UP : L * BROW_DOWN;
+      ctx.save(); ctx.translate(bx + dx, by); ctx.rotate(P.tilt.v * br.tilt); ctx.drawImage(rig, br.brow, 0, w, h, x - bx, y - by, w, h); ctx.restore();
+    });
+    EYES.forEach((e, i)=> drawEye(e, i, bU));
+  }
+  let placedAt = -1e9;
+  window.addEventListener("resize", ()=>{ placedAt = -1e9; });
+  function place(tn){                                        // fit the canvas to the pencil as laid out now (4x a second; at once after a resize)
+    if(tn - placedAt < 250) return; placedAt = tn;
+    const f = img.offsetWidth / ART_W, sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || 1;
+    const k = Math.min(3, Math.max(1, sc * (window.devicePixelRatio || 1)) * 1.5);
+    const key = [img.offsetLeft, img.offsetTop, img.offsetWidth, img.offsetHeight, k].join();
+    if(key !== layoutKey){
+      layoutKey = key;
+      cv.style.left = (img.offsetLeft + REG_X * f) + "px"; cv.style.top = img.offsetTop + "px";
+      cv.style.width = (REG_W * f) + "px"; cv.style.height = img.offsetHeight + "px";
+      cv.width = Math.round(REG_W * f * k); cv.height = Math.round(img.offsetHeight * k); S = f * k;
+      makeGradients();
+    }
+    const r = img.getBoundingClientRect(), fs = r.width / ART_W, fy = r.height / ART_H;
+    E.x = r.left + FACE.x * fs; E.y = r.top + FACE.y * fy;
+  }
+
+  /* ---- life cycle ---- */
+  let raf = 0, last = 0, running = false;
+  const gate = ()=> document.getElementById("startGate");
+  const onLanding = ()=>{ const gt = gate(); return !!gt && !gt.classList.contains("hidden") && document.body.classList.contains("loaded"); };
+  function frame(){
+    raf = 0;
+    if(!onLanding()){ running = false; if(cv) cv.style.display = "none"; return; }  // off the landing: stop (the gate observer restarts it)
+    raf = requestAnimationFrame(frame);
+    try {
+      const tn = now(), dt = last ? Math.min(1 / 30, (tn - last) / 1000) : 0; last = tn;
+      cv.style.display = "block";
+      place(tn);
+      const T = reduce ? "child" : pickTarget(tn);
+      if(!reduce){ gaze(dt, tn, T); springs(dt, tn); } else { g.x = 0; g.y = 0; }
+      if(tn > nextBlink){ if(lidsBusy(tn)) nextBlink = tn + 400; else blink(tn); }
+      if(dbl && tn > dbl){ dbl = 0; if(blinkAt < 0 && !lidsBusy(tn)) blink(tn); }
+      draw(blinkU(tn));
+    } catch(err){ cancelAnimationFrame(raf); raf = 0; if(cv) cv.remove(); cv = null; }   // anything wrong: the painted eyes stay
+  }
+  function start(){
+    if(running || !cv) return;
+    running = true; last = 0; nextBlink = now() + 1500;
+    api.look("swifty", mascot, 2, 2800);                       // Swifty greets first: the pencil watches her
+    if(!raf) raf = requestAnimationFrame(frame);
+  }
+  function init(){
+    const hero = document.getElementById("sgHero"); img = hero && hero.querySelector("img");
+    if(!img || !/pencil_purple/.test(img.getAttribute("src") || "")) return;   // the rig is measured on this pencil only
+    rig = new Image();
+    rig.onload = ()=>{
+      const go = ()=>{
+        if(!img.complete || !img.offsetWidth){ setTimeout(go, 120); return; }
+        cv = document.createElement("canvas"); cv.className = "sg-pen-eyes"; cv.setAttribute("aria-hidden", "true");
+        ctx = cv.getContext("2d"); irisC = makeIris(); hero.appendChild(cv);
+        if(onLanding()) start();
+        new MutationObserver(()=>{ if(onLanding()) start(); }).observe(gate(), { attributes: true, attributeFilter: ["class"] });
+        new MutationObserver(()=>{ if(onLanding()) start(); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+      };
+      go();
+    };
+    rig.src = RIG_SRC;
+    // the child's finger (or mouse): the pencil looks at it for a moment
+    const gt = gate();
+    if(gt){
+      gt.addEventListener("pointermove", ev => { if(ev.pointerType === "mouse") api.look("pointer", { x: ev.clientX, y: ev.clientY }, 6, 700); });
+      gt.addEventListener("pointerdown", ev => { api.look("pointer", { x: ev.clientX, y: ev.clientY }, 6, 1100); api.react("curious"); });
+    }
+    // the play button pops once the intro is done: look at it, curious
+    document.addEventListener("sg-intro-done", ()=>{ const btn = document.getElementById("sgBtn");
+      setTimeout(()=>{ api.look("play", btn, 4, 1600); api.react("curious"); }, 650); });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
