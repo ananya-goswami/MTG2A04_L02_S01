@@ -2,7 +2,7 @@
 
 **59 VO clips + 1 sfx on disk · all 60 wired into the lesson** (FLN QA checklist 01: no unused assets in the build). Rebuilt 2026-09-30 when the lesson was re-made slide by slide to the SME deck (review: "follow the ppt slides instructions"): every line the deck gives now has a slide that plays it, so the clips set aside earlier (T3's heading / explain / child lines, the bed / almirah / pillow / fridge questions, the pillow page, the classroom game's intro and "choose the space" line) are back, from the same renders; the lines only the old slides needed are deleted (below). The wrong-answer help follows the FLN hint logic sheet (review: "for the hint part follow the excel sheet, not the slides"): its 8 lines were rendered in the same voice with the same re-time (a re-render of `vo_try_again` came out within 0.02s and 0.1 LU of the shipped clip), and the deck's own hint lines it replaced are deleted.
 
-**Re-recorded 2026-10-01:** `vo_p4_done` (the door is now 5 blocks), `vo_p6_ok` (the almirah 4), `vo_p7_ok` (the fridge 3) - their counts changed with the one cube size - from the card's own texts, in the same voice through the same pipeline (edge-tts Swara +0% +0Hz -> the HI01 re-time at x1.028 -> Opus 48 kHz mono 32 kbps, -18.5 LUFS). T3's `count_at` (the badge pops on the count word) is 2.12s in the new `vo_p4_done`: edge-tts's word timing mapped through the re-time, checked against T2's `vo_p3_done` (this method: 1.96s, its measured 1.92s).
+**Re-recorded 2026-10-01:** `vo_p4_done` (the door is now 5 blocks), `vo_p6_ok` (the almirah 4), `vo_p7_ok` (the fridge 3; re-recorded again for 4 - review 2026-10-01 "increase the size of refrigerator") - their counts changed with the one cube size - from the card's own texts, in the same voice through the same pipeline (edge-tts Swara +0% +0Hz -> the HI01 re-time at x1.028 -> Opus 48 kHz mono 32 kbps, -18.5 LUFS). T3's `count_at` (the badge pops on the count word) is 2.12s in the new `vo_p4_done`: edge-tts's word timing mapped through the re-time, checked against T2's `vo_p3_done` (this method: 1.96s, its measured 1.92s).
 
 Script source: `MTG2A04_L02_S01_review.pptx`, **slides 3 → 17** (Pages 1 → 14), followed verbatim except where noted as DERIVED.
 
@@ -64,7 +64,7 @@ Voice: `hi-IN-SwaraNeural` (edge-tts) at pitch `+0Hz`, rate `+0%` — Swara's na
 | `vo_p6b_ok` | 3.6s | शाबाश! तकिये की लंबाई 3 ब्लॉक्स है। | G2b correct | PPT slide 9 (Page 6, the pillow) correct VO |
 | `vo_p7_ask` | 3.3s | अब बताइए, फ्रिज की लंबाई कितनी है? | G3 question (after the measuring) | PPT slide 10 (Page 7) post-measure VO |
 | `vo_p7_instr` | 2.7s | फ्रिज की लंबाई ब्लॉक से मापिए। | G3 prompt | PPT slide 10 (Page 7) Instruction OST/VO |
-| `vo_p7_ok` | 3.6s | शाबाश! फ्रिज की लंबाई 3 ब्लॉक्स है। | G3 correct | PPT slide 10 (Page 7) correct VO |
+| `vo_p7_ok` | 3.6s | शाबाश! फ्रिज की लंबाई 4 ब्लॉक्स है। | G3 correct | PPT slide 10 (Page 7) correct VO |
 | `vo_p8_ask` | 4.0s | कौन-सी चटाई ज़्यादा लंबी है? उस पर टैप करिए। | G4 prompt | PPT slide 11 (Page 8) VO |
 | `vo_p8_ok` | 3.4s | शाबाश! यह चटाई ज़्यादा लंबी है। | G4 correct | PPT slide 11 (Page 8) correct VO |
 | `vo_p9_ask` | 4.0s | कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए। | P1 prompt | PPT slide 12 (Page 9) VO |

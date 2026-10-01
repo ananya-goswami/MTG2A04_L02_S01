@@ -34,6 +34,10 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
 - Right answers: the sheet's "locks / glows + sparkle or confetti". Its praise line where the deck had none (T1
   "शाबाश! आपने सही चुना।", every right drop "शाबाश! सही जगह पर रखा।"); where the deck's own line names the answer
   ("शाबाश! पलंग की लंबाई 8 ब्लॉक्स है।"), that line is kept.
+- Confetti only when a slide's whole game is done (review 2026-10-01: "remember confetti will only drop after all 3
+  are correctly placed - that means that slide's game is perfectly completed"): once, at the end - never for one of
+  several steps (P2 / P3's tags, P4's objects: each right one gets its green, the SFX and the praise only) - and not
+  when the answer had to be shown (as on the MCQ slides).
 - Adapted, as the sheet allows per file: its Drag & Drop lines are written for reading games ("शब्द को ध्यान से
   सुनिए", "शब्द की आवाज़ पहचानिए"), so here "ध्यान से देखिए" and "ब्लॉक्स को ध्यान से गिनिए" take their place. The sheet
   stops at attempt 2 (or 3); after that the answer is shown so no child gets stuck, and it does not score as correct.
@@ -85,7 +89,19 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   of physics"): after every block laid, the ones left take the pile of their own count - its lowest places first,
   centred; each the place that costs it least, never one above it - and drop there, faster as they fall, with a small
   rebound and squash, the lowest first (`settle` in `MDK.basket`, called from MEASURE_ASK's `onHit`); a block grabbed
-  mid-fall is put in its place first. The backdrop is the mock-up's outdoor scene (`data.bg: "yard"`,
+  mid-fall is put in its place first. Every holder does this now (review 2026-10-01: "cubes can't be in air when other
+  cubes are taken out ... best example is the charpai screen cube box, implement from there"): the settle is the kit's
+  `pileSettle(layout)`, shared by the basket, the room holders (G2 pink basket, G2b cloud tub, G3 woven basket - their raised
+  back block used to hang in the air once a front one was taken) and T2's toy box (now settles on the child's drops too;
+  its 6-block start is unchanged). Each holder's `layout(m)` fills the front row first and centres what is left on it.
+  Tested taking the front cubes first on G1 / G2 / G2b / G3 / T2: nothing is left above a free front place.
+  Spare cubes (review 2026-10-01: "throughout the game in the cube boxes there can be left 1 or 2, sometimes no cubes
+  in the basket"): `data.spare` - the box holds n + spare, the child stops at the end line, and the spare ones stay in
+  it. T2 2 (8 in the box; Swifty's demo takes the top 2, so the child's turn starts on the old 3 + 3), G1 1, G2 0 (its
+  small pink basket would stack 3 high into the calendar), G2b 1, G3 1 (it was 2: in its smaller basket 5 cubes pile neatly 2 + 2 + 1, review
+  2026-10-01); T3's painting keeps its own (the man is left
+  holding one), P4's row already has n + 2. A holder with spares left no longer fades at the question (only an empty
+  one does), and T2's result badge rises out of the box to stand ON its spare cubes (`MDK.boxPlate(box, text, rest)`). The backdrop is the mock-up's outdoor scene (`data.bg: "yard"`,
   `#stage[data-bg]`; review: "this should have outdoor background scene, also the mango one I want"): CSS sky strip,
   sand wall, its darker plinth, sand ground - the wall meets the ground half-way up the charpai (`--horizon`, set by the
   slide) - and over them `bg_yard_top.webp`, cut out of the mock-up: its leafy canopy top-left, its mango tree top-right
@@ -93,33 +109,78 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   header bar and Swifty hid the trees (ours sit a few px apart) they are mended: the canopy behind its Swifty mirrored
   from beside it, every tree's lower edge carried under the bar, the trunk behind the bar's end filled from the trunk
   round it. Nothing in it moves. The charpai and its row sit low on the ground, the row just above the answers' place.
+  Review 2026-10-01 ("reduce the floor space ... so that the charpai comes in the center, along with the tokri"):
+  `data.fill "stage"` (as G2b) - the scene uses the height kept for the hidden आगे, so the charpai, its row, the
+  flags, the basket and the wall's line all sit 90px lower (charpai 174-397 -> 262-488 of 750); the charpai stays
+  centred across, the basket beside it.
   The OST / VO stay the deck's ("पलंग ..."; the mock-up writes खटिया).
 - **G4 mats — page 8, P1 chairs — page 9, `COMPARE_MEASURED`.** Two objects side by side, already measured: blocks
   flush along each mat's long side (a row under it) / up beside each chair from the floor, no numbers. Tap the longer /
   taller one. Right — it lifts with a green glow, the other greys, SFX + confetti, "6 ब्लॉक्स" / "7 ब्लॉक्स" under the
   mats ("4" / "5" beside the chairs), the deck's correct VO. Wrong — the sheet's MCQ – 2 ladder. The chairs are in the
   deck's order, the 4-block chair first (`obj_chair_short.webp`, `obj_chair_tall.webp` — split from the deck's two-chair
-  picture).
+  picture). G4's counts (review 2026-10-01: "replace these boxes with the correct box layout, take help from
+  HI01H01_L02_S04 — only in this slide"): `data.count_box: "card"` shows each count in that game's answer card instead
+  of the gold badge — white, a pale blue edge, 22px corners, its soft navy shadow, navy 800 26px text (CSS
+  `[count-card]`, `.cm-count`); the longer mat's card in its correct green (`--correct` / `--correct-bg`), both popping
+  in one after the other just under their rows. Then (review 2026-10-01: "increase the size of these 2 boxes and shift
+  them a little down, and the right answer will only have a green outline"): 76px tall (was 60), 32px text (was 26),
+  26px corners, 18px lower (`margin-top`); the right one is the same white card with its shadow - only its outline turns
+  green (3px `--correct`, no green fill). P1 too (review 2026-10-01: "same for this screen also"): `data.count_box:
+  "card"`, each card beside its chair's column of cubes, centred on it.
+  P1's riders (review 2026-10-01: "add cat and turtle only on the chair - cat a little big and turtle small, non
+  distracting" + "add small motion in these 2"): `assets/prop_cat.webp` (the sleeping cat) and `prop_turtle.webp`, cut
+  out of the supplied cat-on-chair / turtle-on-chair pictures by their own outlines (their chairs are not P1's - other
+  proportions - so only the animals are used, as layers on P1's own chairs, not painted in).
+  `data.riders [{src, ar, w, motion}]`, one on each chair's `item.seat {cx, y}`, and `data.riders_random` (review
+  2026-10-01: "the event should stay random - sometimes the turtle will be placed on the long chair, sometimes the short
+  chair, same for the cat"): the two are shuffled onto the chairs each time P1 opens. An animal's `w` is in blocks, so
+  it is the same size on either chair: the cat 1.265 blocks wide (0.70 of the short chair's seat), the turtle 0.611
+  (0.32 of the tall one's; 0.45 first - review 2026-10-01: "reduce the size of turtle"). A seat's `y` is where an
+  animal's lowest point rests, about three quarters of the way across its cushion from the back (short 0.502, tall 0.541
+  of the chair), centred - both animals well under either chair's top, so the heights compared are unchanged.
+  CSS `[rider]`: each drops in with its chair, shakes with it on
+  a wrong tap and dims with it; the cat breathes (a 3.6s swell of 4%), the turtle sways a degree or two (3.2s) -
+  nothing under reduced motion.
 - **P2 — page 10, P3 — page 11, `MATCH_MEASURE`.** Left, three cards in the deck's yellow / blue / green, each object
   already measured with dashed lines at its two ends — P2: the bench (7, a row on top), the blackboard (5, on top), the
   stool (3, a column on its left); P3: the window (5), the water bottle (3), the TV (4, on top). Right, the boxes in
   the deck's shuffled order (3 / 7 / 5 and 5 / 4 / 3). Drag a box onto an object: right — it snaps into that card's
-  slot, green with a ✓, SFX + confetti + "शाबाश! सही जगह पर रखा।"; wrong — the sheet's Drag & Drop ladder, counted per
+  slot, green, SFX + "शाबाश! सही जगह पर रखा।" (the confetti once, with the third); wrong — the sheet's Drag & Drop ladder, counted per
   box (the hand points at the box's right slot; the boxes are spaced so the hand never covers the next one). All three
-  — `vo_match_ok`, on. Art drawn for these pages in the tables' style: `obj_bench.svg`, `obj_blackboard.svg`,
-  `obj_stool.svg`, `obj_window.svg`, `obj_bottle.svg`, `obj_tv.svg`.
+  — `vo_match_ok`, on. The art is the supplied HD art (P2's pictures with the blocks drawn on; P3's cards, with the
+  object, its blocks and its magnet laid on by the game - one block size on all three cards) - see "P2 / P3 as photos".
 - **P4 — pages 12-13, `CLASSROOM_FIT`** (replaces the old P4 and P5). The classroom (`scene_classroom.svg`: the wall
-  with bunting and a clock, the window, the door, the tiled floor) with four empty spaces, each with a strip of faint
+  and the tiled floor; its bunting, clock, window and door the supplied HD pictures) with four empty spaces, each with a strip of faint
   blocks and its size: the blackboard's on the wall (6, लंबाई), the chair's beside the window (4, ऊँचाई), the small
   almirah's in the corner (5, ऊँचाई), the bench's on the floor between two markers (8, लंबाई). The tray below: बेंच,
   छोटी अलमारी, कुर्सी, ब्लैकबोर्ड. After the intro VO the child taps any object: it enlarges in the centre, the
   classroom fades out, its blocks (two spare) wait in the tray, and the child measures it — no idle ghost, no start
   pulse, no counting VO, no target outlines; a block not laid flush - the sheet's block ladder. The blocks stay on it;
   the classroom returns, its spaces pulse, and the measured object waits in the tray: dragged into the right space it
-  snaps in and stays (SFX + confetti + "शाबाश! सही जगह पर रखा।"); into another - the sheet's Drag & Drop ladder, per
+  snaps in and stays (SFX + "शाबाश! सही जगह पर रखा।"; the confetti once, with the fourth); into another - the sheet's Drag & Drop ladder, per
   object. The deck's VO names the bench, so "बेंच को ब्लॉक से मापिए।" / "अब बेंच के लिए सही जगह चुनिए।" play when the
   bench is the first object; the next objects' instructions play without VO (the header still names each one). After
   the fourth, on. Idle 8s on the tray: the hand points at it (flow only).
+  Review 2026-10-01 ("use better assets in this game screen - use the previous slide's HD assets"): the bench and the
+  blackboard are now P2's supplied art with its blocks taken off (`obj_bench.webp` ar 0.2856 - its top edge, hidden
+  under the blocks, redrawn straight with its outline; `obj_blackboard.webp` ar 0.4544), for the drawn `.svg`s (removed);
+  the chair's ar is its art's (1.7768). The almirah stays `obj_almirah.webp` (G2's is wider - it would leave the room's
+  corner). Still drawn: the classroom itself (`scene_classroom.svg` - its bunting, clock, window, door, wall, floor).
+  Then (review 2026-10-01: "use these hd images and replace the assets in last game screen") all eight are the
+  supplied HD art, cut tight (stray specks dropped), at most 1200px:
+  - the objects: `obj_bench.webp` (ar 0.3167), `obj_almirah.webp` (1.7647), `obj_blackboard.webp` (0.4833) replaced
+    (P4's only); the chair is a new `obj_chair.webp` (1.7143) - `obj_chair_tall.webp` stays for P1, whose two chairs
+    are one pair. Each space takes its object's new ar (the almirah's 102px wide, the chair's 84, the board's 104px
+    high); the bench's space is 8px higher (y 244) so its deeper art keeps its feet in the room; the two height labels
+    re-centred over their spaces.
+  - the room (`data.room`, app.js [CLASSROOM_FIT]): `room_window.webp`, `room_door.webp`, `room_clock.webp` laid where
+    the drawn ones were (`decor` {src, x, y, w}), and the bunting: the supplied garland sags deep - laid across the
+    wall whole it would hang over the blackboard's space - so its flags were cut out one by one (by the rope's
+    thickness), turned upright and set side by side in `room_flags.webp` (red, yellow, blue, green, purple, one 110 x
+    103 cell each), and hung by the game every 36px along the room's own shallow rope, each on the rope's slope
+    (`bunting` {rope: two quadratic curves, w 28, step, x0, hang - the rope's height in a flag}); the rope is drawn
+    as the garland's (a dark brown cord, a light top). `scene_classroom.svg` keeps only the wall and the floor.
 - **CEL — page 14.** No text: only the VO "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!", then the engine's आगे बढ़ें.
 
 Signals (`signals_expected`): `slide_entered`, `slide_completed`, `pick_extreme_correct` (T1), `measure_unit_placed`
@@ -130,10 +191,11 @@ Signals (`signals_expected`): `slide_entered`, `slide_completed`, `pick_extreme_
 ## Assets
 - **Art — the objects:** `obj_table_long.webp` / `obj_table_short.webp` (T1), `obj_table_measure.webp` (T2),
   `obj_door.webp` (T3), `obj_charpai.webp`
-  (G1), `obj_almirah.webp` (G2, P4), `obj_pillow.webp` (G2b), `obj_fridge.webp` (G3), `obj_mat_1.webp` /
-  `obj_mat_2.webp` (G4), `obj_chair_short.webp` / `obj_chair_tall.webp` (P1; the tall one also in P4), `obj_bench.svg`,
-  `obj_blackboard.svg` (P2, P4), `obj_stool.svg` (P2), `obj_window.svg`, `obj_bottle.svg`, `obj_tv.svg` (P3),
-  `scene_classroom.svg` (P4). The `.webp` cut-outs are the deck's art, tight-cropped; the `.svg` art is drawn in the
+  (G1), `obj_almirah_sock.webp` (G2), `obj_pillow.webp` (G2b), `obj_fridge.webp` (G3), `obj_mat_1.webp` /
+  `obj_mat_2.webp` (G4), `obj_chair_short.webp` / `obj_chair_tall.webp` (P1), `pic_bench/blackboard/stool.webp` (P2),
+  `card_window/bottle/tv.webp` + `obj_window/bottle/tv.webp` + `prop_mango/strawberry/sunflower.webp` + `note_2/3/4.webp`
+  (P3), `obj_bench.webp` / `obj_almirah.webp` / `obj_chair.webp` / `obj_blackboard.webp` + `room_window/door/clock.webp`
+  + `room_flags.webp` + `scene_classroom.svg` (P4). The `.webp` cut-outs are the deck's art, tight-cropped; the `.svg` art is drawn in the
   tables' style (brown wood, dark outline). All of it is `CARD.assets.image`, preloaded.
 - **Art — the blocks (`assets/cubes_blue_row.webp`):** one strip of 10 plain glossy blue cubes (faces painted out),
   sliced per cube on the landing and on every measuring slide.
@@ -177,10 +239,16 @@ Signals (`signals_expected`): `slide_entered`, `slide_completed`, `pick_extreme_
     (see `VO_MANIFEST.md`).
 - **The objects' cartoon restyle (2026-10-01)**: the almirah, the fridge, both mats, both chairs and the pillow (now a
   dog-face cushion) redrawn as flat 2D cartoons with bold outlines and simple shading (generated art), transparent
-  backgrounds, the same measuring proportions.
+  backgrounds, the same measuring proportions. G4's mats are since the supplied papad mats (review 2026-10-01: "replace
+  the mats with image 2 and 3 mats"): `obj_mat_1.webp` the blue one with 12 papads (5 blocks), `obj_mat_2.webp` the red
+  one with 10 (6 blocks, the longer - the answer), each trimmed to its own outline (ar 0.4945 / 0.42 in the card), 1100px
+  wide; the terrace they lie on has papads drying too.
 - **Known, harmless**: the shared engine's `BUILD_TO_NUMBER` / crane modules name `assets/obj_crane.png`; this lesson
   has no such slide, so nothing ever asks for it.
-- **Open for the SME**: P2 / P3's object pictures are still the stand-ins (see "P2 / P3 as photos").
+- **For the SME to check**: P3's "2 ब्लॉक्स" note was made from the supplied "3 ब्लॉक्स" one (only 3 and 4 came) - see
+  "P2 / P3 as photos". (P3's cards had their blocks drawn at different sizes, the bottle taller than its two - fixed
+  2026-10-01: the game lays one block size on all three, each object exactly its count long.) P2's pictures still
+  have their blocks drawn on: the bench top runs a little past its 4, the stool's seat a little over its 2.
 
 ## FLN QA checklist pass (2026-09-28)
 Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` / `index.html`.
@@ -325,40 +393,164 @@ Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` /
 ## P2 / P3 as photos (2026-10-01) — `app.js` `[photos]` (MATCH_MEASURE `data.look`), CSS `[photos]`
 - Review: "redesign these slides for better relatable visuality and adding meaning" + "remove the tick marks - only green
   outline represents correct answer" (the ✓ badge on a matched label is gone). `data.look`:
-  - **P2 "board"** - the class notice board (`bg_corkboard.webp`: cork, a wooden frame, kids' drawings, a star chart,
-    gold stars pinned at the edges). The three objects are white photos pinned on it (`prop_pushpin.webp`); the sizes are
-    brown paper tags (a hole, a red string) - dropped on the right photo, a tag is pinned on and swings on the pin.
-  - **P3 "fridge"** - the fridge door (`bg_fridge.webp`: cream enamel, a chrome handle, a kid's drawing, fruit magnets,
-    Mummy's sticky pad and a crayon). The photos are held by fruit magnets (`prop_mango/strawberry/sunflower.webp`); the
+  - **P2 "board"** - the class notice board (`bg_corkboard.webp`: cork in a wooden frame; its kids' drawings, star chart
+    and gold stars pinned at the edges were taken out - review 2026-10-01: "remove the circled elements" - re-rendered
+    from its own source without them). The three objects are white photos pinned on it (`prop_pushpin.webp`); the sizes are
+    brown paper tags (a hole, a red string) - dropped on the right photo, a tag swings on its hole (now the supplied art,
+    below).
+  - **P3 "fridge"** - the fridge door (`bg_fridge.webp`: cream enamel with a soft gloss and its bottom edge; its chrome
+    handle, a kid's drawing, the loose fruit magnets, Mummy's sticky pad and a crayon were taken out - review 2026-10-01:
+    "remove extra elements as shown in circle" - re-rendered from its own source without them). `data.fill "stage"`
+    (review 2026-10-01: "these are cropped from upper side"): the scene uses the height kept for the hidden next button,
+    so the cards sit lower and their magnets clear the top of the slide's frame, which clips above it (they were cut 22px).
+    The photos are held by fruit magnets (drawn on the supplied cards, below); the
     sizes are Mummy's sticky notes, pressed on. Once all three are matched, each photo shows what the size was for
     (`item.fit`): a curtain slides down over the window, a floral cover drops on the TV, a knitted sleeve slides up the
     bottle - then the all-matched VO.
   - Each photo's picture is a little scene of the object's own place (`item.scene` floor / wall / shelf / table,
     `item.wall`), its broad bottom margin the label's place. Right = a green outline on the photo and the label; wrong =
     the photo shakes, the label comes home; the 2nd time the right photo glows and the hand points (unchanged ladder).
-- Stand-ins until the generated art arrives: the six objects are still `obj_*.svg`; the curtain / cover / sleeve are
-  drawn in code. To swap: an object's `src` + its `ar` (h / w of the trimmed art); a generated fit picture as
-  `item.fit.src` (+ `x y w h` as fractions of the object's box if the defaults don't sit right); the backdrops / pin /
-  magnets by replacing the webp of the same name. Props: Fluent 3D emoji (MIT, see "Rooms").
+- **P2's supplied art** (review 2026-10-01: "replace it with good quality assets", then "replace the on-screen clips and
+  white sticky notes with these HD quality assets" and "remove extra wall clips"):
+  - the pictures `pic_bench.webp` / `pic_blackboard.webp` / `pic_stool.webp` - each object with its blocks drawn on
+    (4 across / 3 across / 2 up); `item.pic {w, h}` is the picture's size in blocks (measured from its own blocks), so
+    the game draws them at its one cube size (76px) - no blocks or end lines of the game's own on P2 now. The art's
+    bench top runs a little past its 4 blocks and the stool's seat a little over its 2 (as drawn).
+  - the tags `tag_2/3/4.webp` (`data.tags`: each tag's card body, crop and hole in body heights) - the tag body fills
+    the box, its red loop hangs out on the left (the row spaced for it); dropped right it swings on its own hole and
+    its dashed slot fades; no pin of its own any more.
+  - the card `card_photo.webp` (`data.card`) - the supplied photo card, its label slot painted out, 9-sliced to each
+    photo's size at 0.416 (an 18.7px frame, a 104px margin for the slot; CSS `.mm-card.mm-ph.hd`); the slot is drawn
+    as the card's was (`.mm-slot.at-board.hd`). `prop_pushpin.webp` is the supplied HD pin (240 x 298), only on the
+    cards' tops. `obj_stool.svg` (P2's only) was removed; `obj_bench.svg` / `obj_blackboard.svg` stay for P4.
+  - then (review 2026-10-01) "there are lines in the white note paper": CSS border-image left hairline seams where its
+    slices meet, so the card is now 9-sliced onto a canvas of its own (`paintCard`, at the card's size x the screen's
+    resolution, each piece a device pixel over its neighbours) - no seams at 1x or 1.5x; and "remove green outlines -
+    only the green outline on the tags, and it goes away": a matched card gets no ring; the tag (and P3's note) shows
+    the green outline, which fades out over 1.6s (`mmOkGlow`).
+  - the ending (review 2026-10-01: "after all 3 are correctly placed they should come in the center and get a little
+    big"): `data.finale {scale: 1.08}` - once the third tag is on (with the confetti), the three cards with their
+    pictures, tags and slots glide as one group (0.8s) to the middle of the scene - the empty tag row's room too - and
+    grow to 1.08, each part transformed about the group's centre; then the all-matched VO. P2 only (P3's fits are laid
+    over its cards in the scene).
+- **P3's supplied art** (review 2026-10-01: "replace the assets on this screen with the attached HD quality assets",
+  "shift the options a little upper"; for a while before it P3 had P2's photo card round its drawn scenes):
+  - the cards `card_window.webp` / `card_bottle.webp` / `card_tv.webp` - each supplied card whole: its white frame, its
+    scene with the blocks and end lines drawn on (3 up / 2 up / 4 across), its fruit magnet (mango / strawberry /
+    sunflower) sticking up over its top, its soft shadow; only its dashed label slot was painted out (the game draws
+    it, `.mm-slot.art` - the art's brown dashes and cream - and fades it under the note). `item.art` = {src, ar, frame
+    (the card's body in the picture), slot, obj (as fractions of the body)}: the card element is the body (the hover /
+    right ring, the shake, the drop); the cards are all one height side by side, as big as the row allows (`artPlan`).
+    No blocks, end lines, object pictures or magnets of the game's own on P3 now (`obj_window/bottle/tv.svg` and
+    `prop_mango/strawberry/sunflower.webp` removed). The blocks are each card's own size (the cards are drawn at
+    different zooms).
+  - then (review 2026-10-01: "decrease the size of circle pins", "bottle is longer than the cube so game logic is
+    affected"): the supplied cards had their blocks drawn at three sizes (153 / 170 x 207 / 144 px - the bottle's not
+    even square) and the bottle stood ~1.35 blocks over its 2. Each card was split into layers: `card_*.webp` is now
+    only its frame and room (the blocks, end lines, object and magnet painted out - the wall filled smooth from the
+    clean wall round it, the shelf row by row from its planks, the magnet's band straight across; the empty band above
+    the card cropped off), its object cut out (`obj_window.webp` - frame, sill and pot plant; `obj_bottle.webp`;
+    `obj_tv.webp` with its stand) and its magnet (`prop_mango/strawberry/sunflower.webp`, the fruit with a white
+    sticker edge). `item.art` = {src, ar, frame, slot, scene (its picture window), base (the shelf line)}; `item.src` /
+    `item.ar` the object. The game lays one block size on all three cards - the biggest each picture holds (`artFit`;
+    70px at 1366 x 768, the game's 76 at most) - each object exactly n blocks long standing on the shelf (a column of n
+    beside the window / the bottle, a row of 4 on the TV), the game's cubes (`MDK.cube`) and end lines (`.mm-guide`)
+    across both; the magnet is centred on the card's top edge in a box .18 of the card's width (`MAG`, ~60px - the
+    supplied ones were ~100). The fits were re-fitted to the object pictures (`item.fit`, same place as before).
+  - the sticky notes `note_3.webp` / `note_4.webp` (supplied) and `note_2.webp` (only 3 and 4 came: the "3" note with
+    its "3" painted out and a "2" drawn in its place - the game's Baloo 2 ExtraBold, the size, slant and position of
+    the painted 3 (fitted to it), its colours copied from it by distance from the edge and the way the edge faces:
+    the dark rim, the light bevel, the gloss from the top left). `data.tags` as on P2, without a hole: each note's
+    paper fills the box; the three a little askew, each its own way; their shadow is in the art.
+  - `data.strip_up` 24: the notes' row 24px higher off the foot (34px clear of it).
+  - the curtain / cover / sleeve (`item.fit`) are still drawn in code; on the new cards the curtain and the cover are
+    kept inside the window frame / from the TV's top edge (`fit` x y w h), clear of the blocks and the magnet. A
+    generated picture can replace one as `item.fit.src`.
 
-## Rooms (2026-10-01) — `app.js` `[rooms]`, CSS `[rooms]`, `assets/bg_*.webp`, `assets/holder_*.webp`, `assets/prop_sock.webp`
+  - review 2026-10-01 ("same for this - remove green outlines, only the green outline will come on the yellow options
+    and go away"): a matched card gets no ring (`.mm-card.mm-ph.art.ok`); the note shows the green outline, which
+    fades out to nothing over 1.6s (`mmOkGlowFlat` - the note picture keeps no shadow of its own).
+  - review 2026-10-01 ("shift this a little upper so that the yellow options are not too much in the bottom"):
+    `data.strip_up` 24 -> 64 - the notes 40px higher (592-668 of 750), the cards 20px. And ("the dotted lines are not
+    looking good enough as per their responsibility", also P4's measuring view): `.mm-guide` - the end lines on P3's
+    cards and P4's measure view - is now the game's own end line (`.md-line`'s white rounded dashes, a bolder blue core,
+    a soft navy edge so they show on cream too), 9px, centred on the end, drawn in like the main slides' lines.
+## Rooms (2026-10-01) — `app.js` `[rooms]`, CSS `[rooms]`, `assets/bg_*.webp`, `assets/holder_*.webp`
 - Review: "generate relatable backgrounds for these slides ... not too distracting, on the theme of the main elements,
   funny, relatable, eye pleasing ... all different backgrounds and different tokri than the red one" - only G2, G2b, G3,
   G4, P1. Per slide in the card: `data.bg` (the stage's backdrop, CSS `#stage[data-bg]`), `data.holder` (G2 `laundry`,
-  G2b `catbed`, G3 `tokri` - MDK.holder, the toy box's two layers and proportions), G2b `data.horizon: "base"` (its wall
-  meets the floor at the pillow's base, not half-way up it), G2 `data.gag` (a pair of socks caught in the almirah's doors).
-- The rooms: G2 a bedroom (sage wall, honey planks, a window with rose curtains, a calendar, a school bag and a teddy);
-  G2b the same at dusk (lavender wall, a soft rug, the moon in the window, the cat glaring at its own bed full of
-  blocks); G3 a kitchen (a window with tulsi, a tiled counter with steel dabbas and a teapot, a mouse, a soft checker
-  floor); G4 a sunny terrace seen from above like the mats (cement slabs, a kite, papads drying, a pigeon eyeing them);
-  P1 a veranda (a grille window, a wainscot, a clock, a plant, a curious dog, a red-oxide floor). Each backdrop is one
+  G2b `cloudtub`, G3 `wicker` - MDK.holder, the toy box's two layers and proportions), G2b `data.horizon: "base"` (its wall
+  meets the floor at the pillow's base, not half-way up it).
+- The rooms: G2 a bedroom (sage wall, honey planks, a calendar - review 2026-10-01: "remove window, remove bag and teddy,
+  remove the socks": its window with rose curtains, the school bag, the teddy and the socks caught in the almirah's doors
+  are gone, the backdrop re-rendered from its own source without them; then "replace the almirah with image 2": the
+  supplied almirah with a sock caught in its doors, cut out of its room as `assets/obj_almirah_sock.webp` (ar 1.2302,
+  measured from its top to its legs' bottom) - G2 only, P4 keeps `obj_almirah.webp`);
+  G2b the same at dusk (lavender wall, a soft rug, the moon in the window on the left; review 2026-10-01: "reduce the
+  floor space ... remove the cat completely" + "this pillow should be at center in the screen" - the cat is gone, the
+  pillow itself is centred (its bed on its right), `data.fill "stage"` lets the scene use the height kept for the hidden
+  आगे so the group and its floor line sit 92px lower: floor 372 -> 280px); G3 a kitchen (a tiled counter - its shelf of steel dabbas, the teapot and the mouse taken out, review 2026-10-01:
+  "remove the assets in the red circle" - a soft checker
+  floor; review 2026-10-01: "reduce the floor space and remove the window and the two vegetables on the cube box" - the
+  window with its tulsi is gone from the backdrop and the carrot and tomato from the tokri, both re-rendered from their
+  own sources, and `data.fill "stage"` puts the fridge's floor line 92px lower: floor 234 -> 142px; then "replace this
+  refrigerator with image 2": `obj_fridge.webp` is now the supplied two-door red fridge with its three sticky notes, cut
+  out of the checkerboard painted into that picture - ar 1.7208, measured from its top to its feet' bottom); G4 a sunny terrace seen from above like the mats (cement slabs in the sun - its kite, papads and pigeon taken out,
+  review 2026-10-01: "remove the element in the red circle");
+  P1 a veranda (a wainscot, a red-oxide floor - review 2026-10-01 "remove the elements inside the circle": its grille
+  window, the clock on its shelf, the potted plant and the curious dog are gone, the backdrop re-rendered from its own
+  source without them). Each backdrop is one
   image drawn in stage px (SVG, rendered at 1.5x) with 60px spare above and below, anchored to the slide's own
   `--horizon` (MEASURE_ASK and now COMPARE_MEASURED set it), so the object stands on its floor; props only in measured
   empty zones (never behind an object, a block, a flag, a button or a count plate). The holders: a pastel plastic laundry
-  basket, a round mustard plush cat bed with a paw, a round bamboo tokri with a carrot and a tomato - drawn as SVG.
-- Credits: the props (backpack, teddy, calendar, moon, cat, anger sign, mouse, teapot, potted plant, kite, pigeon - the
-  bird recoloured, dog - flipped, socks, carrot, tomato, clock) are Microsoft Fluent UI Emoji, 3D style
-  (github.com/microsoft/fluentui-emoji), under the MIT License:
+  basket, a round mustard plush cat bed with a paw (since replaced, below), a round bamboo tokri (its carrot and tomato
+  since taken out) - drawn as SVG.
+  G2's basket and calendar are now supplied art (review 2026-10-01: "replace the calendar and pink box with image 2 and
+  image 3"): `holder_laundry_back/front.webp` = the pink heart basket, split at its front rim's top edge, with its own
+  geometry (MDK `HOLD_K.laundry`: 4.20 x 1.98 blocks, opening 3.45 blocks, the front row's bottom 35% behind the front
+  wall - the other holders keep the shared `HOLD_BASE`); `obj_calendar.webp` = the "12" calendar (CSS on the bedroom
+  backdrop, same place). Stray specks in both pictures were dropped.
+- G2, review 2026-10-01 "the almirah should look bigger as compared to the pink box / other elements": the pink basket
+  is 2.7 blocks wide (it was 4.2 - wider than the almirah), two cubes a row (`HOLD_K.laundry.cols`), the back pair
+  tossed in, leaning (`pile`); the calendar is 90px wide (it was 122), centred over the basket, and "add a wind effect on
+  the calendar page": `[cal-wind]` MDK.calendar - three layers of `obj_calendar`'s art (`cal_base.webp`: the calendar
+  with its top sheet's "12" wiped, the blank sheet under it; `cal_page.webp`: the top sheet, drawn in 10 strips;
+  `cal_head.webp`: the blue binding, over them). It is the flags' own wind (MDK.windOn, the same gusts): a gust lifts the
+  sheet's lower part off the wall, bending more toward its free edge, pushed right with the wind; in a lull it settles,
+  a little late; under it the blank sheet shows, shadowed (`data.calendar {w, top}`). "Add a shadow to all three ... see
+  perfect shadows": one light, from the upper left - the almirah a contact shadow and its shadow on the wall to its
+  right; the basket a contact shadow and its shadow on the floor (`.md-shadow-floor`); the calendar a short, crisp one.
+- G2b, review 2026-10-01 "place the window and the tub which has the cubes ... ignore the separate big moon": the
+  supplied night window is its own layer (`[night-window]` MDK.nightWindow, `obj_window_night.webp`, `data.window` -
+  placed where the backdrop drew the old one, which is gone from the backdrop): "make the moon shine a bit and the
+  stars twinkle - don't overdo it" + "too much, distracting": a soft warm glow over its moon breathes slowly (6.5s), and
+  every other star brightens softly in its own time (5-6s, no rays). The supplied cream cloud tub replaced the cat bed
+  (`holder_cloudtub_back/front.webp`, `HOLD_K.cloudtub`: 4.0 blocks, three cubes a row as drawn, the spare raised
+  behind): its three painted cubes taken out, its back rim laid along its own line, its inside repainted end to end with
+  its own colours (the lit back wall, the shadowed floor); the front layer follows the rim's top edge column by column
+  round its curved corners ("the cube is unevenly cut" - a straight cut let the left cube cover the rim where it curves
+  up); `data.box_dx` 40 sets it a little further right ("shift the box a little right"). The cat bed's art is deleted.
+- G3, review 2026-10-01 "increase the size of refrigerator": the fridge is 4 blocks tall (it was 3 - 354px), options
+  3 / 4 / 5, `vo_p7_ok` re-recorded ("शाबाश! फ्रिज की लंबाई 4 ब्लॉक्स है।"). "We can shift this to more right": the kitchen
+  counter (its tiles, worktop and cabinets) sits 160px further right, clear of the end flags ("shift the kitchen
+  interior a bit more": 90 -> 160px) - `bg_kitchen.webp` re-rendered from its page with the counter as one group moved
+  (its second cabinet door now runs off the edge). Then "remove this": the counter is gone altogether - the kitchen is
+  its plain cream wall and checker floor (re-rendered from its page without the counter group).
+  "Change the tokri from image 2": the supplied woven basket (a thick rim with wrapped bindings, a red-and-green band)
+  replaced the bamboo tokri (`holder_wicker_back/front.webp`, `HOLD_K.wicker`). "Reduce the size of tokri": the cubes
+  keep the game's one size, so it holds two a row - 2.8 x 1.53 blocks (it was 4.02 wide, three a row, wider than the
+  fridge), each row behind raised 0.42 and a little askew: its 5 cubes heaped 2 + 2 + 1, settling to 2 + 2, 2 + 1.
+  "How this screen will look better" (agreed 2026-10-01): the fridge has the bedroom's one-light shadows (a contact
+  shadow at its feet, its shadow on the wall to its right), G3 keeps one spare cube instead of two (5, a neat heap),
+  and the counter's second cabinet door - a sliver at the screen edge - is taken out, so one whole door shows (the
+  counter has since gone altogether, above). The basket's five painted cubes are taken out: its back rim laid along its
+  own arc where they hid it, its inside rebuilt from its own outer weave (flipped to run like the back wall, colour-matched
+  to the inside that shows at both ends and blended into them); the front layer starts at the rim's inner front edge.
+  A floor shadow as the other room holders'. The tokri's art is deleted.
+- Credits: the rooms' own props (backpack, teddy, calendar, moon, cat, anger sign, potted plant, dog, clock, kite,
+  pigeon) have all since been taken out of the backdrops (reviews 2026-10-01); the props still in use - on P2 / P3, see
+  "P2 / P3 as photos" - are Microsoft Fluent UI Emoji, 3D style (github.com/microsoft/fluentui-emoji), under the MIT
+  License:
 
 ```
 MIT License
@@ -399,7 +591,7 @@ SOFTWARE
   and every measuring slide's (they ask for `MDK.CUBE`; the fit rules only step in if a slide ever can't hold it). The
   card's per-slide `s` / `bh` are gone.
 - New counts (they must add up to the object at 76px): T3 door 9 → 5 (review "increase the size of door a little bit": 4 → 5, the door 304 → 380px; its floor band 46 → 24px), G2 almirah
-  7 → 4 (options 3/4/5), G3 fridge 6 → 3 (options 2/3/4), G4 mats 6/7 → 5/6, P1 chairs 4/5 → 3/4. Unchanged: T2 6,
+  7 → 4 (options 3/4/5), G3 fridge 6 → 3 (options 2/3/4; then 4, options 3/4/5 - see Rooms), G4 mats 6/7 → 5/6, P1 chairs 4/5 → 3/4. Unchanged: T2 6,
   G1 8, G2b 3, P4.
 - **Re-recorded 2026-10-01** (their numbers changed): `vo_p4_done` "…दरवाजा 5 ब्लॉक्स…", `vo_p6_ok` "…अलमारी … 4 ब्लॉक्स",
   `vo_p7_ok` "…फ्रिज … 3 ब्लॉक्स" - the card's texts, the same voice and pipeline (see `VO_MANIFEST.md`). T3's `count_at`

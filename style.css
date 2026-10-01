@@ -2575,15 +2575,35 @@ body.is-start .sg-sky{
     #F9C382 calc(var(--horizon,55%) - 26px),#F7BA77 calc(var(--horizon,55%) - 1px),#FCD296 calc(var(--horizon,55%) + 1px),#FCD59B 100%);}
 #stage[data-bg="yard"] .md-shadow{background:radial-gradient(closest-side,rgba(112,70,26,.26),rgba(112,70,26,.1) 58%,rgba(112,70,26,0));}
 /* [rooms] review 2026-10-01: "relatable backgrounds for these slides ... not too distracting, on the theme of the main
-   elements, funny, relatable, eye-pleasing". G2 a bedroom (a school bag, a teddy, a calendar), G2b the same at dusk (the
-   moon; the cat glaring at its own bed, full of blocks), G3 a kitchen (a counter, dabbas, a teapot, tulsi on the sill, a
-   mouse), G4 a sunny terrace seen from above (a kite, papads drying, a pigeon eyeing them), P1 a veranda (a grille window,
+   elements, funny, relatable, eye-pleasing". G2 a bedroom (a calendar - its window, bag, teddy and socks taken out,
+   review 2026-10-01), G2b the same at dusk (the
+   moon; the cat glaring at its own bed, full of blocks), G3 a kitchen (a tiled counter - its window, dabbas, teapot and
+   mouse since taken out), G4 a sunny terrace seen from above (cement slabs - its kite, papads and pigeon since taken out), P1 a veranda (a grille window,
    a clock, a plant, a curious dog, a red-oxide floor). Each is one image drawn in stage px with 60px more wall above and
    floor below; its wall meets its floor at the horizon it was drawn for (H0: 516 / 424 / 516 / 168 / 606) and it shifts
    with the slide's own --horizon, so the object always stands on its floor. Props: Fluent 3D emoji (MIT). */
-#stage[data-bg="bedroom"]{background:url(assets/bg_bedroom.webp) 0 calc(var(--horizon,516px) - 576px) / 100% auto no-repeat,#D9B07D;}
+#stage[data-bg="bedroom"]{background:url(assets/bg_bedroom.webp) 0 calc(var(--horizon,696px) - 756px) / 100% auto no-repeat,#D9B07D;}
+/* [cal-wind] G2's shadows - one light, from the upper left and in front (review 2026-10-01: "add a shadow to all three
+   elements: the calendar, the almirah and the pink tub" + "see perfect shadows on the objects"). The almirah stands with
+   its back to the wall: a tight contact shadow where it meets the floor, its shadow on the wall to its right and a little
+   down. The tub (its rule below) stands a little before the wall: a contact shadow, a faint one on the wall, and its
+   shadow on the floor behind it (.md-shadow-floor). The calendar hangs flat on the wall: a short, crisp shadow; its sheet,
+   lifted by the wind, shades the blank one under it (MDK.calendar). */
+#stage[data-bg="bedroom"] .md-obj,#stage[data-bg="kitchen"] .md-obj{filter:drop-shadow(0 2px 1.5px rgba(70,50,30,.36)) drop-shadow(12px 7px 9px rgba(70,50,30,.3));}   /* (the kitchen's fridge too, review 2026-10-01: "how this screen will look better") */
+#stage[data-bg="kitchen"] .md-shadow.md-shadow-floor{height:32px;background:radial-gradient(closest-side,rgba(96,62,28,.32),rgba(96,62,28,.12) 62%,rgba(96,62,28,0));}
+#stage[data-bg="dusk"] .md-shadow.md-shadow-floor{height:32px;background:radial-gradient(closest-side,rgba(70,50,80,.32),rgba(70,50,80,.12) 62%,rgba(70,50,80,0));}
+#stage[data-bg="bedroom"] .md-shadow.md-shadow-floor{height:32px;background:radial-gradient(closest-side,rgba(96,62,28,.34),rgba(96,62,28,.13) 62%,rgba(96,62,28,0));}
+/* [cal-wind] the wall calendar (MDK.calendar): the base (the blank next sheet), the shade it gets under a lifted sheet, the
+   top sheet's strips, the binding over them */
+.md-cal{position:absolute;z-index:0;pointer-events:none;opacity:0;filter:drop-shadow(2px 3px 2.5px rgba(70,52,34,.36));}
+.md-stage.in .md-cal{animation:mdFade .5s ease-out .2s forwards;}
+.md-cal-base,.md-cal-head{position:absolute;left:0;top:0;width:100%;height:100%;}
+.md-cal-strip{position:absolute;left:0;width:100%;background-image:url(assets/cal_page.webp);background-repeat:no-repeat;transform-origin:50% 0;}
+.md-cal-shade{position:absolute;left:5%;right:5%;opacity:0;border-radius:0 0 6px 6px;
+  background:linear-gradient(180deg,rgba(70,50,30,0),rgba(70,50,30,.26) 65%,rgba(70,50,30,.36));}
+@media (prefers-reduced-motion:reduce){.md-stage.in .md-cal{animation:none;opacity:1;}}
 #stage[data-bg="dusk"]{background:url(assets/bg_dusk.webp) 0 calc(var(--horizon,424px) - 484px) / 100% auto no-repeat,#DDC7A8;}
-#stage[data-bg="kitchen"]{background:url(assets/bg_kitchen.webp) 0 calc(var(--horizon,516px) - 576px) / 100% auto no-repeat,#EDDFCA;}
+#stage[data-bg="kitchen"]{background:url(assets/bg_kitchen.webp) 0 calc(var(--horizon,516px) - 576px) / 100% auto no-repeat,#F1E8D7;}   /* (its wall's own top colour: G3's lower floor line, review 2026-10-01, uncovers the stage's top 32px) */
 #stage[data-bg="terrace"]{background:url(assets/bg_terrace.webp) 0 calc(var(--horizon,168px) - 228px) / 100% auto no-repeat,#E2D6C0;}
 #stage[data-bg="veranda"]{background:url(assets/bg_veranda.webp) 0 calc(var(--horizon,606px) - 666px) / 100% auto no-repeat,#BC7361;}
 /* [photos] P2 the class notice board, P3 the fridge door - full-stage, no floor line */
@@ -2592,15 +2612,30 @@ body.is-start .sg-sky{
 #stage[data-bg="bedroom"] .md-shadow,#stage[data-bg="kitchen"] .md-shadow,#stage[data-bg="veranda"] .md-shadow{background:radial-gradient(closest-side,rgba(96,62,28,.28),rgba(96,62,28,.1) 58%,rgba(96,62,28,0));}
 #stage[data-bg="dusk"] .md-shadow{background:radial-gradient(closest-side,rgba(78,56,88,.26),rgba(78,56,88,.1) 58%,rgba(78,56,88,0));}
 /* the other holders (MDK.holder): the same two layers as the toy box */
-.md-box-back.h-laundry{background-image:url(assets/holder_laundry_back.webp);filter:drop-shadow(0 8px 9px rgba(150,70,110,.2));}
+.md-box-back.h-laundry{background-image:url(assets/holder_laundry_back.webp);filter:drop-shadow(0 2px 1.5px rgba(80,44,48,.32)) drop-shadow(8px 6px 8px rgba(80,44,48,.18));}   /* (the bedroom's one light) */
 .md-box-front.h-laundry{background-image:url(assets/holder_laundry_front.webp);}
-.md-box-back.h-catbed{background-image:url(assets/holder_catbed_back.webp);filter:drop-shadow(0 8px 9px rgba(120,80,20,.22));}
-.md-box-front.h-catbed{background-image:url(assets/holder_catbed_front.webp);}
-.md-box-back.h-tokri{background-image:url(assets/holder_tokri_back.webp);filter:drop-shadow(0 8px 9px rgba(110,70,20,.24));}
-.md-box-front.h-tokri{background-image:url(assets/holder_tokri_front.webp);}
-/* a joke ON the object (data.gag - a pair of socks caught in the almirah's doors) */
-.md-gag{position:absolute;height:auto;pointer-events:none;z-index:2;opacity:0;transform-origin:50% 0;filter:drop-shadow(0 2px 2px rgba(60,40,20,.25));}
-.md-stage.in .md-gag{animation:mdFade .4s ease-out .5s forwards;}
+/* [night-window] G2b's window (MDK.nightWindow): the supplied night window as its own layer, its shadow on the wall (the light:
+   upper left); over its moon a soft warm glow that slowly breathes, on its stars a small twinkle each, in its own time
+   (review 2026-10-01: "make the moon shine a bit and the stars twinkle - don't overdo it") */
+.md-win{position:absolute;z-index:0;pointer-events:none;opacity:0;}
+.md-stage.in .md-win{animation:mdFade .5s ease-out .1s forwards;}
+.md-win-art{position:absolute;left:0;top:0;width:100%;height:100%;filter:drop-shadow(6px 8px 10px rgba(0,0,0,.26));}
+.md-win-moon{position:absolute;translate:-50% -50%;border-radius:50%;mix-blend-mode:screen;opacity:.4;
+  background:radial-gradient(closest-side,rgba(255,246,200,.7),rgba(255,236,170,.26) 45%,rgba(255,230,160,0));animation:winMoon 6.5s ease-in-out infinite;}
+@keyframes winMoon{0%,100%{opacity:.32;scale:.97;}50%{opacity:.62;scale:1.03;}}
+.md-win-star{position:absolute;width:7px;height:7px;translate:-50% -50%;opacity:0;mix-blend-mode:screen;
+  background:radial-gradient(circle,#FFFFFF 0 22%,rgba(255,250,225,.7) 40%,rgba(255,245,210,0) 72%);
+  animation:winStar var(--t,5s) ease-in-out var(--d,0s) infinite;}
+@keyframes winStar{0%,35%,100%{opacity:0;}55%{opacity:.6;}75%{opacity:0;}}   /* a soft brightening, no rays, a few at a time */
+@media (prefers-reduced-motion:reduce){.md-stage.in .md-win{animation:none;opacity:1;}.md-win-moon{animation:none;opacity:.55;}.md-win-star{animation:none;opacity:0;}}
+/* G2b's cloud tub (it replaced the cat bed, review 2026-10-01): a contact shadow and a faint one on the wall - its shadow on the
+   floor is .md-shadow-floor (the light: upper left, in front) */
+.md-box-back.h-cloudtub{background-image:url(assets/holder_cloudtub_back.webp);filter:drop-shadow(0 2px 1.5px rgba(70,50,80,.32)) drop-shadow(8px 6px 8px rgba(70,50,80,.16));}
+.md-box-front.h-cloudtub{background-image:url(assets/holder_cloudtub_front.webp);}
+/* G3's woven basket (it replaced the tokri, review 2026-10-01): a contact shadow and a faint one on the wall - its shadow on
+   the floor is .md-shadow-floor (the light: upper left, in front) */
+.md-box-back.h-wicker{background-image:url(assets/holder_wicker_back.webp);filter:drop-shadow(0 2px 1.5px rgba(90,58,24,.32)) drop-shadow(8px 6px 8px rgba(90,58,24,.16));}
+.md-box-front.h-wicker{background-image:url(assets/holder_wicker_front.webp);}
 .md-stage.in .md-box-back.empty,.md-stage.in .md-box-front.empty{animation:mdFadeOut .5s ease-in forwards;}
 /* ==== [t3-room] T3, the door's room (review 2026-09-30): the cubes in the arms of a man in a painting on the wall (MDK.wallPainting), a wooden
    floor with a skirting board, a warm light in the gap under the door spilling onto the floor ==== */
@@ -2768,6 +2803,33 @@ body.is-start .sg-sky{
 .cm-x .md-obj{filter:drop-shadow(0 6px 8px rgba(12,46,92,.16));}
 .cm .md-obj.cm-right{scale:1.03;filter:drop-shadow(0 0 3px #1DB954) drop-shadow(0 0 3px #1DB954) drop-shadow(0 0 14px rgba(29,185,84,.7));}
 .cm .md-obj.cm-dim{filter:saturate(.55) opacity(.7);}
+/* [rider] P1 (review 2026-10-01: "add cat and turtle only on the chair, cat a little big and turtle small, non distracting"
+   + "add small motion in these 2 - small, non distracting ones"): the cat asleep on the short chair's seat, the turtle on
+   the tall one's (data item.rider). Each drops in with its chair, then barely moves: the cat breathes - a slow swell from
+   its seat - and the turtle sways a little, now and then; each dims with its chair. */
+.cm-rider{position:absolute;z-index:2;pointer-events:none;opacity:0;transform-origin:50% 100%;transition:filter .3s;}
+.md-stage.in .cm-rider{animation:pkDrop .7s cubic-bezier(.3,1.3,.55,1) forwards;}
+.cm-rider.cm-dim{filter:saturate(.55) opacity(.7);}
+.cm-rider-art{display:block;width:100%;height:100%;transform-origin:50% 100%;filter:drop-shadow(0 2px 2px rgba(60,40,20,.18));}
+.cm-rider-art.breathe{animation:riderBreathe 3.6s ease-in-out .9s infinite;}
+.cm-rider-art.bob{animation:riderBob 3.2s ease-in-out .9s infinite;}
+@keyframes riderBreathe{0%,100%{scale:1 1;}50%{scale:1.012 1.045;}}
+@keyframes riderBob{0%,100%{translate:0 0;rotate:0deg;}25%{translate:0 -2px;rotate:-2deg;}50%{translate:0 0;rotate:0deg;}75%{translate:0 -1px;rotate:1.5deg;}}
+@media (prefers-reduced-motion:reduce){.md-stage.in .cm-rider{animation:none;opacity:1;}.cm-rider-art.breathe,.cm-rider-art.bob{animation:none;}}
+/* [count-card] G4 (review 2026-10-01: "replace these boxes with the correct box layout, take help from HI01H01_L02_S04 -
+   only in this slide"): each mat's count in that game's answer card (its .opt-cell) instead of the gold badge - white, a
+   pale blue edge, rounded, its soft navy shadow, the label in its navy 800 / 26px; the longer mat's card in its correct
+   green. data.count_box "card" (COMPARE_MEASURED); every other slide keeps the badge. */
+/* review 2026-10-01: "increase the size of these 2 boxes and shift them a little down, and the right answer will only
+   have a green outline": 76px tall (was 60), 32px text (was 26), 18px lower; the right one keeps the white card and its
+   shadow - only its outline turns green (it had a green fill) */
+.cm-count{position:absolute;z-index:14;pointer-events:none;box-sizing:border-box;height:76px;padding:2px 38px 0;translate:-50% 0;margin-top:18px;
+  display:flex;align-items:center;justify-content:center;white-space:nowrap;
+  background:#fff;border:2px solid #EEF3FA;border-radius:26px;box-shadow:0 12px 28px rgba(11,61,140,.14),0 2px 6px rgba(11,61,140,.06);
+  font-family:var(--font-hi);font-size:32px;font-weight:800;line-height:1.1;color:var(--navy);opacity:0;scale:.6;}
+.cm-count.ok{border:3px solid var(--correct);}
+.cm-count.in{animation:cmCountIn .45s cubic-bezier(.3,1.4,.5,1) forwards;}
+@keyframes cmCountIn{to{opacity:1;scale:1;}}
 
 /* ---- [measure kit] MATCH_MEASURE (P2, P3): the object cards (the deck's yellow / blue / green), their dashed box
    slots, the dashed end lines, the measurement boxes (green / blue / yellow dashed) and their locked state ---- */
@@ -2782,9 +2844,15 @@ body.is-start .sg-sky{
 .mm-slot{position:absolute;box-sizing:border-box;border:3px dashed rgba(96,112,140,.42);border-radius:18px;background:rgba(255,255,255,.6);z-index:1;opacity:0;}
 .md-stage.in .mm-slot{animation:mdFade .4s ease-out .5s forwards;}
 .mm-guide{position:absolute;pointer-events:none;z-index:2;opacity:0;}
-.md-stage.in .mm-guide{animation:mdFade .4s ease-out .7s forwards;}
-.mm-guide.v{width:0;border-left:2.5px dashed rgba(40,40,40,.7);}
-.mm-guide.h{height:0;border-top:2.5px dashed rgba(40,40,40,.7);}
+/* the end lines on P3's cards and P4's measuring view (review 2026-10-01: "the dotted lines are not looking good enough
+   as per their responsibility" / "not really looking great" - thin grey dashes): the game's own end line (.md-line) -
+   white rounded dashes with a blue core, seen on any picture - a little slimmer, centred on the end, drawn in */
+.md-stage.in .mm-guide.v{animation:mdDrawV .5s ease-out .7s forwards;}
+.md-stage.in .mm-guide.h{animation:mdDrawH .5s ease-out .7s forwards;}
+.mm-guide.v{width:9px;translate:-50% 0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='16'%3E%3Crect x='.5' y='.5' width='9' height='13' rx='4.5' fill='%23fff'/%3E%3Crect x='2.5' y='2.5' width='5' height='9' rx='2.5' fill='%232458C6'/%3E%3C/svg%3E") center top/9px 14.4px repeat-y;
+  filter:drop-shadow(0 0 1.2px rgba(20,40,90,.45)) drop-shadow(0 1px 1px rgba(20,40,90,.2));}   /* (the white dash edged, so it shows on cream too) */
+.mm-guide.h{height:9px;translate:0 -50%;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Crect x='.5' y='.5' width='13' height='9' rx='4.5' fill='%23fff'/%3E%3Crect x='2.5' y='2.5' width='9' height='5' rx='2.5' fill='%232458C6'/%3E%3C/svg%3E") left center/14.4px 9px repeat-x;
+  filter:drop-shadow(0 0 1.2px rgba(20,40,90,.45)) drop-shadow(0 1px 1px rgba(20,40,90,.2));}
 .mm-box{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:18px;
   border:3.5px dashed var(--bx-b);background:var(--bx-bg);box-shadow:0 4px 0 var(--bx-sh);z-index:12;opacity:0;
   font-family:var(--font-hi);font-weight:800;font-size:30px;color:#012F76;white-space:nowrap;padding-bottom:2px;
@@ -2805,7 +2873,7 @@ body.is-start .sg-sky{
 .mm-card.mm-ph.ok{box-shadow:0 0 0 4px #1DB954,0 10px 18px rgba(70,45,20,.24);}
 .mm-pic{position:absolute;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(60,40,20,.08),inset 0 8px 14px rgba(60,40,20,.06);}
 .mm-deco{position:absolute;left:50%;pointer-events:none;z-index:3;filter:drop-shadow(0 3px 2px rgba(50,30,10,.3));}
-.mm-deco.pin{width:44px;top:-26px;translate:-40% 0;}
+.mm-deco.pin{width:40px;top:-30px;translate:-30% 0;}   /* (the HD pin, 240 x 298: its needle's tip at its foot, left - on the card's top edge) */
 .mm-deco.magnet{width:62px;top:-30px;translate:-50% 0;rotate:-8deg;}
 .mm-slot.at-board,.mm-slot.at-fridge{border:2.5px dashed rgba(120,96,70,.4);border-radius:8px;background:rgba(250,244,232,.8);}
 .mm-box.lb-board,.mm-box.lb-fridge{border:none;background:none;box-shadow:none;border-radius:0;font-size:29px;
@@ -2820,16 +2888,54 @@ body.is-start .sg-sky{
 .lb-board .mm-str{position:absolute;left:-30px;top:14%;width:44px;height:36px;border:2.5px solid #D2463B;border-right:none;border-radius:50% 0 0 50%;}
 .lb-board .mm-txt{padding-left:22px;}
 .mm-tagpin{position:absolute;left:1%;top:50%;width:34px;translate:-18% -78%;z-index:2;pointer-events:none;}
+/* P2's supplied tags (data.tags, review 2026-10-01: "replace it with good quality assets"): the picture is the tag - its
+   card body fills the box, its red loop hangs out on the left; it swings on its own hole (set inline) */
+.mm-box.tagimg{overflow:visible;}
+.md-stage.in .mm-slot.filled{animation:mdFadeOut .3s ease-in forwards;}   /* its tag pinned on: the dashed slot goes */
+/* P2's HD photo card (data.card, review 2026-10-01: "replace the white sticky notes with these HD quality assets"): the
+   supplied card, 9-sliced onto its own canvas (.mm-cardcv, app.js paintCard - not border-image: "there are lines in the
+   white note paper" - its slices' hairline seams) - its own white frame, cream window and edge; its shadow follows it;
+   the label slot drawn as the card's own was (its dashes, its cream, its corners). No ring once matched (review
+   2026-10-01: "remove green outlines - only the green outline on the tags, and it goes away") */
+.mm-card.mm-ph.hd{background:none;border:none;border-radius:13px;box-shadow:none;filter:drop-shadow(0 8px 10px rgba(70,45,20,.26));}
+.mm-cardcv{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
+.mm-card.mm-ph.hd.hover{box-shadow:0 0 0 5px rgba(47,130,222,.4);}
+.mm-slot.hd{border:2.5px dashed #B6A290;border-radius:12px;background:#F7F3ED;}
+.mm-card.mm-ph.hd .mm-pic{border-radius:8px;box-shadow:none;}   /* (P3: its scene in the card's window, its corners) */
+/* P3's supplied cards, whole (item.art, review 2026-10-01: "replace the assets on this screen with the attached HD quality
+   assets"): the picture is the card - its white frame, its scene with the blocks drawn on, its fruit magnet, its soft
+   shadow; the card element is only its body (the hover / right ring, the drop); the label slot drawn as the picture's
+   was (its brown dashes, its cream), where it was. Its sticky notes are supplied pictures too, their shadow drawn on */
+.mm-card.mm-ph.art{background:none;box-shadow:none;}
+.mm-card.mm-ph.art.hover{box-shadow:0 0 0 5px rgba(47,130,222,.4);}
+.mm-card.mm-ph.art.ok{box-shadow:none;}   /* (no ring once matched - review 2026-10-01: "remove green outlines, only the green outline
+                                            will come on the yellow options and go away": the note's, mmOkGlowFlat) */
+.mm-art{position:absolute;max-width:none;pointer-events:none;user-select:none;-webkit-user-drag:none;}
+/* (review 2026-10-01: "decrease the size of circle pins", "bottle is longer than the cube"): its magnet, object, blocks
+   and end lines are the game's now, laid on the card's room (app.js [art]) - the magnet in its box (MAG), upright,
+   over the blocks; the object on the shelf with a soft shadow, as the blocks have */
+.mm-deco.magnet.art{translate:none;rotate:0deg;object-fit:contain;z-index:5;}
+.mm-card.art .md-obj{filter:drop-shadow(0 3px 3px rgba(70,40,15,.28));}
+.mm-slot.art{border:2px dashed #BC855A;border-radius:10px;background:#FCF7EE;}
+.mm-box.lb-fridge.tagimg{filter:none;}
+.md-stage.in .mm-box.lb-fridge.tagimg.ok{animation-name:mmOkGlowFlat;}   /* (its own picture's shadow: the outline fades to nothing) */
+@keyframes mmOkGlowFlat{0%,45%{filter:drop-shadow(3px 0 0 #1DB954) drop-shadow(-3px 0 0 #1DB954) drop-shadow(0 3px 0 #1DB954) drop-shadow(0 -3px 0 #1DB954);}
+  100%{filter:drop-shadow(3px 0 0 rgba(29,185,84,0)) drop-shadow(-3px 0 0 rgba(29,185,84,0)) drop-shadow(0 3px 0 rgba(29,185,84,0)) drop-shadow(0 -3px 0 rgba(29,185,84,0));}}
+.mm-tagimg{position:absolute;width:auto;max-width:none;pointer-events:none;user-select:none;-webkit-user-drag:none;}
 /* the sticky note: pad yellow, its glue strip a shade darker, the bottom-right corner curling up */
 .lb-fridge{color:#23408F;}
 .lb-fridge .mm-shape{background:linear-gradient(180deg,#F7D65C 0,#F7D65C 14%,#FFE680 14%,#FFE27A 100%);clip-path:polygon(0 0,100% 0,100% 64%,91% 100%,0 100%);}
 .lb-fridge .mm-curl{position:absolute;right:0;bottom:0;width:9.5%;height:36%;background:linear-gradient(135deg,#E9C24C 0,#FFF0AA 48%,rgba(0,0,0,0) 50%);}
 .mm-box.lb-board.lift,.mm-box.lb-fridge.lift{scale:1.07;filter:drop-shadow(0 14px 12px rgba(40,25,10,.3));box-shadow:none;}
-.mm-box.lb-board.ok,.mm-box.lb-fridge.ok{filter:drop-shadow(3px 0 0 #1DB954) drop-shadow(-3px 0 0 #1DB954) drop-shadow(0 3px 0 #1DB954) drop-shadow(0 -3px 0 #1DB954) drop-shadow(0 3px 2px rgba(60,40,20,.28));}
+/* a matched tag / note: the green outline round it, then it fades away (review 2026-10-01: "only the green outline will
+   come on the tags and go away" - as the blocks' does) */
+.md-stage.in .mm-box.lb-board.ok,.md-stage.in .mm-box.lb-fridge.ok{opacity:1;animation:mmOkGlow 1.6s ease-out forwards;}
+@keyframes mmOkGlow{0%,45%{filter:drop-shadow(3px 0 0 #1DB954) drop-shadow(-3px 0 0 #1DB954) drop-shadow(0 3px 0 #1DB954) drop-shadow(0 -3px 0 #1DB954) drop-shadow(0 3px 2px rgba(60,40,20,.28));}
+  100%{filter:drop-shadow(3px 0 0 rgba(29,185,84,0)) drop-shadow(-3px 0 0 rgba(29,185,84,0)) drop-shadow(0 3px 0 rgba(29,185,84,0)) drop-shadow(0 -3px 0 rgba(29,185,84,0)) drop-shadow(0 3px 2px rgba(60,40,20,.28));}}
 .mm-fit{position:absolute;z-index:3;pointer-events:none;filter:drop-shadow(0 3px 3px rgba(60,40,20,.22));}
 @media (prefers-reduced-motion:reduce){
   .md-stage.in .mm-card,.md-stage.in .mm-slot,.md-stage.in .mm-guide,.md-stage.in .mm-box{animation:none;opacity:1;}
-  .mm-guide{opacity:.75;}
+  .mm-guide{opacity:1;}
 }
 
 /* ---- [measure kit] CLASSROOM_FIT (P4, the classroom game): the room and its spaces (dashed; they pulse while the
@@ -2837,6 +2943,13 @@ body.is-start .sg-sky{
    the measuring view; the measured object dragged as one card; an object standing in its space ---- */
 .cf-room{position:absolute;border-radius:22px;overflow:hidden;box-shadow:0 0 0 3px #fff,0 6px 16px rgba(12,46,92,.14);transition:opacity .45s;}
 .cf-room-bg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;user-select:none;}
+/* the room's HD pictures (app.js [CLASSROOM_FIT] data.room): the window, the door, the clock; the bunting's rope (drawn
+   as the supplied garland's: a dark brown cord with a light top) and its supplied flags, one strip sliced per flag */
+.cf-deco{position:absolute;height:auto;pointer-events:none;user-select:none;-webkit-user-drag:none;}
+.cf-rope{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+.cf-rope path{fill:none;stroke:#6A3A0E;stroke-width:3.4;stroke-linecap:round;}
+.cf-rope path.hi{stroke:#D3A26C;stroke-width:1.3;}
+.cf-flag{position:absolute;background-repeat:no-repeat;pointer-events:none;filter:drop-shadow(0 2px 1.5px rgba(80,50,20,.22));}
 .cf-space{position:absolute;box-sizing:border-box;border:3px dashed rgba(47,130,222,.75);border-radius:10px;background:rgba(255,255,255,.4);
   transition:border-color .2s,background-color .2s;}
 .cf.cf-placing .cf-space:not(.filled){animation:cfPulse 1.3s ease-in-out infinite;}

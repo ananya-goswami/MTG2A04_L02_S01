@@ -1,68 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1033 340" width="1033" height="340" role="img" aria-label="कक्षा">
-  <!-- The classroom of the classroom game (P4, SME deck pages 12-13): a front view - the back wall with bunting, a
-       wainscot band and a clock, the window on the left, the door on the right, the floor with its tiles. The four
-       empty spaces (the blackboard's on the wall, the chair's beside the window, the almirah's in the right corner,
-       the bench's on the floor between two markers) are drawn over it by app.js [CLASSROOM_FIT], in these same px. -->
+  <!-- The classroom of the classroom game (P4, SME deck pages 12-13): a front view - the back wall with a wainscot
+       band, the floor with its tiles. Its bunting, clock, window and door are the supplied HD pictures (review
+       2026-10-01: "use these hd images and replace the assets in last game screen"), laid on it by app.js
+       [CLASSROOM_FIT] from data.room; the four empty spaces (the blackboard's on the wall, the chair's beside the
+       window, the almirah's in the right corner, the bench's on the floor between two markers) are drawn over it
+       there too, in these same px. -->
   <defs>
     <linearGradient id="crWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6E6"/><stop offset="1" stop-color="#FCE9CF"/></linearGradient>
     <linearGradient id="crFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9D6BA"/><stop offset="1" stop-color="#DCC5A4"/></linearGradient>
-    <linearGradient id="crSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86CFF8"/><stop offset="1" stop-color="#D8F2FF"/></linearGradient>
-    <linearGradient id="crBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#57A9E6"/><stop offset="1" stop-color="#2E7CC0"/></linearGradient>
-    <linearGradient id="crDoor" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C98543"/><stop offset="1" stop-color="#A9632C"/></linearGradient>
-    <linearGradient id="crSill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D99552"/><stop offset="1" stop-color="#A9632C"/></linearGradient>
-    <clipPath id="crGlass"><rect x="34" y="50" width="120" height="126" rx="2"/></clipPath>
   </defs>
   <!-- wall -->
   <rect width="1033" height="264" fill="url(#crWall)"/>
   <rect y="200" width="1033" height="64" fill="#F7DDBB"/>
   <path d="M0 200H1033" stroke="#E4C193" stroke-width="3"/>
-  <!-- bunting -->
-  <path d="M-4 8Q258 30 516 10T1037 10" fill="none" stroke="#B08B5E" stroke-width="2"/>
-  <g stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
-    <path d="M24 12.7L50 15.6L35 36Z" fill="#F93544"/>
-    <path d="M80 18L106 20.4L91 41Z" fill="#FFC21A"/>
-    <path d="M136 21.7L162 23.4L147 44Z" fill="#2F82DE"/>
-    <path d="M192 23.9L218 24.8L203 46Z" fill="#1DB954"/>
-    <path d="M248 24.6L274 24.7L259 46Z" fill="#8B2FC9"/>
-    <path d="M304 23.8L330 23L315 45Z" fill="#F93544"/>
-    <path d="M360 21.6L386 20.2L371 42Z" fill="#FFC21A"/>
-    <path d="M416 18.2L442 16.4L427 38Z" fill="#2F82DE"/>
-    <path d="M472 14.2L498 12.3L483 34Z" fill="#1DB954"/>
-    <path d="M528 10.3L554 9.3L539 31Z" fill="#8B2FC9"/>
-    <path d="M584 8.2L610 8L595 29Z" fill="#F93544"/>
-    <path d="M640 8.3L666 9.1L651 30Z" fill="#FFC21A"/>
-    <path d="M696 10.1L722 11.3L707 32Z" fill="#2F82DE"/>
-    <path d="M752 12.6L778 13.7L763 35Z" fill="#1DB954"/>
-    <path d="M808 14.4L834 14.9L819 36Z" fill="#8B2FC9"/>
-    <path d="M864 14.9L890 14.4L875 36Z" fill="#F93544"/>
-    <path d="M920 13.7L946 12.6L931 34Z" fill="#FFC21A"/>
-    <path d="M976 11.3L1002 10.1L987 32Z" fill="#2F82DE"/>
-  </g>
-  <!-- clock -->
-  <g transform="translate(660 62)">
-    <circle r="23" fill="#FFFFFF" stroke="#2F82DE" stroke-width="5"/>
-    <g stroke="#9AA6B8" stroke-width="2.2" stroke-linecap="round"><path d="M0-16V-13M0 13V16M-16 0H-13M13 0H16"/></g>
-    <path d="M0 0V-11M0 0L8 5" stroke="#012F76" stroke-width="3" stroke-linecap="round"/>
-    <circle r="2.6" fill="#F93544"/>
-  </g>
-  <!-- window -->
-  <rect x="24" y="40" width="140" height="146" rx="6" fill="url(#crBlue)" stroke="#1F4E79" stroke-width="2.6"/>
-  <rect x="34" y="50" width="120" height="126" rx="2" fill="url(#crSky)" stroke="#1F4E79" stroke-width="2.2"/>
-  <g clip-path="url(#crGlass)">
-    <circle cx="128" cy="74" r="12" fill="#FFD84D"/>
-    <path d="M46 92Q46 84 55 84Q58 76 67 78Q74 73 80 80Q89 80 89 89Q89 95 82 95H51Q46 95 46 92Z" fill="#FFFFFF"/>
-    <path d="M34 150Q70 136 100 146T154 142V176H34Z" fill="#8ED486"/>
-    <path d="M110 150Q114 134 128 132Q138 122 148 130Q156 132 156 146V176H110Z" fill="#6CC46A"/>
-    <path d="M52 176L80 50H96L68 176Z" fill="#FFFFFF" opacity=".18"/>
-  </g>
-  <g stroke="#1F4E79" stroke-width="2.2"><rect x="89" y="50" width="10" height="126" fill="url(#crBlue)"/><rect x="34" y="108" width="120" height="9" fill="url(#crBlue)"/></g>
-  <path d="M20 184H168Q170 184 170 186V193Q170 198 165 198H23Q18 198 18 193V186Q18 184 20 184Z" fill="url(#crSill)" stroke="#5A3314" stroke-width="2.4" stroke-linejoin="round"/>
-  <!-- door -->
-  <rect x="716" y="92" width="98" height="172" rx="4" fill="#8E5122" stroke="#5A3314" stroke-width="2.6"/>
-  <rect x="724" y="100" width="82" height="164" rx="3" fill="url(#crDoor)" stroke="#5A3314" stroke-width="2.2"/>
-  <rect x="736" y="112" width="58" height="40" rx="3" fill="url(#crSky)" stroke="#5A3314" stroke-width="2"/>
-  <rect x="736" y="166" width="58" height="84" rx="4" fill="none" stroke="#8E5122" stroke-width="2.4"/>
-  <circle cx="796" cy="190" r="5" fill="#FFC21A" stroke="#8E5122" stroke-width="1.6"/>
   <!-- floor -->
   <rect y="264" width="1033" height="76" fill="url(#crFloor)"/>
   <path d="M0 264H1033" stroke="#B98F5F" stroke-width="6"/>
