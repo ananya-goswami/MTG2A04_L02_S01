@@ -223,6 +223,37 @@ Signals (`signals_expected`): `slide_entered`, `slide_completed`, `pick_extreme_
 
 ## Status: 🧪 for SME review — every deck page built (2026-09-30).
 
+## One cube colour (2026-10-05)
+Review: "change all the cubes color to this blue ... throughout the game". Every live cube (MDK.cube, the landing row) is now the FIRST cube of `cubes_blue_row.webp` (its deep blue). The cubes drawn INTO art were recoloured to the same blue, each keeping its own shading: `pic_bench` / `pic_stool` / `pic_blackboard` (P2), `painting_cubes` / `painting_layers` / `painting_carrier` (T3's painting - its crayon sky untouched). `painting_upright`'s cube was already that blue.
+
+## FLN QA checklist pass (2026-10-05)
+Tagged `QA checklist 2026-10-05` in `app.js` / `style.css`.
+- **Title screen:** the greeting is re-recorded ("नमस्ते दोस्तों! ... आज हम सीखेंगे, किसी चीज़ की लंबाई कैसे मापते हैं।", 9.2s);
+  the speaker button is never disabled (review 2026-10-05: "this should not happen anywhere in the game" - the greyed
+  `.sg-vo.is-disabled` state is removed; a tap while the greeting plays is ignored, as on every speaker); the title fx + cube row now finish with
+  the greeting (fx starts at 0.3s, `SLOW` 1.2, cube `STEP` 280ms), so the play button goes live and PULSES the moment
+  it ends (was: 5s later, and ~3s after the greeting); while it pulses the pencil's eyes rest on it. Play tap: `sfx_play`.
+- **Audio:** standard SFX are files in `assets/sfx/` - the team's Standard SFX pack (2026-10-07), Ogg/Opus mono:
+  `sfx_correct`, `sfx_wrong`, `sfx_confetti` (with every confetti burst, at 0.45 - the pack's confetti is mastered hot),
+  `sfx_play` (the play button), `sfx_next` (every आगे tap). `sfx_nudge` (with every nudge hand) is still the FLN kit's
+  `burst.ogg` - the pack has no nudge sound. Background music: `assets/sfx/bgm.ogg` = the team's "Standard Background
+  Music 2" (the bouncy 4-min seamless loop; "1" is an 18s lo-fi loop), from the play tap on, looping, paused in the
+  background. Its level is baked into the file at -33 LUFS (~14.5dB under the VO; iOS ignores media `.volume`), and it
+  fades down a further 9dB under every VO clip. `bgm_game.ogg` for the practice game is not shipped (the lesson track
+  carries on); to add one, encode it at the same -33 LUFS and run `tools/gen_asset_sizes.js`.
+- **Phase gates:** each VO is now exactly its headline ("चलिए, शुरू करते हैं!", "चलिए, साथ में करें!", "अब आपकी बारी!"),
+  so the text appears only as Swiftie says it.
+- **Next button:** pulses as soon as it turns active.
+- **Idle nudges:** 7s everywhere (`IDLE_MS`; the card's `nudge_timeout_ms` per phase); P2/P3 got one (the hand on the
+  next box); a guided question re-asks itself after 7s idle.
+- **Guided feedback - 3 layers:** 1 clarify (`try_again`), 2 a strong hint with the procedure (`vo_hint_count`: count the
+  blocks laid / `vo_hint_compare`: more blocks is longer), 3 the wrong options lock and the right one glows with the hand
+  on it (`vo_hint_tap`) - the child taps it. Laying blocks: 1 `block_try`, 2 the rule (`vo_rule_a`), 3 the tile glows +
+  the hand shows the drag (`vo_hint_drag`). A wrong drop wiggles. No red anywhere: wrong = amber `#F5A524`.
+- **Order:** guided measuring runs easier to harder - G2b pillow (3, row) -> G1 bed (8, row) -> G2 almirah (4, column) ->
+  G3 fridge (4, column) -> G4.
+- **End screen:** VO is the standard "बहुत बढ़िया, दोस्त! तुमने कमाल कर दिया!".
+
 ## Internal QA before the push (2026-10-01)
 - **Played**, each slide in a fresh page the way a child would: the landing (its play button starts T1), T1 → CEL -
   every slide completes; the wrong-answer ladders (T1, G1 incl. a block laid off the row, G4, P2) give the sheet's hints,
@@ -304,6 +335,162 @@ Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` /
   frames and durations, still ≥ 840 device px at the largest size shown) it drops ~6. (3) It is fetched once and each
   gate restarts it from a `blob:` URL - the old `?r=` cache-bust re-downloaded 3.7MB per gate, a blank beat before her
   hands appeared.
+- `[peek-7]` (2026-10-05) still glitching after peek-6. The clip itself is clean (84 frames, a smooth rise, no
+  jumps between frames); the glitch is Chrome playing a big animated `<img>` with alpha under the gate's full-screen
+  backdrop blur, the same stalls/blank frames already measured on the landing. `app.js` `PeekPlayer` now decodes the
+  clip itself (WebCodecs `ImageDecoder`, the next frame decoded ahead, from the one `Assets` blob) and draws it on
+  `#phaseGateCv` at its displayed size; the clip clock starts on its first drawn frame. No `ImageDecoder` (e.g. iOS
+  WebView) or any error: the `<img>` path, unchanged.
+
+## Correct-cube outline (2026-10-05) — CSS `.md-block.ok` `[ok ring]`
+- Review: "the green outline on correct placement is not evident enough" (then: no white ring - only the green's shade).
+  Measured: #00B132 on the cube's blue was 1.25:1 (same lightness). Now ONE 4px ring (was 3px) of deep green #166534 -
+  the green with the most contrast on that blue (2.0:1), 3.7-6.6:1 on the floors / tabletop / grid. One rule for every
+  cube in the game; timing unchanged.
+
+## G1: the bed in a room (2026-10-05) — card data G1, CSS `#stage[data-bg="room"]`, `assets/obj_bed.webp`, `assets/bg_room.webp`
+- Review: "replace the charpai and background in this screen only with image 2 and 3, do not add the window and plant".
+  `obj_bed.webp`: the supplied bed cut-out, trimmed to its pixels, 1000×465 (ar 0.465, measured end to end: a0 0 / a1 1),
+  its four floor contacts in `feet` for [ground]. `bg_room.webp`: the mock-up's own cream wall, orange skirting board and
+  peach floor rebuilt row by row from a clean strip of it (no window, plant, props or UI) - 1333 px wide, wall meets floor
+  at row 738, pinned to the slide's `--horizon` like the other rooms. G1's `bg` is "room" (was "yard"); everything else
+  (8 cubes, the robot, the question and options) unchanged. `obj_charpai.webp` / `bg_yard_top.webp` stay in assets, unused.
+- The thin light line down the floor at the stage's right edge (review "I can see a line here"): at a fractional scale
+  (e.g. a 1920-wide window) the stage paints its own backdrop COLOUR in its last screen column, not the picture - the
+  wall colour, on the floor. The room's layer under the picture is now a gradient of the same wall / skirting / floor
+  bands, so that column matches. With it: every room backdrop is drawn 1px wider than the stage each side, and the
+  mirrored bands round the stage (`.stage-bleed`) reach 1px under it. Measured at 1920 / 1600 / 1366 wide: no step left.
+  (G2, G2b, G3's own backdrops show the same column at 1920 wide - not fixed yet.)
+
+## Three fixes (2026-10-05) — `app.js` `[robot gap]`, `[line outside]`, MDK.mark; CSS `.md-mark.ok/.no`
+- "why is there no space between the table and the robot?": on T2 the robot stands beside Swifty and the table was centred
+  regardless - its front-left foot met the robot. The table now centres only where that leaves 36px of floor
+  (`ROBOT_GAP`), else moves right, and shrinks only if it would leave the card.
+- "the cross in the purple circle is not in the middle": the ✕ / ✓ were font glyphs (Baloo / Noto Devanagari), placed by
+  the font's own metrics. They are drawn now (an SVG stroke, `background-position:center`): within half a px of centre.
+  Then ("why is the cross so small"): drawn at 78% of the circle on a fuller stroke - 17px across in the 38px circle,
+  the old glyph's size (it was ~10px).
+- "the pink dotted line is getting hidden behind the blue cube": each end line was centred ON the measured end, where the
+  first / last cube starts, so half its 10px was under the cube. Each line now stands just outside its end (inner edge on
+  it) - every screen with end lines (T2, T3, G1, G2, G2b, G3); checked: no line overlaps a cube or a tile.
+
+## T3: the column left of the door (2026-10-05) — `app.js` MEASURE_DEMO `[t3-left]`
+- Review: "place the dotted lines and cubes on the left side of the door - there is a lot of vacant space on the left".
+  The cube column stands left of the door now (its digits on its left, the "place here" arrow left of it pointing right -
+  `.md-arrow.right` / `mdBobXR`, the gap/overlap ✗ on that open side - `freeSpot(..., "left")`); the end lines run from
+  the column into the door's left side. The door moves right by the column + its gap (into the room the column had on
+  its right), because it started only 24px right of आगे - at 1333×750 the door is at x 896-1127, the column 806-882, clear
+  of आगे at every window size checked (1280×600, 1333×750, 1920×1080).
+- Then ("shift this door a little towards right"): +60px, the column and its lines with it (1333×750: door at x 611-842).
+- G2 (almirah) and G3 (fridge) the same (review: "same request for these 2 game screens", `app.js` MEASURE_ASK
+  `[g-left]`): the column stands left of the object, the end lines run from it into the object's left side, the robot
+  stays bottom-left - left of the column, at least 24px clear; the object is still centred. The cube size only shrinks if
+  the left half can't hold the object's half + the column + the robot (1333×750: unchanged, 88px).
+- (With it: the robot's aura also goes out while its cube is set down OFF the lid - the demo's gap/overlap step - via
+  `rb-away`, set by MDK.glide whenever a block goes anywhere but its home.)
+
+## "Start here" marker colour (2026-10-05) — CSS `.md-endmark` `[endmark colour]`
+- Review: "the yellow indicator is not visible enough on a white background". The demo's "start where the last block ends"
+  bar (T2, T3) was yellow `#FFC21A`: measured WCAG contrast 1.2-1.5 on the white grid paper, cream tabletop, wood and
+  tile floors (3:1 is the floor for a UI mark). Now deep purple `#6D28D9` (3.7-6.6 on all of them; no other mark in the
+  game uses that hue - green right, orange gap/overlap, red wrong, pink end lines, blue cubes), with a 2px white ring
+  that lifts it off the blue cube beside it, a purple glow, and its own beat that dims only to .85 (was .55).
+- Then (review: "yellow will change in all the tutorial part"): every teaching mark in the demo takes the same purple -
+  the gap / overlap box (`.md-err`, was orange `#F5A524`, ~2:1 on these backgrounds), its ✗ (`.md-mark.no`) and the
+  "place it here" arrow (`.md-arrow`, was `#FFB400`). Not changed: the game-wide wrong-ANSWER amber (`--wrong`, an
+  option's border), the gold buttons, and P4's yellow/black measuring stripes (`.cf-marker`, not the tutorial).
+
+## Measured objects on the floor (2026-10-05) — `app.js` MDK `ground` `[ground]`, CSS `[ground]`, data `obj.feet` / `items[].feet`
+- Review: "add correct shadow effects so that they look placed correctly on the floor - the main elements whose length we
+  measure with the cubes". As T1's tables: each object's floor contacts, measured from its alpha, are in the card data -
+  `feet: [[x centre, y bottom, width], ...]` (fractions of the picture), four (front-left, back-left, back-right,
+  front-right: the table, the charpai, both chairs) or its contacts left to right (the almirah's and fridge's feet, the
+  door frame's posts, the pillow's whole underside) with `ground_depth` (how far back the floor under it reaches).
+  Drawn: a dark contact shadow centred on each foot's bottom, behind the picture, and the floor under it shaded (the
+  polygon through the feet, blurred - for two contacts the blur is scaled to the thin gap under the base, or it wipes
+  it out). It replaces the old single ellipse (`.md-shadow`) wherever feet are given.
+- The mats (G4) lie flat: `ground: "flat"` - a short tight shadow round their own outline (`.gnd-flat`).
+- Re-measure `feet` if a picture is replaced.
+
+## The robot mop (2026-10-05) — `app.js` MDK `robot` `[robot]`, CSS `[robot]`, `assets/robot_*.webp`
+- Review: "in all game screens replace these cube boxes with the robot ... beside Swifty on the left side and only 1 cube
+  in the same front view position above it; image 2 throughout, image 3 with every correct answer, 4 with every wrong
+  answer". Every measuring slide's holder is the robot now: T2's toy box, T3's painting, G1's basket, G2's laundry
+  basket, G2b's cloud tub, G3's wicker basket (`data.keep_holder: true` on a slide brings its old holder back - the code
+  is all still there). It stands on the floor at the bottom left: beside the standing Swifty on T2/T3, under her header
+  circle on G1-G3; the measured object is centred.
+- One cube stands on its lid (in the cubes' usual front view); the child (and the demo hand) drags it from there. Once
+  it is placed the next cube rises out of it onto the lid (0.12s later, a 0.3s rise) - endless: when the row is full one
+  more still rises and stays on the lid (not draggable - the row is measured; `data.spare` is ignored with the robot). A wrong drop flies back onto the lid.
+- The cube waiting on the lid has a sky-blue halo: a blurred light BEHIND it (`.rb-aura`, MDK.robot - over the robot,
+  under the cube), slowly breathing (opacity only); it hides while the cube is carried or flying and comes back for the
+  next. (Review "this is really bad": the first version was the cube's own `::after` - a child paints OVER its parent,
+  so its pale ring sat on the cube's rim with rounder corners than the art: a hard double outline, flashing as it breathed.)
+- Expressions: `robot_body.webp` = the smiling robot (image 2); `robot_face_happy` / `_sad.webp` are ONLY the face screen
+  of images 3 / 4 (soft-edged) cross-faded over it in 0.2s, so the body never shimmers between the three renders.
+  Hearts on every correct cube the CHILD drops, closed eyes on every wrong one; back to the smile after 1.4s. Nothing
+  else changes its face (review: "don't show any expression in the tutorial parts"): not the demo hand, not the demo's
+  gap / overlap, not the answer options, not the finish. No result badge on the robot (review: "remove 6 blocks from
+  above the robot"). Review 2026-10-07 ("show it from under the table, let it come out for all these kinds of screens"):
+  the result comes back as the game's normal white answer box (`.md-count`: the answer cards' rim and edge, navy #012F76
+  text - not the gold badge), out from UNDER the measured object, on the conclusion VO's count word: T2 (`MDK.slipBox`) -
+  it waits hidden behind the tabletop + apron and slips down out from under the top into the gap between the legs (a
+  small overshoot and swing, then settles); T3 (`MDK.riseBox`) - it comes out of the light under the door (the light
+  flares) and stands in front of the door's foot.
+- Wrong placements (review 2026-10-07: "do not put the cube back on the robo mop ... make it disappear, and the new cube
+  will appear on the robo mop"): on every robot screen (MEASURE_DEMO T2/T3, MEASURE_ASK) a cube set down wrong - the
+  demo's gap / overlap and the child's wrong drops - is never carried back. It vanishes where it lies (a puff; the
+  child's wiggles first) and a new one rises onto the lid (`MDK.robot` `respawn`, `childMeasure` cfg.respawn).
+- Hearts: `react("happy")` shows the supplied pixel hearts again (`robot_face_happy.webp`, cross-faded over the live
+  eyes, two beats) - the live eyes' "^^" had replaced them (review 2026-10-07: "where is the heart-shaped eyes").
+- The entrance turn (T2 robot_enter) is a quick spin: the profile smears sideways (SVG horizontal blur), is swapped for
+  the front view at the smear's peak in one frame, and the front view settles sharp with swirl arcs round its base - no
+  cross-fade of the two drawings (review 2026-10-07: "it was looking like a two-image transition"). The robot itself never moves (review: "no movement, only his eyes") - it fades in, no pop. T3's painting finale (curtain + crayon answer) is gone with the painting.
+- Sources: the three supplied 1254×1254 PNGs (2026-10-05); body cropped to the robot and scaled to 600px wide.
+
+## Decor removed (2026-10-05) — card data, `app.js` COMPARE_MEASURED riders, `assets/obj_blackboard.webp`
+- Review: "remove these elements from particular game screens". Gone from the card data: G2b's night window
+  (`data.window`), G2's wall calendar (`data.calendar`), P1's turtle (the 2nd of `data.riders`), P4's bunting
+  (`data.room.bunting`); `prop_turtle` / `room_flags` left the image manifest. Each is drawn only when its data is
+  there, so no engine change was needed - except P1: with one rider left, `riders_random` now shuffles the SEATS, so the
+  cat still lands on a random chair.
+- `obj_blackboard.webp` (P4's answer card): the chalk "123", star, sun and wave are erased - the board's own shading
+  rebuilt under them (a masked blur of the surrounding green + fine grain); the tray's chalk sticks and duster kept.
+- The art files themselves (`obj_window_night`, `cal_*`, `prop_turtle`, `room_flags`) are still in `assets/`, unused.
+
+## End lines: shorter + pink (2026-10-05) — `app.js` `[short lines]`, CSS `[line colour]`
+- Review: "reduce the dotted line length too in all the screens, also change its color so that it doesn't blend with the
+  blue cubes". Every end line (`.md-line`, and P3/P4's `.mm-guide`) keeps its white rounded dash but its core is now the
+  landing's pink `#F03C8C` (was blue `#2458C6`), and `mdLineGlow` glows pink.
+- Lengths (1333×750): T2 from just above the row to the bottom of the top's front band, ≈104px (was down to the floor);
+  G1/G2b from the object's lower half (was its top) to the row; T3/G2/G3 horizontal lines from 60% across the object to
+  10px past the column (were from its left edge to 40px past the column - room the removed flags needed).
+- Whole dashes (review 2026-10-05: "I don't want any cut part in the dotted lines"): `.md-line` / `.mm-guide` repeat their
+  dash tile with `round` (was `repeat-y` / `repeat-x`), so every line starts and ends on a whole dash at any length. The
+  upright lines (T2, G1, G2b) also run one dash (16px) further down.
+
+## T2 cubes on the tabletop (2026-10-05) — `app.js` MEASURE_DEMO `[t2-on-top]`
+- Review: "in table game screens I want the cubes to come above the table and not down". T2 is the only slide that
+  measures a table (T1 only compares two). The row now stands ON the top: its base at `TOPY` 0.17 of
+  `obj_table_measure.webp` (the cream top runs 0.006..0.185, the olive edge band below it), still spanning a0..a1 (the
+  top's full width). `ROOM_UP` 58px is kept above the row for its digits and the "place here" arrow; the table gives up
+  size before that room (≈444px wide at 1333×750, was ≈482). End lines run from just above the row to the floor; the
+  toy box stands on the floor level with the front feet; the result plate's slot is between the legs.
+
+## No flags (2026-10-05) — `app.js` MDK `endLines` `[no flags]`
+- Review: "remove the flags throughout the game". The start / finish flags on the measuring slides' dashed end lines
+  are gone (T2, T3, G1-G3, G2b); the lines are unchanged and still end at the row's edge. MDK `flag()` and its wind loop
+  stay in the file (`windOn` drives other things with the same wind). The room bunting (`room_flags.webp`) is
+  decoration, not an end-line flag, and is kept.
+
+## T1 tables on the floor (2026-10-05) — `app.js` PICK_EXTREME `[T1 ground]`, CSS `[T1 ground]`, data `options[].feet`
+- Review: "these tables don't feel like they are placed on the floor". The one flat navy ellipse sat under the front
+  feet only, but both pictures are drawn in perspective (back feet ~20% of the picture higher), so the back legs floated.
+- Each table option now carries its four feet `[x centre, y bottom, width]` (fractions of the picture, measured from its
+  alpha; order front-left, back-left, back-right, front-right). From them: a tight dark contact shadow under each foot
+  (behind the picture, the foot covers its top half) + the top's soft shade on the floor between the four feet, in the
+  floor's warm brown. The shadow stays down while the table drops in, lifts (it lightens) or shakes. Re-measure `feet`
+  if a table picture is replaced.
 
 ## T2 table measuring layout (2026-09-30) — `app.js` `[t2-layout]` (MEASURE_DEMO, axis x), CSS `.md-box-*.open`
 - Own table art, `assets/obj_table_measure.webp` (supplied 2026-09-30: a green table with a cream top and two drawers,
@@ -356,7 +543,7 @@ Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` /
   the conclusion VO starting with it; confetti and Swiftee's cheer when it is done. It replaces the golden badge on this
   slide. `assets/painting_answer.webp` is the text in the Kalam handwriting font (SIL OFL; rendered to an image, the font
   is not shipped) with a hand's wobble, a 2.5° slope, rough waxy edges and diagonal crayon strokes;
-  `painting_answer_order.png` holds when each pixel is drawn (the letters' thinned skeleton walked in writing order). The
+  `painting_answer_order.webp` holds when each pixel is drawn (the letters' thinned skeleton walked in writing order). The
   count is BAKED into these two images: if T3's count changes, they must be regenerated. Reduced motion: no curtain, the
   written answer at once. The paper
   is, per cube, the paper under exactly its pixels - the stack split on the middle of the
@@ -600,6 +787,146 @@ SOFTWARE
   sensible counts, so they take `data.strip` - the objects in one row across the whole width, the boxes in a row under
   them (a little tighter: box 64px, padding 12) - and fewer cubes: P2 bench 7 → 4, board 5 → 3, stool 3 → 2 (boxes 2 / 4
   / 3); P3 window 5 → 3, bottle 3 → 2, TV 4 (boxes 3 / 4 / 2). Their VO says no numbers - nothing to re-record.
+
+## P2 / P3 match the following + P2 softboard (2026-10-06) — `app.js` MATCH_ROWS `[lines]`, CSS `[lines]` / `[softboard]`, card `data.join` / `data.bg`
+- Reviews: "redesign the background of this game play screen, see and analyse the previous errors in the background and
+  fix it" (P2) and "change the game mechanism of this game screen from drag and drop to match the following" (P2, then P3:
+  "same for this game screen also"); "take help from HI01H01_L02_S04_dist to understand and implement match the following".
+- **P2's background** - the errors in `bg_corkboard.webp` (2000x1125, its wooden frame painted in, drawn 100% x 100%):
+  - the bands round the stage (`#stageBleed`) mirror the backdrop, so the painted frame came back as a 2nd / 3rd frame on
+    the screen's sides with a seam down each;
+  - stretched off its own shape onto the 1333x750 stage, the frame's top and bottom were thinner than its sides, and the
+    bottom one sat under the nav;
+  - mid-brown speckled cork, the tone of the bench's wood and the yellow card's rim: the cards' edges, the dashed tags
+    and the beige empty slots sank into it.
+  - Now `data.bg "softboard"`: CSS only (no picture, nothing to stretch, no frame) - a light warm board, a faint pin-dot
+    weave, a soft light in the middle where the game is. Every layer mirrors onto itself, so the bands are seamless on
+    any screen shape. `slideArt` does not preload a `bg_softboard` file. `bg_corkboard.webp` is no longer used by any slide.
+- **Match the following** (`data.join "lines"`, P2 and P3): the three object cards stay side by side, the shuffled boxes
+  stand in a row under them (the empty drop slots are gone), a navy dot on each card's foot and each box's head (one
+  colour for all - the boxes' own tones would pair a card with the box of its colour). The child joins a card and a box:
+  drags from either dot / card / box to the other side (a blue line follows the finger), or taps one (it pulses) and
+  then the other. Right: the line draws on in green and stays, both dots green, the card's blocks flash, SFX. Wrong:
+  the line draws red, the card and the box flash red and shake, the line fades - then the same per-object ladder: #1
+  `try_again`, #2 its blocks counted with their digits, #3 the right box glows and the hand TRAVELS from the card's dot
+  to that box's dot, looping until the next pair (HI01's `travelNudge`, 28o: the hand shows the move, not just "this
+  one"). Never solved for the child (HI01 28l). Idle 7s: the hand under the next open card's dot. Same VO, same signals
+  (`match_correct`, `answer_wrong`), same XAPI. HI01 has no line-drawing game (its pair games are drag-to-zone), so
+  what was taken from it is its interaction rules, not a module.
+- The cube stays 74px on both (P2 bench 4 / board 2 / stool 1, P3 window 3 / bottle 1 / TV 2 - unchanged).
+- Then (review 2026-10-06, P2 + P3): "decrease the length of dotted lines" - the end lines ran the blocks' and the whole
+  object's length and 10px past both (card edge to card edge); now the blocks plus a short reach into the object
+  (0.45 cube), 4px over. "increase the size of all 6 boxes" - the size boxes 196 x 76 -> 236 x 92 (text 32 -> 38px) and
+  the cards' padding 12 -> 24, gap 10 -> 16 (the cube unchanged). "these 3 box size should be same" - every card is the
+  widest one's width, each object centred on its floor.
+- Rule check (the game's own patterns, measured at 1920x894, 1617x781, 1366x768, 1280x800, 2400x1080, 1024x768): one cube
+  size, the three cards one size, the three boxes one size, every cube / object / end line inside its card, nothing
+  outside the stage or overlapping, no box text overflowing - clean on both slides at every size. One break found and
+  fixed: the 3rd-rung hand ended ON the right box and covered its "<n> ब्लॉक्स" (the engine's hand rule [QA 12]: never on
+  a label) - it now travels from the box's dot UP to the card's dot and rests in the band between the rows.
+- Then (review 2026-10-07): "give more space between both the rows" - the lines' band 104 -> 150px (the group stays
+  centred: P2 60px / P3 33px left under the boxes); "place the assets in center of respective boxes" - each object with
+  its blocks sits in the middle of its card both ways (it stood on the card's floor), measured within 1px on all six.
+
+- Then (review 2026-10-07): "the pink dotted line are not clearly seen" - 4px #F03C8C dashes (7 on / 6 off) ran along
+  the blue cubes' and the wood's own edges and sank into them; now 6px, #E0137B, 10 on / 5 off, above the cubes, each
+  dash ringed in white (four 1px drop-shadows) plus a soft shadow (CSS `.mr .mr-end`). "replace bottle with bottle can"
+  (asked: the 20-litre water jar) - P3's bottle is now `obj_watercan.webp` (drawn for the game as an SVG in the objects'
+  cartoon style - blue ribbed jar, neck ring, cap, navy outline - rendered 440 x 910, ar 2.0682), item id `watercan`,
+  still 1 block tall (the box "1 ब्लॉक" unchanged; no VO names it). `obj_bottle.webp` removed from assets (ASSET_SIZES
+  regenerated, `node tools/gen_asset_sizes.js`).
+
+- Then (review 2026-10-07): "increase the size of stool a bit" - asked first (the cube stays 74, so a bigger stool either
+  stops measuring 1 block or becomes 2); chosen: P2 stool 1 -> 2 blocks (148px tall) and, to keep three different
+  answers, the blackboard 2 -> 3 blocks: P2 is bench 4 / board 3 / stool 2, boxes `[2, 4, 3]` (each still away from its
+  own card's column). P2's VO says no numbers - nothing to re-record. "image 2 boxes size should be same as that of image
+  1 boxes size" - the line cards are at least 300px tall (P3's, its window 3 blocks up), so P2 and P3's six cards are one
+  size, 328 x 300 (measured at all six screen sizes).
+
+- Then (review 2026-10-07): "replace the asset with these, these are better ones" - P2's three objects are the supplied
+  pictures, each cleaned of the faint specks round its cut-out (alpha < 30 cleared), cropped to the object and saved
+  600px wide: `obj_bench_p2.webp` (ar 0.4116), `obj_blackboard_p2.webp` (0.5934), `obj_stool.webp` (0.8349, replaced in
+  place - P2's only). The bench and board are NEW files: `obj_bench.webp` / `obj_blackboard.webp` stay for P4's classroom,
+  whose spaces are fitted to those pictures. The wider stool made the old fit rule (the three objects' widths summed)
+  drop P2's cube to 73px; with the line cards one width (the row / 3) each object is now fitted to its own card - 74px
+  again on both slides, every check clean at all six sizes.
+
+- Then (review 2026-10-07): "replace assets with these. use window and monitor from image 3" - P3's three objects are the
+  supplied art: `obj_watercan.webp` (the supplied 20-litre jar, ar 1.5967, replacing the one drawn for the game),
+  `obj_window.webp` (ar 0.872 - frame, sill, pot plant, a school seen through it) and `obj_tv.webp` (ar 0.7574 - a
+  monitor with a fish scene), the last two cut from the supplied sheet (its middle object, a water dispenser on a stool,
+  is not used). Cleaned: specks under alpha 30 cleared, and every soft edge pixel recoloured from its solid neighbours -
+  the sheet's cut-out had left ~870 red fringe pixels round the window and monitor. All three replaced in place (P3's
+  only). The new window is much wider for its height (0.87 vs 1.07): 3 blocks up beside its cubes it needs ~340px, over
+  the 328px card, which would have cut the cube below 74 - so the line screens (`.md-stage.mr.mr-wide`) take 100px more of
+  the stage's 150px side margins on each side (about the header's width) and every line card is the row's third: P2 and
+  P3's six cards are 395 x 300, the cube 74 on both, every check clean at all six screen sizes.
+
+- Then (review 2026-10-07): "increase the size of bottle jar with the number of cubes", the reviewer's set "window 4, jar 3,
+  monitor 2", then "whatever is logically more correct, but all 3 should be visible enough" and, for the monitor, "increase
+  the size of this altogether". P3 is now window 4 (296px up) / jar 3 (222px up) / monitor 2 - the monitor measured by its
+  HEIGHT now (`axis "y"`: ~195 x 148px, was 148 x 112 measured across) - boxes `[2, 4, 3]` (none under its own card; the
+  old `[3, 2, 1]` had the window's 3 straight under it). The cube stays 74. What gave: a 4-block window with its blocks
+  beside it is ~425px wide, over a third of the row, so the line cards are equal thirds only when every object fits one
+  (P2) and otherwise each fitted to its object, the row's spare width shared out (P3: 510 / 309 / 366px). Every line
+  card is one height, a 4-block object's (338px - padding 24 -> 16), on P2 and P3; the lines' band shrinks from 150 to
+  what is left (min 110 - 126px on both). The cube's width fit is the objects' summed widths again (never a third).
+
+- Then (review 2026-10-07): "change the match the following horizontal lines to vertical" - two COLUMNS now: the three
+  objects stacked on the left (one width, the widest object's; each card as tall as its object), the boxes stacked on
+  the right (spread over the cards' height), the lines run across; dots on each card's right edge and each box's left
+  edge. Asked first: no column of three measured objects holds a 74px cube in the ~580px scene (P3 needs 666px of objects
+  alone), and the reviewer chose "columns, smaller cubes" - the cube is the largest the stack allows: P2 57px, P3 48px
+  (every other screen 74, P1 85). Same counts, boxes, ladder, hand (it now travels across, from the box to the card's
+  dot), signals; both slides played through clean.
+
+- Then (review 2026-10-07): "after correct match the cubes should not show green outline" - a right pair no longer
+  flashes the object's cubes (`okFlash`); the card, the line, the dots and the box turn green, the cubes stay as they are.
+  Probed on P2 and P3: no cube carries `.ok` in the 1.2s after a match.
+
+- Then (review 2026-10-07): "remove hand nudge from match the following" + "see the figma keep the animation like this only
+  for the 1 time - implement this design from Figma" (FLN "Match the following", node 1162:29905: five frames - rest,
+  the hand demo, a drawn line, right, wrong). P2 / P3 now:
+  - no hand at all in play: no idle hand, no travelling hand on the 3rd wrong (the right card and box only light up blue);
+  - the Figma look: white cards and boxes, 2.69px #D5D8DF border (radius 16) -> #3B82F6 picked / aimed at, #00B132 right
+    (box text #059669), #EB5757 wrong; box text #5A7CAD; on each object a 21px #D9D9D9 dot with the "pull me" handle (14px
+    #5D85F5 stem + 10.67px dot), on each box a 21px ring (3px); the line 2px #5D85F5 ending in its 10.67px handle dot,
+    green kept when right (the ring then holds the dot), red when wrong (both cards, dot, ring) then gone;
+  - the demo, once per session (`window.MR_DEMO_SEEN`), after the instruction and only if the child has not touched yet:
+    the Figma hand (`assets/nudge_slide_right_v1.svg`, 185px turned 32.14deg; its fingertip measured at (+80, -10) from
+    its centre) lands on the first object's dot - card and dot blue - and slides two-thirds of the way to the box level
+    with it, the blue line and its handle dot under the fingertip; then it all clears (~3s). No box is lit, so it shows
+    the move without an answer. Any touch ends it. Reduced motion: no demo.
+  Verified headless: the demo frames, nothing left after it, P2 / P3 played through, the 3rd wrong with no hand, 0
+  console errors. Not run: P2 then P3 in one session (the once-only rests on the window flag).
+
+## P1 zoom (2026-10-07) — card `slides[P1].data.zoom`, `app.js` COMPARE_MEASURED
+- Review: "zoom in this screen a bit, do not change anything else". P1 (the two chairs) only: `data.zoom 1.15` scales
+  the slide's cube 74 -> 85px (the chairs, the cat and the blocks with it; the fit rules still cap it - nothing clipped at
+  1920x894, 1366x768, 1024x768, 2400x1080). Asked first, since it breaks "one cube size on every screen" (2026-10-06):
+  the reviewer chose P1 only - its cubes are now bigger than the other screens'. Every other slide has no `zoom`.
+- Verified headless (Chrome, 1920x894): P2 and P3 played through - a wrong pair, a drag pair, a tap-tap pair, all three
+  matched to the confetti; three wrong on one object reach the hand; 0 console errors.
+- Not changed: P3's fridge backdrop (`bg_fridge.webp`) - its painted gloss stripe and bottom edge show the same
+  mirrored-band kind of seam.
+
+## One 74px cube on every screen (2026-10-06) — `app.js` `MDK.CUBE`, card `slides[].data.n`
+- Reviews (in order): "define which will be the longest to shortest in order logically and then number of cubes as per
+  each particular asset"; "the cubes should look of the same size length and breadth and size in all game screen. image 4
+  [T2] has the perfect size of cube"; "zoom in so that assets looks bigger and more visible to the child along with the
+  cubes should also look bigger".
+- `MDK.CUBE` 76 → **74** (T2's own size - its table fits 6 at 74) and every measuring slide asks for exactly it:
+  MEASURE_ASK / COMPARE_MEASURED used to cap at 88, MATCH_ROWS at 76 (its padding / gap 16 / 14 → 12 / 10). Measured
+  74px on T2, T3, G1-G3, G2b, G4, P1, P2, P3 and all four P4 objects.
+- Counts are what fits at 74px. The tall screens (~400px high) hold 5: T3 door 5 (as before), G2 almirah 4 → 5 (options
+  4/5/6), G3 fridge 4 → 5 (options 4/5/6). P2 bench 7 → 4, board 5 → 2, stool 3 → 1 (boxes 1 / 4 / 2); P3 window 5 → 3,
+  TV 4 → 2, bottle 3 → 1 (boxes 3 / 2 / 1); P4 almirah 5 → 3 and chair 4 → 2, each space lower (`y` / `label` +72px) so
+  it still stands on the floor. Unchanged: T2 table 6, G1 bed 8, G2b pillow 3, G4 mats 5 / 6, P1 chairs 3 / 4, P4 bench
+  8, board 6. The P2 / P3 boxes say "1 ब्लॉक" (singular). T3's floor band under the door 24 → 4px.
+- The trade-off (the screen's height): with one cube for all, a realistic order (door 9 > bed 8 > almirah 7 > fridge 6)
+  only fits at 44px, which shrank the table, bed, pillow, mats and chairs. Tried the same day and dropped: 44px with
+  realistic counts, 66px with door 6, a per-slide zoom, and per-screen sizes with realistic tall counts.
+- Re-recorded: `vo_p6_ok` (almirah 5), `vo_p7_ok` (fridge 5). `vo_p4_done` (door 5) is the original clip.
 
 ## Measuring slides: flags, lines, ✓, Swifty (2026-09-30) — `app.js` MDK `flag` / `endLines` / `pose`, CSS `.md-flag` / `.md-line` / `.md-block.ok`
 - **Flags** (every measuring slide): the pole never moves - a silver pole, a gold ball, a small stand on the floor, drawn

@@ -1,6 +1,17 @@
 # VO_MANIFEST — MTG2A04_L02_S01
 
+
+**Re-recorded / added 2026-10-05 (FLN QA checklist):** same voice (Swara +0% +0Hz), x1.028, 0.28s lead / 0.36s tail,
+-18.5 LUFS, Opus 48 kHz mono 32 kbps. `vo_landing` (नमस्ते दोस्तों! मैं हूँ स्विफ्टी। आज हम सीखेंगे, किसी चीज़ की लंबाई कैसे
+मापते हैं। - 9.2s), `vo_pt_tutorial` (चलिए, शुरू करते हैं!), `vo_pt_guided` (चलिए, साथ में करें!), `vo_pt_practice` (अब
+आपकी बारी!), `vo_well_done` (बहुत बढ़िया, दोस्त! तुमने कमाल कर दिया!); new: `vo_hint_count` (G1-G3 hint: रखे हुए ब्लॉक्स को
+एक-एक करके गिनिए। जितने ब्लॉक्स हैं, उतनी ही लंबाई है।), `vo_hint_compare` (G4 hint: दोनों के ब्लॉक्स गिनिए। जिसके ब्लॉक्स
+ज़्यादा हैं, वही ज़्यादा लंबी है।), `vo_hint_tap` (3rd layer: देखिए, सही उत्तर यह है। इस पर टैप कीजिए।), `vo_hint_drag`
+(3rd layer, laying blocks: हाथ को देखिए, और ब्लॉक को वहीं रखिए।). Deleted: `vo_hint_mcq3_2` (replaced by `vo_hint_count`).
+The table below predates this pass for those clips.
 **59 VO clips + 1 sfx on disk · all 60 wired into the lesson** (FLN QA checklist 01: no unused assets in the build). Rebuilt 2026-09-30 when the lesson was re-made slide by slide to the SME deck (review: "follow the ppt slides instructions"): every line the deck gives now has a slide that plays it, so the clips set aside earlier (T3's heading / explain / child lines, the bed / almirah / pillow / fridge questions, the pillow page, the classroom game's intro and "choose the space" line) are back, from the same renders; the lines only the old slides needed are deleted (below). The wrong-answer help follows the FLN hint logic sheet (review: "for the hint part follow the excel sheet, not the slides"): its 8 lines were rendered in the same voice with the same re-time (a re-render of `vo_try_again` came out within 0.02s and 0.1 LU of the shipped clip), and the deck's own hint lines it replaced are deleted.
+
+**Re-recorded 2026-10-06 (one 74px cube - see README):** `vo_p6_ok` (almirah 5), `vo_p7_ok` (fridge 5) - edge-tts Swara +0% +0Hz, interior pauses pulled in to ~0.37s, x1.028 (atempo), 0.28s lead / 0.36s tail, -18.5 LUFS, Opus 48 kHz mono 32 kbps. `vo_p4_done` (door 5), `vo_p3_done`, `vo_p5_ok`, `vo_p6b_ok` are the original clips.
 
 **Re-recorded 2026-10-01:** `vo_p4_done` (the door is now 5 blocks), `vo_p6_ok` (the almirah 4), `vo_p7_ok` (the fridge 3; re-recorded again for 4 - review 2026-10-01 "increase the size of refrigerator") - their counts changed with the one cube size - from the card's own texts, in the same voice through the same pipeline (edge-tts Swara +0% +0Hz -> the HI01 re-time at x1.028 -> Opus 48 kHz mono 32 kbps, -18.5 LUFS). T3's `count_at` (the badge pops on the count word) is 2.12s in the new `vo_p4_done`: edge-tts's word timing mapped through the re-time, checked against T2's `vo_p3_done` (this method: 1.96s, its measured 1.92s).
 
@@ -58,13 +69,13 @@ Voice: `hi-IN-SwaraNeural` (edge-tts) at pitch `+0Hz`, rate `+0%` — Swara's na
 | `vo_p5_ok` | 3.7s | शाबाश! पलंग की लंबाई 8 ब्लॉक्स है। | G1 correct | PPT slide 7 (Page 5) correct VO |
 | `vo_p6_ask` | 3.5s | अब बताइए, अलमारी की लंबाई कितनी है? | G2 question (after the measuring) | PPT slide 8 (Page 6) post-measure VO |
 | `vo_p6_instr` | 2.9s | अलमारी की लंबाई ब्लॉक से मापिए। | G2 prompt | PPT slide 8 (Page 6) Instruction OST/VO |
-| `vo_p6_ok` | 3.8s | शाबाश! अलमारी की लंबाई 4 ब्लॉक्स है। | G2 correct | PPT slide 8 (Page 6) correct VO |
+| `vo_p6_ok` | 4.1s | शाबाश! अलमारी की लंबाई 5 ब्लॉक्स है। | G2 correct | PPT slide 8 (Page 6) correct VO |
 | `vo_p6b_ask` | 3.3s | अब बताइए, तकिये की लंबाई कितनी है? | G2b question (after the measuring) | PPT slide 9 (Page 6, the pillow) post-measure VO |
 | `vo_p6b_instr` | 2.7s | तकिये की लंबाई ब्लॉक से मापिए। | G2b prompt | PPT slide 9 (Page 6, the pillow) Instruction OST/VO |
 | `vo_p6b_ok` | 3.6s | शाबाश! तकिये की लंबाई 3 ब्लॉक्स है। | G2b correct | PPT slide 9 (Page 6, the pillow) correct VO |
 | `vo_p7_ask` | 3.3s | अब बताइए, फ्रिज की लंबाई कितनी है? | G3 question (after the measuring) | PPT slide 10 (Page 7) post-measure VO |
 | `vo_p7_instr` | 2.7s | फ्रिज की लंबाई ब्लॉक से मापिए। | G3 prompt | PPT slide 10 (Page 7) Instruction OST/VO |
-| `vo_p7_ok` | 3.6s | शाबाश! फ्रिज की लंबाई 4 ब्लॉक्स है। | G3 correct | PPT slide 10 (Page 7) correct VO |
+| `vo_p7_ok` | 3.9s | शाबाश! फ्रिज की लंबाई 5 ब्लॉक्स है। | G3 correct | PPT slide 10 (Page 7) correct VO |
 | `vo_p8_ask` | 4.0s | कौन-सी चटाई ज़्यादा लंबी है? उस पर टैप करिए। | G4 prompt | PPT slide 11 (Page 8) VO |
 | `vo_p8_ok` | 3.4s | शाबाश! यह चटाई ज़्यादा लंबी है। | G4 correct | PPT slide 11 (Page 8) correct VO |
 | `vo_p9_ask` | 4.0s | कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए। | P1 prompt | PPT slide 12 (Page 9) VO |

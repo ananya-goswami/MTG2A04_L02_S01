@@ -1,23 +1,106 @@
 const CARD = JSON.parse(document.getElementById('cardData').textContent);
-  const AUDIO_EXT = (CARD.assets && CARD.assets.audio_ext) || "mp3";  // .mp3 (maths) / .ogg (Hindi FLN)
-  const IMG_EXT   = (CARD.assets && CARD.assets.img_ext)   || "png";  // .png (working) / .webp (delivered/FLN) — twin of AUDIO_EXT (fixes A3)
+  const AUDIO_EXT = (CARD.assets && CARD.assets.audio_ext) || "ogg";  // Ogg/Opus (every lesson's audio since 2026-10-06; Chrome/Edge/Firefox, Safari 18.4+)
+  const IMG_EXT   = (CARD.assets && CARD.assets.img_ext)   || "webp"; // WebP (all still art; Chrome/Edge/Firefox/Safari 14+) — twin of AUDIO_EXT (fixes A3)
   const ENGINE_VERSION = "2026.07.16i-r4-unified";  // ENGINE STAMP — the receipt (verify_bundle.py) asserts a built game carries THIS exact string; a stale/divergent engine → hard FAIL, so the wrong engine can never silently ship. BUMP IN LOCKSTEP with engine_guard.py + swiftpal_build.py + unified_build.py + verify_bundle.py on EVERY engine change (r2: drag/pattern feedback standard + PHASE_TRANSITION; r3c: off-white toybox bg, dual-coded counting options numeral+hand, full-body landing mascot, true-corner square/rect; r3d: Swiftie mouth-stops-when-silent (still frame), Arabic display numerals 1/2/3, landing shows full 1..n hand row, volume-chip aligned in header pill); r4: additive number-sequence path modules MEET_SEQUENCE + SEQUENCE_COMPLETE + SEQUENCE_NEXT (MTKGA01_L02_S04 "completes a number sequence within 20") — purely additive, existing lessons untouched. r4-landing (16c): landing recomposed to match reference — small corner mascot (230px, was 300), content re-centered (dropped padding-left:300 right-shift hack), VO chip moved from top-right to the mascot's shoulder (left:150/bottom:34, 58px). CSS-only; supersedes the 16b right-shift overlap fix.; 16d: TRUNK MERGE — unified the two diverged engine lines at base 12d: the 15e mechanics trunk (CONSERVE_COUNT + COUNT_ACTION + COUNT_DRAG_MATCH + ORDER_BY_WEIGHT + PICK_SET_BY_NUMBER, per_row/dense count-set grouping, bigNumCell numeral-only test options, title_first landing order) + the 16c r4 design trunk (boot loader, peek phase-transition, concept-strip landing, DS header, flat CTAs, sunburst/star-burst celebration, recomposed corner-mascot landing). Nothing dropped from either line. 16e: landing count-hero hand sizing FIXED — the .sg-hero sizing selectors never matched (template uses .sg-art); hands rendered natural-size, overflowing the card (title pushed outside the box, numeral-1 hidden behind the mascot — user-visible on MTKGA01_L02_S01). Retargeted to .sg-art .sg-hand/.sg-hand-cell/.sg-hand-num (112px; image-hero landings untouched). CSS-only. 16f: INTRO strip fit-or-wrap — old sizing assumed 1220px + a -100px breakout and punched wide strips (10 numerals, 7+ letters) through the tut-frame borders; now sized to the frame (960) and wrapping into two balanced rows below the 110px touch floor. Fixes MTKGA01_L02_S01 s00 (user-caught live) AND the HIKGH04_P2 letter-row daylight item.
   try { window.SWIFTPAL_ENGINE = ENGINE_VERSION; } catch(e){}
 const $ = id => document.getElementById(id);
 
-/* ---------- 1. SCALE THE 1333x750 STAGE ---------- */
-function fit(){
-  const vw = (window.visualViewport ? window.visualViewport.width  : document.documentElement.clientWidth)  || window.innerWidth;
-  const vh = (window.visualViewport ? window.visualViewport.height : document.documentElement.clientHeight) || window.innerHeight;
-  // contain-fit, scaling UP to fill the screen (no 1× cap, no margin) so a 16:9
-  // viewport is covered edge-to-edge. Any leftover bars on non-16:9 are blue, not white.
-  const s = Math.min(vw/1333, vh/750);
-  document.documentElement.style.setProperty("--scale", s);
-}
-window.addEventListener("resize", fit);
-window.addEventListener("load", fit);
-if(window.visualViewport) window.visualViewport.addEventListener("resize", fit);
-fit();
+/* ---------- 1. SCALE THE 1333x750 STAGE - ON EVERY SCREEN ----------
+   [responsive] (review 2026-10-01: "make my game all screen responsive"). The lesson is ONE fixed 1333x750 stage,
+   scaled as a whole to the largest size the screen holds (contain-fit) and never re-laid-out: in a measuring game
+   the sizes ARE the content (each object is exactly n blocks long), so nothing may reflow on a phone. Every other
+   shape of screen is handled AROUND the stage:
+   - viewport-fit=cover (index.html): the page fills the whole screen, notch and home bar included, and the STAGE is
+     fitted inside the safe area (env(safe-area-inset-*)) - no button ever sits under a notch or the home bar.
+   - the bands a stage leaves (above and below it on a 4:3 iPad, beside it on a 20:9 phone) show the slide's OWN
+     backdrop, mirrored at the stage's edge (bleed below): the room, the yard, the fridge door simply carry on.
+   - a phone or tablet held upright: a "turn it" card over the lesson (html.ask-rotate); a voice line that was
+     speaking waits for the turn back, then goes on.
+   - a phone/tablet BROWSER goes full screen on the play tap, and stays landscape where it can (Android).
+   Pointer maths everywhere reads --scale at the moment it runs, so drags stay exact at every size. */
+const Screen = (function(){
+  const root = document.documentElement;
+  let probe = null, asking = false, heldVO = false, bleedQueued = false;
+  function safe(){
+    if(!probe){ probe = document.createElement("div"); probe.setAttribute("aria-hidden", "true");
+      probe.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;" +
+        "padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)";
+      (document.body || root).appendChild(probe); }
+    const cs = getComputedStyle(probe);
+    return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+  }
+  function touch(){ try{ return matchMedia("(pointer: coarse)").matches; }catch(e){ return false; } }
+  function fit(){
+    const vw = (window.visualViewport ? window.visualViewport.width  : root.clientWidth)  || window.innerWidth;
+    const vh = (window.visualViewport ? window.visualViewport.height : root.clientHeight) || window.innerHeight;
+    const sa = safe(), aw = Math.max(1, vw - sa.l - sa.r), ah = Math.max(1, vh - sa.t - sa.b);
+    // contain-fit, scaling UP to fill the screen (no 1x cap, no margin) so a 16:9 viewport is covered edge-to-edge
+    const s = Math.min(aw / 1333, ah / 750);
+    root.style.setProperty("--scale", s);
+    root.style.setProperty("--safe-dx", (sa.l - sa.r) / 2 + "px");   // centred in the safe area, not the whole screen
+    root.style.setProperty("--safe-dy", (sa.t - sa.b) / 2 + "px");
+    root.classList.toggle("bands-x", vw - 1333 * s > 1);              // (QA hooks: which bands the bleed fills)
+    root.classList.toggle("bands-y", vh - 750 * s > 1);
+    rotate(touch() && vh > vw * 1.1);
+  }
+  function rotate(on){
+    if(on === asking) return;
+    asking = on; root.classList.toggle("ask-rotate", on);
+    try{                                                              // (voEl: the one VO element, below - not there yet on the first fit)
+      if(on && !voEl.paused && !voEl.ended){ voEl.pause(); heldVO = true; }
+      else if(!on && heldVO){ heldVO = false; voEl.play().catch(()=>{}); }
+    }catch(e){}
+  }
+  /* a phone/tablet browser: full screen, landscape-locked where the browser can (Android Chrome). Called from a tap.
+     Never on a desktop, inside an embedding page, or in a host app's WebView - those run the screen themselves. */
+  function fullscreen(){
+    try{
+      const bridge = window.SwiftPAL && window.SwiftPAL._platform;
+      if(!touch() || window.self !== window.top || (bridge && bridge !== "web") || /; wv\)/.test(navigator.userAgent)) return;
+      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+      if(!req || document.fullscreenElement || document.webkitFullscreenElement) return;
+      const lock = ()=>{ try{ screen.orientation.lock("landscape").catch(()=>{}); }catch(e){} };
+      const p = req.call(root, { navigationUI: "hide" });
+      if(p && p.then) p.then(lock, ()=>{}); else lock();
+    }catch(e){}
+  }
+  /* the bands: 8 mirrored copies of the stage's own backdrop around it (index.html #stageBleed), kept in step with every
+     change of it - a slide's data-bg and --horizon, the tutorial's white, the landing's and the end's transparency.
+     While a hint card dims the stage, they dim with it (.dim). */
+  function bleed(){
+    bleedQueued = false;
+    const st = document.getElementById("stage"), b = document.getElementById("stageBleed");
+    if(!st || !b) return;
+    /* (review 2026-10-07 "fix these line cuts": at a fractional --scale the stage's background COLOUR was painted to its
+       very edge but its picture stopped short of the last device column, so the colour - the floor's, under every room
+       picture - showed as a 1px line down the stage's right side. The colour now lies on an underlay 1px inside the
+       stage (.stage-wrap.bg-under::before, --stage-bg) and the stage's own is transparent: the edge column is picture
+       + band only. The wrap is not observed, so toggling its class to read the slide's colour starts no loop.) */
+    const wrap = st.parentElement; wrap.classList.remove("bg-under");
+    const cs = getComputedStyle(st), color = cs.backgroundColor;
+    const css = "background-color:" + color + ";background-image:" + cs.backgroundImage + ";background-size:" + cs.backgroundSize +
+                ";background-position:" + cs.backgroundPosition + ";background-repeat:" + cs.backgroundRepeat;
+    wrap.style.setProperty("--stage-bg", color); wrap.classList.add("bg-under");
+    if(b._css === css) return;
+    b._css = css; b.dataset.bg = st.dataset.bg || "";
+    for(const i of b.children) i.style.cssText = css;
+  }
+  function queueBleed(){ if(!bleedQueued){ bleedQueued = true; requestAnimationFrame(bleed); } }
+  function watch(){
+    const st = document.getElementById("stage");
+    if(!st || !window.MutationObserver) return;
+    const mo = new MutationObserver(queueBleed);
+    mo.observe(st, { attributes: true, attributeFilter: ["class", "style", "data-bg"] });
+    mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    const ra = document.getElementById("rotateAsk"); if(ra) ra.addEventListener("click", fullscreen);   // Android: the tap itself turns the screen
+    queueBleed();
+  }
+  window.addEventListener("resize", fit);
+  window.addEventListener("load", fit);
+  if(window.visualViewport) window.visualViewport.addEventListener("resize", fit);
+  fit(); watch();
+  return { fit: fit, fullscreen: fullscreen, bleed: queueBleed };
+})();
 
 /* ---------- 2. SIGNAL BUS + OFFLINE TELEMETRY ---------- */
 /* TELEMETRY: offline self-capture. Every signal is buffered to localStorage so
@@ -69,7 +152,7 @@ const XAPI = window.XAPI = (function(){
 })();
 /* signal -> verb, for the three that already have a 1:1 signal */
 const XAPI_MAP = { slide_entered:"screen_viewed", hint_shown:"hint_used", audio_replay:"audio_replayed" };
-const XAPI_ANSWERABLE = ["COUNT_HOW_MANY","MAKE_SET","PICK_EXTREME","MEASURE_ASK","COMPARE_MEASURED","MATCH_MEASURE","CLASSROOM_FIT"];   /* slide types that send question_started */
+const XAPI_ANSWERABLE = ["COUNT_HOW_MANY","MAKE_SET","PICK_EXTREME","MEASURE_ASK","COMPARE_MEASURED","MATCH_MEASURE","MATCH_ROWS","CLASSROOM_FIT"];   /* slide types that send question_started */
 
 /* [QA 01] The game's internal bus is GameBus (window.GameBus). The global SwiftPAL name belongs to
    the platform bridge (swiftpal-bridge.js, loaded first), which XAPI.send() hands each statement to.
@@ -141,9 +224,10 @@ function setPlaying(on){
   // .playing toggle across the header chip AND the tut-card replay chip (the header is hidden in the
   // tut frame, so the in-card .tut-audio is the only visible affordance and must react to VO too).
   isPlaying=on;
+  bgmDuck();
   /* [QA 05] only the chip the audio is actually coming FROM animates, and only one at a time.
      It used to pulse every chip for every sound - option words, feedback, the count-aloud. */
-  const src = on && currentAudio ? currentAudio.getAttribute("src") : null;
+  const src = on && currentAudio ? srcOf(currentAudio) : null;
   const from = on ? chipFor(src) : null;
   document.querySelectorAll(".audio-chip, .tut-audio, .sg-vo").forEach(c => c.classList.toggle("playing", c === from));
   swApplyPose();   // freeze/unfreeze Swiftie's mouth: animate only while a clip is sounding
@@ -195,22 +279,39 @@ function play(src, onEnd){
   let done=false; const fire=()=>{ if(done || tok !== _playTok) return; done=true; currentAudio=null; setPlaying(false); if(onEnd) onEnd(); };
   if(src){
     const a = voEl; currentAudio = a;
+    let retried = false;
     a.onended = fire;
-    a.onerror = ()=>{ if(tok === _playTok) setTimeout(fire, 1200); };
-    a.src = src; setPlaying(true);   // re-apply now the src is known, so the right chip lights
+    /* the clip's blob: copy failed (Assets): the file's own URL, once; anything else - a silent beat, then on */
+    a.onerror = ()=>{ if(tok !== _playTok) return;
+      if(!retried && /^blob:/.test(a.src)){ retried = true; a.src = src; a.play().catch(()=>{ if(tok === _playTok) setTimeout(fire, 1200); }); return; }
+      setTimeout(fire, 1200); };
+    a.setAttribute("data-asset", src);
+    a.src = Assets.url(src); setPlaying(true);   // re-apply now the src is known, so the right chip lights
     a.play().catch(()=>{ if(tok === _playTok) setTimeout(fire, 1200); });
+    /* WATCHDOG: whatever waits on this clip's end (आगे, the next line, the play button) can never be stranded by a clip
+       that stalls mid-way or never reports `ended`: the clip's remaining length + 3s grace, re-armed while it is still
+       really moving on. No length yet (metadata stuck): 15s. */
+    let lastT = -1;
+    const watch = ()=>{ if(done || tok !== _playTok) return;
+      const left = isFinite(a.duration) && a.duration > 0 ? (a.duration - a.currentTime) / (a.playbackRate || 1) : 12;
+      setTimeout(()=>{ if(done || tok !== _playTok) return;
+        if(!a.paused && !a.ended && a.currentTime > lastT + 0.05){ lastT = a.currentTime; watch(); } else fire(); }, Math.max(0, left) * 1000 + 3000);
+    };
+    watch();
   } else { setTimeout(fire, 800); }
 }
 /* playSfx(id): fire-and-forget sound effect that can overlap the spoken VO (does NOT touch
    currentAudio / the play() chain). Two pooled elements, reused - never one per call.
    Silently no-ops if the file is missing or playback is blocked. */
-const _sfxPool = [new Audio(), new Audio()]; let _sfxNext = 0;
-function playSfx(id){
+const _sfxPool = [new Audio(), new Audio(), new Audio(), new Audio()]; let _sfxNext = 0;
+function playSfx(id, onEnd){
   if(!id) return;
   try{
     const a = _sfxPool[_sfxNext++ % _sfxPool.length];
-    a.pause(); a.volume = 0.7;
-    a.src = "assets/voiceover/" + id + "." + AUDIO_EXT;
+    a.pause(); a.volume = 0.7; a.onended = onEnd ? ()=>{ a.onended = null; onEnd(); } : null;
+    const f = "assets/voiceover/" + id + "." + AUDIO_EXT;
+    a.onerror = ()=>{ a.onerror = null; if(/^blob:/.test(a.src)){ a.src = f; a.play().catch(()=>{}); } };   // blob: copy failed - the file, once
+    a.setAttribute("data-asset", f); a.src = Assets.url(f);
     a.play().catch(()=>{});
   }catch(e){}
 }
@@ -224,17 +325,68 @@ function _tone(freqs, type, dur, vol){ const c = _ac(); if(!c) return; const t0 
     const t = t0 + i*(dur/freqs.length); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur/freqs.length); o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur/freqs.length); }); }
 const sfxTap       = ()=> _tone([520], "sine", 0.09, 0.09);
-const sfxCorrect   = ()=> _tone([660, 880, 1180], "sine", 0.42, 0.13);   // rising major arpeggio
-const sfxWrongSoft = ()=> _tone([300, 235], "triangle", 0.20, 0.08);      // gentle, never harsh
-/* a joyful star/confetti pop, centred on the play stage (upper-middle) */
-function burstStars(){ const stage = document.querySelector(".slide-stage") || document.body;
-  const cx = stage.offsetWidth/2, cy = stage.offsetHeight*0.38, emo = ["⭐","✨","🌟","💫","🎉"];
-  for(let i=0;i<14;i++){ const s = document.createElement("span"); s.className = "spark"; s.textContent = emo[i % emo.length];
-    const ang = (Math.PI*2)*(i/14) + Math.random()*0.5, dist = 70 + Math.random()*110;
-    s.style.left = cx + "px"; s.style.top = cy + "px";
-    s.style.setProperty("--dx", (Math.cos(ang)*dist).toFixed(0) + "px");
-    s.style.setProperty("--dy", (Math.sin(ang)*dist).toFixed(0) + "px");
-    s.style.animationDelay = (i*10) + "ms"; stage.appendChild(s); setTimeout(()=> s.remove(), 950); } }
+/* ===== QA checklist 2026-10-05: the STANDARD SFX + background music, as files in assets/sfx/ =====
+   sfx_correct / sfx_wrong (correct + incorrect feedback), sfx_confetti (with every confetti burst), sfx_play (the play
+   button), sfx_nudge (a soft, encouraging chime with each nudge hand), bgm (the lesson's background track, from the play
+   tap on) and bgm_game (the practice game's track - the lesson track carries on if it is not shipped). A file that
+   is missing or blocked is silent; correct / wrong fall back to the old procedural tones so feedback is never mute. */
+const SFX_DIR = "assets/sfx/";
+function playSfxFile(name, vol, fallback){
+  try{
+    const a = _sfxPool[_sfxNext++ % _sfxPool.length];
+    a.pause(); a.volume = vol == null ? 0.8 : vol;
+    const f = SFX_DIR + name + "." + AUDIO_EXT;
+    /* its blob: copy failed (Assets): the file's own URL, once; the file itself failed: the procedural fallback */
+    a.onerror = ()=>{ if(/^blob:/.test(a.src)){ a.src = f; a.play().catch(()=>{}); return; } a.onerror = null; if(fallback) fallback(); };
+    a.setAttribute("data-asset", f); a.src = Assets.url(f);
+    a.play().catch(()=>{});
+  }catch(e){ if(fallback) fallback(); }
+}
+const sfxCorrect   = ()=> playSfxFile("sfx_correct", 0.8, ()=> _tone([660, 880, 1180], "sine", 0.42, 0.13));
+const sfxWrongSoft = ()=> playSfxFile("sfx_wrong", 0.6, ()=> _tone([300, 235], "triangle", 0.20, 0.08));   // gentle, never harsh
+/* 2026-10-07: the team's Standard SFX pack (correct / incorrect / confetti / play / next). Its confetti is mastered
+   ~8dB hotter than the kit's and lands on top of sfx_correct + the VO, so it plays lower to sit under them. */
+const sfxConfetti  = ()=> playSfxFile("sfx_confetti", 0.45);
+const sfxPlay      = ()=> playSfxFile("sfx_play", 0.9);
+const sfxNext      = ()=> playSfxFile("sfx_next", 0.9);   // the आगे tap (a disabled आगे fires no click, so no sound)
+const sfxNudge     = ()=> playSfxFile("sfx_nudge", 0.45);
+/* background music: one looping element, started by the play tap (never before it), ducked under every VO clip,
+   paused while the app is in the background. bgmFor(phase) picks the track: the practice game has its own. */
+/* 2026-10-07: bgm.ogg is the team's "Standard Background Music 2" (bouncy, seamless 4-min loop; "1" is an 18s lo-fi loop
+   that would repeat ~30x a lesson). Its quietness is BAKED INTO THE FILE (-33 LUFS, ~14.5dB under the VO's -18.5): iOS
+   Safari ignores media .volume, so a loud file would play at full VO level there. VOL/DUCK only add the dip under VO
+   (0.35 = -9dB, ~24dB under the voice); the dip is a short fade, not a jump, so the bed never pumps. */
+var BGM = { el: null, track: "", VOL: 1, DUCK: 0.35, raf: 0 };   // (var: setPlaying, above, may reach it)
+function bgmDuck(){
+  if(!BGM || !BGM.el) return;
+  const el = BGM.el, from = el.volume, to = isPlaying ? BGM.DUCK : BGM.VOL, ms = to < from ? 180 : 600, t0 = performance.now();
+  cancelAnimationFrame(BGM.raf);
+  const step = now =>{ if(BGM.el !== el) return; const k = Math.min(1, (now - t0) / ms);
+    el.volume = from + (to - from) * k; if(k < 1) BGM.raf = requestAnimationFrame(step); };
+  BGM.raf = requestAnimationFrame(step);
+}
+function bgmFor(phase){
+  const want = phase === "practice" ? "bgm_game" : "bgm";
+  if(!BGM.el || BGM.track === want) return;
+  bgmPlay(want, ()=>{ if(want !== "bgm" && BGM.track !== "bgm") bgmPlay("bgm"); });          // no game track shipped: keep the lesson one
+}
+function bgmPlay(track, onMissing){
+  /* only a track that ships (ASSET_SIZES = the files on disk): bgm.ogg / bgm_game.ogg are not in this lesson yet, and
+     asking for them was a 404 on every play tap. Drop a file into assets/sfx/ and run tools/gen_asset_sizes.js. */
+  if(!Object.prototype.hasOwnProperty.call(ASSET_SIZES, SFX_DIR + track + "." + AUDIO_EXT)){ if(onMissing) onMissing(); return; }
+  try{
+    const old = BGM.el; if(old){ old.pause(); old.onerror = null; }
+    const a = new Audio(); a.loop = true; a.preload = "auto";
+    a.onerror = ()=>{ a.onerror = null; if(BGM.el === a && onMissing) onMissing(); };
+    a.src = Assets.url(SFX_DIR + track + "." + AUDIO_EXT);
+    a.volume = isPlaying ? BGM.DUCK : BGM.VOL;   // start at the right level - a new track never fades in from 1
+    BGM.el = a; BGM.track = track; bgmDuck();
+    a.play().catch(()=>{});
+  }catch(e){}
+}
+function bgmStart(){ if(!BGM.el) bgmPlay("bgm"); }
+document.addEventListener("visibilitychange", ()=>{ if(!BGM.el) return;
+  if(document.hidden) BGM.el.pause(); else BGM.el.play().catch(()=>{}); });
 /* dynamic Swiftie buddy: swap pose + a little pop on every reaction (correct/wrong/explain/celebrate) */
 // [20a mascot-01] moods -> production EXPRESSIONS (head webp), not idle-gif basenames.
 //   Ported verbatim from HI01H01_L02_S04_dist (its app lines 2474-2493) together with the
@@ -244,7 +396,7 @@ const SW_POSE = { talk:"talking", point:"talking", idle:"talking", happy:"celebr
                   hint:"hint", teach:"hint", idea:"hint", tryagain:"tryagain" };
 const SW_STILL = (() => { try { const q=new URLSearchParams(location.search);
   return q.has("still") || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); } catch(e){ return false; } })();
-let swMood = "point";
+let swMood = "point", _celebUrl = "", _celebKey = null;
 function swApplyPose(){ /* [20a] retired: heads no longer couple to isPlaying (setSwMood drives them). */ }
 function setSwMood(m){ swMood = m;
   const img = document.getElementById("swBuddyImg"), w = document.getElementById("swBuddy");
@@ -252,8 +404,14 @@ function setSwMood(m){ swMood = m;
   const expr = SW_POSE[m] || "talking";
   const animated = expr !== "talking" && !SW_STILL;   // resting face is the static talking head
   img.onerror = () => { img.onerror = null; img.src = "assets/mascot.webp"; };   // [mascot-10]
-  const bust = (animated && expr === "celebrate") ? ("?r=" + (state.slideStart || 1)) : "";  // [mascot-08] replay play-once
-  img.src = "assets/" + (animated ? "gif/" : "") + "sw_head_" + expr + (animated ? "_anim" : "") + ".webp" + bust;
+  const src = "assets/" + (animated ? "gif/" : "") + "sw_head_" + expr + (animated ? "_anim" : "") + ".webp";
+  /* [mascot-08] replay play-once: a slide's first cheer plays from frame 0 - a fresh blob: URL of the one download
+     ([loading]: it was "?r=<slide start>", a new 380KB download on every slide that cheered) */
+  if(animated && expr === "celebrate"){
+    if(_celebKey !== state.slideStart){ if(_celebUrl.indexOf("blob:") === 0) URL.revokeObjectURL(_celebUrl);
+      _celebUrl = Assets.fresh(src); _celebKey = state.slideStart; }
+    img.src = _celebUrl;
+  } else img.src = src;
   if(w){ w.dataset.expr = expr; w.classList.toggle("anim", animated);
          w.classList.remove("react"); void w.offsetWidth; w.classList.add("react"); } }   // .react pop kept from MTG
 /* ===== FLN ANIMATION KIT: confetti (call site) BEGIN =====
@@ -274,72 +432,15 @@ function confettiCannon(){
   FLNMotion.confetti.burst({
     host: "#fxLayer", phase: sl.phase, phases: [], count: 100, fall: [1.6, 2.6]
   });
+  sfxConfetti();   // QA checklist 2026-10-05: the standard confetti SFX with the standard confetti
 }
-/* ===== FLN ANIMATION KIT: confetti (call site) END ===== */
-/* confetti cannons from BOTH sides — the correct-answer celebration (replaces the popup) */
-function _confettiCannonOld(){ const stage = document.querySelector(".slide-stage") || document.body;
-  const W = stage.offsetWidth || 1000, cols = ["#F9695E","#FDC23C","#4EBE6A","#4EA3F0","#9B7BE8","#FF8FB1"];
-  for(let side=0; side<2; side++){ for(let i=0;i<24;i++){ const c = document.createElement("i"); c.className = "conf-shot";
-    c.style.background = cols[i % cols.length]; c.style.left = (side ? W-8 : 8) + "px"; c.style.bottom = "6px";
-    const dir = side ? -1 : 1;
-    c.style.setProperty("--tx", (dir*(120 + Math.random()*430)).toFixed(0) + "px");
-    c.style.setProperty("--ty", (-(200 + Math.random()*300)).toFixed(0) + "px");
-    c.style.animationDelay = (i*8) + "ms"; stage.appendChild(c); setTimeout(()=> c.remove(), 1300); } } }
-/* ---------- Block Town helpers (flagship) ---------- */
-const BT_COLORS = ["#F9695E","#FDC23C","#4EBE6A","#4EA3F0","#9B7BE8"];
-function btBlock(i){ const b = document.createElement("div"); b.className = "blk"; b.style.background = BT_COLORS[i % BT_COLORS.length]; return b; }
-function btThunk(n){ _tone([360 + n*46], "sine", 0.12, 0.10); }   // pitch climbs one step per block — HEAR the count
-function btDust(plot){ const d = document.createElement("span"); d.className = "bt-dust"; d.textContent = "💨"; plot.appendChild(d); setTimeout(()=> d.remove(), 520); }
-function btSkyline(done, total){ const s = document.createElement("div"); s.className = "bt-skyline";
-  for(let i=0;i<total;i++){ const b = document.createElement("div"); b.className = "bt-bldg" + (i < done ? " done" : "");
-    b.style.height = (26 + ((i*17) % 32)) + "px"; s.appendChild(b); } return s; }
-/* the teach scene: the crane drops N blocks ONE AT A TIME (ascending thunk + spoken count) then a
-   cardinality "freeze" (vo_total_N). Reached from MEET_NUMBER via data.present==='crane'. */
-function btCraneMeet(host, slide){
-  const d = slide.data, N = d.count;
-  state.ownsAudio = true;   // the crane drops+counts blocks on its own timed VO — skip autoPlayChain
-  const stage = document.createElement("div"); stage.className = "bt-stage";
-  const board = document.createElement("div"); board.className = "bt-board";
-  board.innerHTML = `<span class="bt-numeral">${N}</span>` + (d.word ? `<span class="bt-goallbl">${d.word}</span>` : "");   // Arabic numeral (from the integer, not card Devanagari)
-  const track = document.createElement("div"); track.className = "bt-track"; const cells = [];
-  for(let i=1;i<=N;i++){ const c = document.createElement("div"); c.className = "bt-nt"; track.appendChild(c); cells.push(c); }
-  const yard = document.createElement("div"); yard.className = "bt-yard";
-  const crane = document.createElement("div"); crane.className = "bt-crane"; crane.innerHTML = `<img src="assets/obj_crane.png" alt="">`;
-  const plotwrap = document.createElement("div"); plotwrap.className = "bt-plotwrap";
-  const plot = document.createElement("div"); plot.className = "bt-plot ground";
-  plot.style.setProperty("--bh", Math.max(20, Math.min(46, Math.floor(230/N) - 2)) + "px");
-  plotwrap.appendChild(plot); yard.appendChild(crane); yard.appendChild(plotwrap);
-  stage.appendChild(board); stage.appendChild(track); stage.appendChild(yard);
-  host.appendChild(stage);
-  state.gateNavUntilAudio = false; setNavActive(false);
-  $("navBtn").onclick = ()=> completeSlide(true);
-  let i = 0;
-  const step = ()=>{
-    if(i >= N){ if(d.topper){ const t = document.createElement("div"); t.className = "bt-topper snap"; t.innerHTML = `<img src="assets/${d.topper}.png" alt="">`; plot.appendChild(t); }
-      burstStars(); play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT, ()=> setNavActive(true)); return; }
-    const b = btBlock(i); b.classList.add("drop"); plot.appendChild(b); i++;
-    if(cells[i-1]){ cells[i-1].classList.add("lit"); cells[i-1].textContent = i; }
-    btThunk(i); btDust(plot);
-    play("assets/voiceover/vo_num_" + i + "." + AUDIO_EXT, ()=> setTimeout(step, 340));
-  };
-  // play the slide prompt FIRST, then start the crane count sequence — so the count VO never cuts the
-  // prompt off (we own the audio here; mountSlide's autoPlayChain is skipped via state.ownsAudio).
-  play(audioFor(slide, "prompt") || null, ()=> setTimeout(step, 400));
-}
+// pitch climbs one step per block — HEAR the count
 /* slide audio path: per slide, we look at slide.audio.prompt / .phoneme / etc.
    In this v0.1 the embedded card holds short ids; the compiler would replace
    them with base64 data URIs. We resolve to assets/voiceover/{id}.mp3 with fallback. */
 function audioFor(slide, key){
   if(!slide.audio || !slide.audio[key]) return null;
   return "assets/voiceover/" + slide.audio[key] + "." + AUDIO_EXT;
-}
-/* audioText(slide,key): the exact Hindi line the VO for this slot speaks, so a
-   popup can SHOW what it SAYS (shown == spoken). Looks up the build-injected
-   CARD.assets.audio_text map by the slot's audio_id. null if unknown. */
-function audioText(slide, key){
-  const id = slide.audio && slide.audio[key];
-  if(!id) return null;
-  return (CARD.assets && CARD.assets.audio_text && CARD.assets.audio_text[id]) || null;
 }
 /* Play a SEQUENCE of audio sources back-to-back. Each one finishes (or
    falls back to silent beat if missing) before the next starts. */
@@ -421,10 +522,13 @@ function recordResult(slide, firstTry){
 /* ---------- 5. NUDGE ----------
    target may be a CSS selector OR an element. Used ONLY for flow guidance
    (e.g. the "listen" button / prompt) — never to point at the correct answer. */
+/* QA checklist 2026-10-05: "inactivity nudges are activated after 7 seconds" - one value for every idle nudge in the
+   lesson (the card's nudge_timeout_ms, per phase, says the same) */
+const IDLE_MS = 7000;
 function startNudge(slide, target){
   clearTimeout(state.nudgeTimer);
   if(!target) return;
-  const ms = (CARD.scaffold_rules.nudge_timeout_ms || {})[slide.phase];
+  const ms = (CARD.scaffold_rules.nudge_timeout_ms || {})[slide.phase] || IDLE_MS;
   if(!ms) return;
   state.nudgeTimer = setTimeout(()=>{
     if(state.locked || state.hintActive) return;
@@ -490,62 +594,9 @@ function placeNudge(el){
     /* only the BOTTOM is cut: the tap ripple (kit recipe 4) spreads up to ~55px above and around the box */
     nh.style.clipPath = "inset(-60px -60px " + Math.max(0, NH.H - keep).toFixed(1) + "px -60px)";
   }
+  if(!nh.classList.contains("show")) sfxNudge();   // QA checklist 2026-10-05: an encouraging SFX with every nudge
   nh.classList.add("show");
   return true;
-}
-/* Show the hand-nudge immediately on a specific element (teach slides use it to guide the
-   next tap). Same placement as the idle nudge - see placeNudge(). */
-function pointNudgeAt(el){ placeNudge(el); }
-
-const SW_REST = "sw_anim_rest";   // the feedback-card Swiftie's closed-mouth rest frame (assets/sw_anim_rest.png)
-/* ---------- 7. HINT / FEEDBACK BOX ----------
-   No button: the popup plays its VO, then auto-dismisses. onEnd runs after it
-   closes (callers add a short pause there so the revealed answer shows). */
-function showBox(emoji, text, theme, audioSrc, onEnd){
-  // CORRECT: no popup (lead review) — confetti cannons from both sides + Swiftie cheer, then onEnd.
-  if(theme === "correct"){
-    sfxCorrect(); confettiCannon(); setSwMood("celebrate");
-    play(audioSrc || null, ()=> setTimeout(()=>{ if(onEnd) onEnd(); }, 300));
-    return;
-  }
-  state.hintActive = true;
-  // wrong/hint/reveal keep a light card (mechanics use it for a short cue); Swiftie reacts too.
-  // one-Swiftie rule: the popup shows the reacting Swiftie (animated), so HIDE the header buddy
-  // while it's open — never two Swifties on screen at once (MoM flag).
-  /* the feedback card's Swiftie: her own animated gifs. (Review 2026-09-30: "why has Swifty changed" - the measurement
-     kit's full-body poses it used to read, mk_sw_cheer / mk_sw_guide, were a different drawing of her; gone.) */
-  const swMap  = { wrong:"sw_anim_tryagain", hint:"sw_anim_teach", reveal:"sw_anim_teach" };
-  const sw = $("hintMascot");
-  if(sw){
-    sw.style.display = "";
-    sw.onerror = null;
-    sw.src = "assets/gif/" + (swMap[theme] || "sw_anim_talk") + ".gif";
-  }
-  const buddy = $("swBuddy"); if(buddy) buddy.style.visibility = "hidden";
-  setSwMood(theme === "wrong" ? "tryagain" : "hint");
-  $("hintBox").classList.remove("celebrate");
-  sfxWrongSoft();
-  const ht = $("hintText"); ht.textContent = text; ht.className = "hint-text " + theme;
-  $("stage").classList.add("blurred");
-  $("hintOverlay").classList.add("show");
-  $("hintBtn").disabled = true;
-  { const hb=$("hintBtn"); if(hb) hb.classList.remove("hint-glow"); }   // HI01 parity (its line 2965): the bulb stops pulsing once the hint is spent
-  /* [12] QA CHECKLIST: the hint bulb is the inline SVG (gradient + ring + rays),
-     so the old hint.png / hint_active.png swap is gone, not just inert. */
-  const close = ()=>{
-    $("hintOverlay").classList.remove("show");
-    $("stage").classList.remove("blurred");
-    if(buddy) buddy.style.visibility = "";   // header Swiftie returns when the popup closes
-    state.hintActive = false;
-    if(!state.locked) $("hintBtn").disabled = false;
-    if(onEnd) onEnd();
-  };
-  // auto-dismiss after the VO finishes (small buffer so it never just flashes); freeze the popup
-  // Swiftie's mouth to the still frame the instant its line ends
-  /* [QA 05] SW_REST was never defined, so this callback threw and close() never ran - the popup
-     stayed up and blocked every tap (reached once MAKE_SET's wrong path became live). The rest pose
-     is the feedback card's own default (index.html #hintMascot). close() is now always scheduled. */
-  play(audioSrc, ()=>{ try{ if(sw) sw.src = "assets/" + SW_REST + ".png"; }catch(e){} setTimeout(close, 300); });
 }
 
 /* ---------- 8. TAP-OPTION HELPER (shared by 5 slide types) ---------- */
@@ -669,11 +720,6 @@ function imgOrEmoji(imgKey, emoji, imgClass, emojiClass){
   }
   return `<span class="${emojiClass}">${emoji||"❓"}</span>`;
 }
-function letterCell(letter){
-  const cell = document.createElement("div");
-  cell.innerHTML = `<span class="big-glyph ink-glyph">${letter}</span>`;
-  return cell;
-}
 /* ordering/seriation render (MTKGA02_L02_S02): an object at a given magnitude. by="size" scales the
    picture uniformly; by="length" draws a content-true rounded bar of width∝mag; by="weight" shows the
    picture at a uniform size (weight is not visual — the child uses known heaviness / the balance cue). */
@@ -690,34 +736,6 @@ function renderOrdObj(o, by){
   // tempts the child (bigger=heavier misconception), while the small stone is the correct heaviest pick.
   const px = {1:80, 2:116, 3:154}[o.mag] || 116;
   return imgOrEmojiSized(o.img, o.emoji, px);
-}
-function pictureCell(picture, emoji, imgKey){
-  const cell = document.createElement("div");
-  cell.innerHTML = imgOrEmoji(imgKey, emoji, "pic-img", "pic-emoji") + `<span class="lbl">${picture||""}</span>`;
-  return cell;
-}
-function stimulusLetter(letter){
-  const el = document.createElement("div"); el.className = "stimulus-letter";
-  el.innerHTML = `<span class="ink-glyph">${letter}</span>`;
-  return el;
-}
-function stimulusPic(picture, emoji, imgKey){
-  const el = document.createElement("div"); el.className = "stimulus-pic";
-  el.innerHTML = imgOrEmoji(imgKey, emoji, "img", "emoji") + `<span class="lbl">${picture||""}</span>`;
-  return el;
-}
-/* gender helpers: an option card showing a gender label (पुल्लिंग/स्त्रीलिंग),
-   and a stimulus card showing the target gender label. */
-function genderLabelCell(label, gender){
-  const cell = document.createElement("div");
-  cell.innerHTML = `<span class="gender-label${gender==="F"?" fem":""}">${label}</span>`;
-  return cell;
-}
-function stimulusGender(label, gender){
-  const el = document.createElement("div");
-  el.className = "stimulus-gender" + (gender==="F"?" fem":"");
-  el.textContent = label;
-  return el;
 }
 
 /* shape helpers (maths): render circle/square/triangle/rectangle as inline SVG in
@@ -737,24 +755,7 @@ function shapeSVG(shape, opts){
   return `<svg class="shape-svg" viewBox="0 0 100 100" width="${size}" height="${size}" `+
          `xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${g}</svg>`;
 }
-function shapeCell(o){
-  const cell = document.createElement("div");
-  cell.innerHTML = shapeSVG(o.shape, {color:o.color, size:130, rotate:o.rotate});
-  return cell;
-}
-function stimulusShape(o){
-  const el = document.createElement("div"); el.className = "stimulus-shape";
-  el.innerHTML = shapeSVG(o.shape, {color:o.color, size:150, rotate:o.rotate});
-  return el;
-}
 
-/* counting helpers (maths): a numeral option card (big numeral + small number word),
-   and a stimulus box showing a set of `count` identical objects to be counted. */
-function numberCell(numeral, word){
-  const cell = document.createElement("div");
-  cell.innerHTML = `<span class="num-glyph">${numeral}</span>` + (word ? `<span class="num-word">${word}</span>` : "");
-  return cell;
-}
 /* VISUAL-FIRST quantity: a HAND showing n fingers up (assets/hand_1..5) — pre-reader,
    NO number-word text. Falls back to the numeral only if n is outside 1..5 or the art is missing. */
 function fingerCount(n, cls){ cls = cls || "finger-hand";
@@ -762,118 +763,9 @@ function fingerCount(n, cls){ cls = cls || "finger-hand";
   return `<img class="${cls}" src="assets/hand_${n}.png" alt="" ` +
     `onerror="var s=document.createElement('span');s.className='num-glyph';s.textContent='${n}';this.replaceWith(s);">`;
 }
-function fingerCell(n){ const c = document.createElement("div"); c.innerHTML = fingerCount(n, "opt-hand"); return c; }
 /* DISPLAY numeral: ALWAYS Arabic (1 2 3) on screen — kids learn the universal digit.
    Spoken VO stays Hindi (एक/दो/तीन) via the separate vo_num_/vo_total_ audio files. */
 function devNumeral(n){ return String(n); }
-/* DUAL-CODED counting option: the Devanagari NUMERAL the child is learning, big and on top,
-   with a smaller finger-hand beneath it as a visual anchor. The point of counting is to learn the
-   NUMBER SYMBOL, not just read a hand-sign — so the numeral leads and the hand supports. Falls back
-   to the numeral alone if the hand art (1..5) is missing. */
-function numFingerCell(n){
-  // outer div BECOMES the .opt-cell (mountTapOptions adds that class), so the stack lives in an
-  // INNER .numfinger wrapper — otherwise ".opt-cell .numfinger x" selectors wouldn't match.
-  const c = document.createElement("div");
-  // hand art exists only for 1..5; beyond that fingerCount would fall back to a SECOND numeral
-  // (numeral shown twice — hit when the counting range grew to 10), so skip the hand entirely.
-  c.innerHTML = `<div class="numfinger"><span class="num-glyph">${devNumeral(n)}</span>${(n>=1&&n<=5) ? fingerCount(n, "nf-hand") : ""}</div>`;
-  return c;
-}
-function stimulusCountSet(count, obj, scatter, perRow){
-  // counts >10 render DENSE (smaller objects, wrapping); perRow groups the set in rows of exactly
-  // N (the curriculum's "rows of 5/10" organisation for sets up to 20 — MTKGA01_L01_S04).
-  const dense = count > 10 || !!perRow;
-  const el = document.createElement("div"); el.className = "count-set" + (scatter ? " scattered" : "") + (dense ? " dense" : "");
-  if(perRow && !scatter){ el.style.display = "grid"; el.style.gridTemplateColumns = `repeat(${perRow}, auto)`; }
-  for(let i=0;i<count;i++){
-    const c = document.createElement("span"); c.className = "cobj";
-    // SCATTERED arrangement (SME/misconception: "total changes when objects are scattered") —
-    // deterministic per-index jitter (stable across mounts/captures), never so large items overlap-hide.
-    if(scatter) c.style.transform = `translateY(${((i*23)%25)-12}px) rotate(${((i*37)%21)-10}deg)`;
-    c.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji");
-    el.appendChild(c);
-  }
-  return el;
-}
-/* SME (S01 review deck): outside the tutorial, numeral options show the NUMBER ONLY, larger —
-   no finger-hand support (fingers are a TEACHING aid, not a test aid). */
-function bigNumCell(n){
-  const c = document.createElement("div");
-  c.innerHTML = `<span class="bignum-glyph">${devNumeral(n)}</span>`;
-  return c;
-}
-/* COMPARE_SETS helpers (one-to-one matching → ज़्यादा / कम / बराबर).
-   Two left-aligned rows (columns line up), a dashed connector drawn top[i]↔bottom[i]
-   for each matched pair, and the unmatched leftover item(s) in the longer row glow —
-   that glow IS the "which has more" proof. Offsets (not getBoundingClientRect) so it
-   works even when the preview tab is throttled. */
-function cmpObj(obj){
-  const c = document.createElement("span"); c.className = "cobj";
-  c.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji");
-  return c;
-}
-function stimulusCompareSets(data){
-  const nA = data.a_count, nB = data.b_count, A = data.a_object, B = data.b_object;
-  const NS = "http://www.w3.org/2000/svg";
-  const stage = document.createElement("div"); stage.className = "compare-stage";
-  const rowA = document.createElement("div"); rowA.className = "cmp-row top";
-  const rowB = document.createElement("div"); rowB.className = "cmp-row bot";
-  const svg  = document.createElementNS(NS, "svg"); svg.setAttribute("class", "cmp-lines");
-  for(let i=0;i<nA;i++) rowA.appendChild(cmpObj(A));
-  for(let i=0;i<nB;i++) rowB.appendChild(cmpObj(B));
-  stage.appendChild(rowA); stage.appendChild(svg); stage.appendChild(rowB);
-  const btn = document.createElement("button"); btn.type = "button"; btn.className = "cmp-match-btn";
-  btn.textContent = "🔗 मिलाओ"; stage.appendChild(btn);
-  const min = Math.min(nA, nB);
-  let drawn = false;
-  function draw(){
-    while(svg.firstChild) svg.removeChild(svg.firstChild);
-    const IA = [...rowA.children], IB = [...rowB.children];
-    const y1 = rowA.offsetTop + rowA.offsetHeight - 4;
-    const y2 = rowB.offsetTop + 4;
-    for(let i=0;i<min;i++){
-      const x = IA[i].offsetLeft + IA[i].offsetWidth/2;
-      const ln = document.createElementNS(NS, "line");
-      ln.setAttribute("x1", x); ln.setAttribute("y1", y1);
-      ln.setAttribute("x2", x); ln.setAttribute("y2", y2);
-      ln.setAttribute("class", "cmp-line"); svg.appendChild(ln);
-      setTimeout(()=> ln.classList.add("show"), 130*i);
-    }
-    const longer = nA > nB ? IA : nB > nA ? IB : null;   // null when equal (nothing left over)
-    if(longer) for(let i=min;i<longer.length;i++)
-      setTimeout(()=> longer[i].classList.add("leftover"), 130*min + 160);
-  }
-  // reveal the matching (child taps मिलाओ, or the hint/tutorial calls this). cb fires after it settles.
-  stage._revealMatches = (cb)=>{ if(!drawn){ drawn = true; btn.disabled = true; draw(); }
-    if(cb) setTimeout(cb, 130*min + 800); };
-  btn.onclick = ()=> stage._revealMatches();
-  if(data.show_matches){ btn.style.display = "none"; setTimeout(()=> stage._revealMatches(), 420); }
-  return stage;
-}
-/* HINT for "how many": instead of a text popup, COUNT the set FOR the child —
-   highlight each object left→right, say एक/दो/तीन, show the numeral on top of it.
-   The child sees + hears the count modelled, then answers from the options. */
-function demoCount(items, numerals, onDone){
-  numerals = numerals || [];
-  const clear = ()=> items.forEach(o=>{ o.classList.remove("counting"); const c=o.querySelector(".count-callout"); if(c) c.remove(); });
-  clear();
-  let i = 0;
-  (function step(){
-    if(i >= items.length){                       // last count landed → clear, then continue
-      setTimeout(()=>{ clear(); if(onDone) onDone(); }, 1000);
-      return;
-    }
-    const o = items[i];
-    o.classList.add("counting");
-    let cal = o.querySelector(".count-callout");
-    if(!cal){ cal = document.createElement("span"); cal.className = "count-callout"; o.appendChild(cal); }
-    cal.textContent = String(i+1);   // Arabic count callout; Hindi number-word is spoken separately
-    play("assets/voiceover/vo_num_" + (i+1) + "." + AUDIO_EXT, ()=>{ i++; setTimeout(step, 320); });
-  })();
-}
-function demoCountSet(setEl, count, numerals, onDone){   // count the "how many?" stimulus set
-  demoCount([...setEl.querySelectorAll(".cobj")].slice(0, count), numerals, onDone);
-}
 
 /* ---------- 10b. DEVANAGARI GLYPH INK-CENTERING ----------
    Devanagari glyphs carry matras above (ओ, औ, अं) and below (ऋ) the shirorekha,
@@ -913,72 +805,6 @@ function centerAllGlyphs(root){
   (root || document).querySelectorAll(".ink-glyph").forEach(centerInkGlyph);
 }
 
-/* ---------- 11. DRAG-DROP PRIMITIVE ---------- */
-function makeDraggable(tileEl, onDrop){
-  let startX=0, startY=0, dx=0, dy=0, dragging=false;
-  let scale = 1;
-  const refScale = ()=> scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || 1;
-  function onDown(e){
-    if(tileEl.classList.contains("snapped") || tileEl.classList.contains("matched")) return;
-    refScale();
-    dragging = true;
-    // bind move/up on the document ONLY while dragging (removed in onUp) — otherwise every tile leaves
-    // stale document listeners that pile up across the 11 drag slides.
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("touchmove", onMove, {passive:false});
-    document.addEventListener("mouseup", onUp);
-    document.addEventListener("touchend", onUp);
-    const p = e.touches ? e.touches[0] : e;
-    startX = p.clientX; startY = p.clientY;
-    dx = 0; dy = 0;
-    tileEl.classList.add("dragging");
-    e.preventDefault();
-  }
-  function onMove(e){
-    if(!dragging) return;
-    const p = e.touches ? e.touches[0] : e;
-    dx = (p.clientX - startX) / scale; dy = (p.clientY - startY) / scale;
-    tileEl.style.transform = `translate(${dx}px,${dy}px) scale(1.08)`;
-    // highlight zone under — hide the tile from hit-testing so the dragged tile
-    // (z-index 50, now covering the zone) doesn't mask the zone beneath it.
-    const cx = p.clientX, cy = p.clientY;
-    document.querySelectorAll(".dd-zone").forEach(z => z.classList.remove("hover"));
-    tileEl.style.pointerEvents = "none";
-    const under = document.elementFromPoint(cx, cy);
-    tileEl.style.pointerEvents = "";
-    const zone = under?.closest?.(".dd-zone");
-    if(zone && !zone.classList.contains("filled")) zone.classList.add("hover");
-    e.preventDefault();
-  }
-  function onUp(e){
-    if(!dragging) return;
-    dragging = false;
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("touchmove", onMove);
-    document.removeEventListener("mouseup", onUp);
-    document.removeEventListener("touchend", onUp);
-    tileEl.classList.remove("dragging");
-    const p = e.changedTouches ? e.changedTouches[0] : e;
-    // hide the tile from hit-testing so we detect the zone underneath it
-    tileEl.style.pointerEvents = "none";
-    const under = document.elementFromPoint(p.clientX, p.clientY);
-    tileEl.style.pointerEvents = "";
-    const zone = under?.closest?.(".dd-zone");
-    document.querySelectorAll(".dd-zone").forEach(z => z.classList.remove("hover"));
-    if(zone && !zone.classList.contains("filled")){
-      // snap
-      tileEl.style.transform = "";
-      onDrop(zone, tileEl);
-    } else {
-      tileEl.style.transform = "";
-    }
-  }
-  tileEl.addEventListener("mousedown", onDown);
-  tileEl.addEventListener("touchstart", onDown, {passive:false});
-}
-/* shared wrong-drop response for drag/sort/sequence modules: soft buzz + Swiftie try-again pose + the
-   authored spoken "try_again". Pre-readers need the SPOKEN recovery, not just the visual spring-back. */
-function dragWrong(slide){ sfxWrongSoft(); setSwMood("tryagain"); play(audioFor(slide, "try_again") || null, ()=>{}); }
 
 /* ---------- 11b. MEASUREMENT ART KIT (assets/mk_*) ----------------------
    The kit sheet cut for this card: tables, the unit block in four states
@@ -1003,19 +829,6 @@ function mkIsMeasure(slide){
   return !!(slide && slide.data && slide.data.object && slide.data.object.img &&
             String(slide.data.object.img).indexOf("mk_block") === 0);
 }
-/* swap a laid block between its states without re-rendering the tile */
-function mkSetBlockState(itemEl, stateId){
-  const img = itemEl && itemEl.querySelector(".cobj-img, .ms-obj-img");
-  if(img && img.tagName === "IMG") img.src = mkSrc(stateId);
-}
-/* the kit's glow sprite, flashed over a block the instant it is laid/counted */
-function mkGlow(itemEl){
-  if(!itemEl) return;
-  const g = document.createElement("img");
-  g.className = "mk-glow"; g.src = mkSrc(MK.glow); g.alt = "";
-  itemEl.appendChild(g);
-  setTimeout(()=> g.remove(), 620);
-}
 /* START / END markers bracketing the thing being measured - the sheet's
    mk_table_markers page, generalised to whatever object the slide names. */
 function mkAddMarkers(figEl){
@@ -1039,77 +852,7 @@ function mkClearFloats(){
   const h = mkFloatHost(); if(!h) return;
   h.querySelectorAll(".mk-result, .mk-errflash").forEach(n => n.remove());
 }
-/* Park `el` NEXT TO `anchorEl` if the gutter beside it is wide enough, else
-   under it. Docking beside is preferred because "under" lands on the आगे button
-   on the narrow modules, and the plate must never cover the control the child
-   needs next. Measured after paint, so the element must already be in the DOM. */
-function mkFloatBeside(el, anchorEl, gutter){
-  const h = mkFloatHost(); if(!h) return;
-  const hb = h.getBoundingClientRect();
-  const ab = (anchorEl && anchorEl.getBoundingClientRect) ? anchorEl.getBoundingClientRect() : null;
-  const w  = el.offsetWidth || 300, hh = el.offsetHeight || 110;
-  const PAD = (gutter === undefined) ? 18 : gutter;
-  if(ab){
-    const freeRight = hb.right - ab.right;
-    if(freeRight >= w + PAD * 2){                       // dock to the right of the anchor
-      el.style.left = (ab.right - hb.left + PAD + w / 2) + "px";
-      el.style.top  = Math.max(8, Math.min(ab.top - hb.top + (ab.height - hh) / 2, hb.height - hh - 8)) + "px";
-      return;
-    }
-  }
-  el.style.left = "50%";                                // otherwise: centred, just below
-  const top = ab ? (ab.bottom - hb.top + 12) : (hb.height * 0.6);
-  el.style.top = Math.max(8, Math.min(top, hb.height - hh - 8)) + "px";
-}
-/* re-place once each sprite has decoded - an undecoded <img> measures 0 wide,
-   which would put the plate in the wrong gutter on a cold cache */
-function mkPlace(el, anchorEl){
-  mkFloatBeside(el, anchorEl);
-  const imgs = el.tagName === "IMG" ? [el] : [...el.querySelectorAll("img")];
-  imgs.forEach(im => { if(!im.complete) im.addEventListener("load", ()=> mkFloatBeside(el, anchorEl), { once:true }); });
-}
-function mkShowResult(anchorEl, n){
-  const host = mkFloatHost(); if(!host || host.querySelector(".mk-result")) return null;
-  const wrap = document.createElement("div"); wrap.className = "mk-result";
-  wrap.innerHTML =
-    '<img class="mk-sparkle" src="' + mkSrc(MK.sparkle) + '" alt="" aria-hidden="true">' +
-    '<div class="mk-badge"><img class="mk-badge-plate" src="' + mkSrc(MK.plate) + '" alt="" aria-hidden="true">' +
-      '<span class="mk-badge-text">' + devNumeral(n) + ' \u092c\u094d\u0932\u0949\u0915\u094d\u0938</span></div>';
-  host.appendChild(wrap);
-  mkPlace(wrap, anchorEl);
-  requestAnimationFrame(()=> wrap.classList.add("in"));
-  return wrap;
-}
-/* Which wrong-way figure fits this mistake? Too few units => the child left a
-   GAP; too many => they OVERLAPPED. Straight off the kit sheet, and exactly the
-   +/-1 misconception this card's distractors are built from (see README). */
-function mkErrFigure(made, target){
-  return made < target ? MK.errGap : MK.errOver;
-}
-/* flash that figure beside the laid row (inline cue - no popup), once at a time */
-function mkFlashErr(nearEl, figId){
-  const host = mkFloatHost(); if(!host) return;
-  const prev = host.querySelector(".mk-errflash"); if(prev) prev.remove();
-  const f = document.createElement("img");
-  f.className = "mk-errflash"; f.src = mkSrc(figId); f.alt = ""; f.setAttribute("aria-hidden","true");
-  f.onerror = function(){ this.remove(); };
-  host.appendChild(f);
-  mkPlace(f, nearEl);
-  requestAnimationFrame(()=> f.classList.add("in"));
-  setTimeout(()=>{ f.classList.remove("in"); setTimeout(()=> f.remove(), 320); }, 2400);
-}
 
-/* shared SUCCESS response — the engine-wide answer-feedback standard (lead-confirmed): side confetti
-   cannons + rising sfx + Swiftie celebrates + the authored "correct" VO, then AUTO-ADVANCE. Never a
-   celebration popup, never a "press आगे to continue" gate on a solved activity. `revealed` = the child
-   got there via the reveal scaffold → quieter settle (no confetti/cheer) + completeSlide(false) so
-   mastery telemetry stays honest. */
-function celebrateThenAdvance(slide, revealed){
-  if(revealed){ play(audioFor(slide, "reveal") || null, ()=>{}); setTimeout(()=> completeSlide(false), 1400); return; }
-  sfxCorrect(); confettiCannon(); setSwMood("celebrate");
-  play(audioFor(slide, "correct") || null, ()=>{});
-  setTimeout(()=> completeSlide(true), 1400);
-}
 
 /* ---------- 12. SLIDE MODULES ---------- */
 /* ---------- [measure kit] MDK - shared by every measuring slide (review 2026-09-30: "follow the ppt slides
@@ -1130,7 +873,9 @@ const MDK = (function(){
   const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
   /* one blue cube, s x s, at (x, y); i picks its slice of the strip (its shade of blue) */
   function cube(parent, i, x, y, s, rot){
-    const k = i % 10, c0 = STRIP.cuts[k], c1 = STRIP.cuts[k + 1], kx = s / (c1 - c0), ky = s / (STRIP.bot - STRIP.top);
+    // review 2026-10-05: "change all the cubes color to this blue ... throughout the game" - every cube is the strip's
+    // FIRST cube (its deep blue); i still staggers the fade-in (--i)
+    const k = 0, c0 = STRIP.cuts[k], c1 = STRIP.cuts[k + 1], kx = s / (c1 - c0), ky = s / (STRIP.bot - STRIP.top);
     const b = add(parent, "div", "md-block", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(s) + ";height:" + px(s) + ";--i:" + i + ";" +
       "background-image:url(" + STRIP.src + ");background-size:" + px(STRIP.w * kx) + " " + px(STRIP.h * ky) + ";background-position:" + px(-c0 * kx) + " " + px(-STRIP.top * ky));
     b._home = { x, y }; b._placed = false; b._rot = rot || 0; if(rot) b.style.setProperty("--rot", rot + "deg");
@@ -1150,6 +895,8 @@ const MDK = (function(){
       const from = pos(el), dx = to.x - from.x, dy = to.y - from.y, up = arc ? -Math.min(80, 26 + Math.hypot(dx, dy) * 0.16) : 0;
       if(el._rot){ const home = el._home && Math.abs(to.x - el._home.x) < .5 && Math.abs(to.y - el._home.y) < .5;
         el.style.setProperty("--rot", home ? el._rot + "deg" : "0deg"); }
+      // [robot] away from its home (the lid) = rb-away: the robot's aura is only lit while its cube is on the lid
+      if(el._home) el.classList.toggle("rb-away", !(Math.abs(to.x - el._home.x) < .5 && Math.abs(to.y - el._home.y) < .5));
       let fin = false; const done = ()=>{ if(fin) return; fin = true; setPos(el, to); el.classList.remove("moving"); if(h) setPos(h.el, h.grip(to)); res(); };
       el.classList.add("moving");                                            // (a painting's cube shows while it flies: CSS .in-art-home)
       if(reduce() || ms <= 0){ done(); return; }
@@ -1159,10 +906,14 @@ const MDK = (function(){
     });
   }
   const knock = ()=> _tone([392, 311], "sine", 0.16, 0.1);                    // a soft wooden set-down
-  function land(el, quiet){ if(!reduce()) el.animate([{ scale: "1.07 .9" }, { scale: ".98 1.03" }, { scale: "1 1" }], { duration: 220, easing: "ease-out" }); if(!quiet) knock(); }
+  // (review 2026-10-05 "there is a space between cubes": its bounce never goes NARROWER than its tile - the old ".98" step
+  //  opened a seam beside the neighbour for a moment; placed cubes also overlap ~1px, CSS .md-block.placed)
+  function land(el, quiet){ if(!reduce()) el.animate([{ scale: "1.07 .9" }, { scale: "1.025 1.04" }, { scale: "1.025 1.025" }], { duration: 220, easing: "ease-out" }); if(!quiet) knock(); }
   /* a correct block: its green outline flashes on, then fades (review 2026-09-30: "the green outline should disappear
      after it is correctly placed") - it confirms the drop, like the ✓ it replaced; it is not a lasting state */
-  function okFlash(el){ el.classList.add("ok"); clearTimeout(el._okT); el._okT = setTimeout(()=> el.classList.remove("ok"), 900); }
+  // (review 2026-10-07 "no need for green outline when the cube is placed correctly throughout the game": a right
+  //  placement is its landing + the SFX now; the callers stay, the flash is gone)
+  function okFlash(el){}
   /* the toy box: n blocks of size s in rows of `cols`, each back row higher so they peek over the front row, the front
      wall in front of the lowest row. Returns the box and the n home spots. (Before the art below, T2's review "the cubes
      inside it should be much more visible" had an `open` CSS variant; the art shows every cube nearly whole.) */
@@ -1330,6 +1081,153 @@ const MDK = (function(){
       });
     };
   }
+  /* ---- [ground] review 2026-10-05: "add correct shadow effects so that they look placed correctly on the floor - the main
+     elements whose length we measure with the cubes" (as T1's tables, CSS [T1 ground]). The one flat ellipse under the
+     front edge left the back legs / feet floating: the pictures are drawn in perspective. feet = where it touches the
+     floor, [x centre, y bottom, width] as fractions of the picture, measured from its alpha (card data obj.feet /
+     items[].feet): four - front-left, back-left, back-right, front-right - or its contacts left to right (feet against a
+     wall, a frame's two posts, a soft pillow's whole underside: then depth = how far back the floor under it reaches, a
+     fraction of its height). Drawn: a tight dark contact shadow centred on each foot's bottom (behind the picture, so the
+     foot covers its upper half) + the floor under it shaded (the polygon through the feet, blurred). Returns null when
+     there are no feet - the caller keeps its old ellipse. ---- */
+  function ground(parent, ox, oy, ow, oh, feet, depth){
+    if(!Array.isArray(feet) || !feet.length) return null;
+    const g = add(parent, "div", "md-gnd", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh));
+    const L = feet[0], R = feet[feet.length - 1], dp = depth != null ? depth : 0.03;
+    const pts = feet.length >= 3 ? feet.map(f => [f[0], f[1]])
+      : [[L[0] - L[2] / 2, L[1]], [L[0] - L[2] / 2 + 0.02, L[1] - dp], [R[0] + R[2] / 2 - 0.02, R[1] - dp], [R[0] + R[2] / 2, R[1]]];
+    // (two contacts: the shade is only the thin gap under the base - a blur bigger than that gap wipes it out)
+    const blur = feet.length >= 3 ? Math.max(4, Math.min(12, ow * 0.014)) : Math.max(3, Math.min(10, ow * 0.014, dp * oh * 0.3)), fh = Math.max(8, Math.min(14, ow * 0.026));
+    g.innerHTML = '<i class="md-gnd-ao" style="filter:blur(' + px(blur) + ')"><b style="clip-path:polygon(' +
+      pts.map(q => q[0] * 100 + "% " + q[1] * 100 + "%").join(",") + ')"></b></i>' +
+      feet.map(f => '<i class="md-gnd-foot" style="left:' + f[0] * 100 + '%;top:' + f[1] * 100 + '%;width:' + Math.min(f[2] * 1.45, f[2] + 0.06) * 100 +
+        '%;height:' + px(fh) + '"></i>').join("");
+    return g;
+  }
+  /* ---- [robot] THE ROBOT MOP (review 2026-10-05: "in all game screens replace these cube boxes with the robot ... place
+     this beside Swifty on the left side and only 1 cube in the same front-view position above it ... dragging and dropping
+     of cubes will happen from here"): one cube stands on its lid; once it is placed, the next pops up out of the robot
+     (an endless supply - the cube on top is always the next unplaced block), until the row is full. A wrong drop flies
+     back onto the lid. Its face (supplied art, three expressions of one robot): robot_body.webp is the smiling robot;
+     robot_face_happy / _sad.webp are just its face screen cut from the hearts / closed-eyes versions (soft-edged), laid
+     over it and cross-faded - so only the eyes change, the body never shimmers. react("happy"): hearts;
+     react("sad"): closed eyes (the robot itself never moves); each back to the smile after 1.4s; hold(kind) keeps one (the finish). ROBOT in
+     the body's own units: ar = h/w, face = the screen's box, seat = where the cube's foot stands (x centre, y), all as
+     fractions of the body. Same interface as the toy box ({back, front, spots, w, h, settle}) + link, react, hold. One more cube than the row needs: when the row is
+     full a last one still rises onto the lid and stays there (it can't be dragged - the row is measured). */
+  const ROBOT = { w: 2.7, ar: 0.5688, face: [0.1191, 0.559, 0.771, 0.3746], seat: [0.5025, 0.3304] };
+  function robotGeom(n, s){ const w = ROBOT.w * s; return { w, h: w * ROBOT.ar }; }
+  function robot(parent, x, y, n, s){
+    const { w, h } = robotGeom(n, s), F = ROBOT.face;
+    const back = add(parent, "div", "md-robot", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const front = add(parent, "div", "md-robot-front", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
+    const fc = "left:" + F[0] * 100 + "%;top:" + F[1] * 100 + "%;width:" + F[2] * 100 + "%;height:" + F[3] * 100 + "%;font-size:" + px(F[2] * w / 100);
+    back.innerHTML = '<i class="rb-shadow"></i><span class="rb-in"><img class="rb-body" src="assets/robot_body.webp" alt="" draggable="false">' +
+      '<span class="rb-face" style="' + fc + '"><img class="rb-screen" src="assets/robot_screen.webp" alt="" draggable="false">' +
+      '<span class="rb-eyes"><i class="rb-eye l"><b></b></i><i class="rb-eye r"><b></b></i></span>' +   // [robot eyes] live
+      '<img class="rb-hearts" src="assets/robot_face_happy.webp" alt="" draggable="false"></span></span>' +   // [robot hearts] its happy face
+      '<img class="rb-side" src="assets/robot_side.webp" alt="" draggable="false">';   // its profile, cube on board (robot_enter: .profile)
+    const seat = { x: x + ROBOT.seat[0] * w - s / 2, y: y + ROBOT.seat[1] * h - s };
+    /* the waiting cube's sky-blue aura (review 2026-10-05: "glow ... sky blue ... magical", then "this is really bad"): a
+       blurred light BEHIND the cube, rising from the lid - the cube covers its middle, so only a soft halo shows round it.
+       (It was the cube's own ::after: a child paints OVER its parent, so its pale ring sat on the cube's rim, rounder
+       than the art's corners - a hard double outline, flashing as it breathed.) .on while a cube rests on the lid. */
+    const aura = add(parent, "div", "rb-aura", "left:" + px(seat.x) + ";top:" + px(seat.y) + ";width:" + px(s) + ";height:" + px(s));
+    aura.innerHTML = "<i></i>";
+    const spots = []; for(let j = 0; j < n; j++) spots.push({ x: seat.x, y: seat.y, rot: 0, z: 8 });
+    let blocks = [], faceT = 0, popT = 0;
+    const next = ()=> blocks.find(b => !b._placed);
+    function show(){ const nx = next(); blocks.forEach(b =>{ if(!b._placed) b.classList.toggle("rb-wait", b !== nx); b.classList.toggle("rb-top", b === nx); });
+      aura.classList.toggle("on", !!nx); return nx; }
+    function link(list){ blocks = list; show(); }
+    // a cube has left for good: the next one rises out of the robot onto its lid (right after the drop)
+    function settle(){
+      clearTimeout(popT); const nx = next(); if(!nx){ aura.classList.remove("on"); return; }
+      nx.classList.add("rb-wait"); aura.classList.remove("on");
+      popT = setTimeout(()=>{ if(!nx.isConnected || nx._placed) return; show();
+        if(!reduce()) nx.animate([{ translate: "0 " + px(s * 0.45), scale: ".35", opacity: 0, easing: "cubic-bezier(.25,.7,.35,1)" },
+                                  { translate: "0 " + px(-s * 0.12), scale: "1.06", opacity: 1, offset: 0.62, easing: "ease-in-out" },
+                                  { translate: "0 0", scale: "1", opacity: 1 }], { duration: 300 }); }, reduce() ? 0 : 120);   // (review 2026-10-05: "new cubes should appear faster")
+    }
+    /* review 2026-10-07 ("do not put the cube back on the robo mop - after putting it there in the wrong attempt, make it
+       disappear, and the new cube will appear on the robo mop ... in all game screens which have this kind of
+       interaction"): a cube set down wrong - the demo's gap / overlap, a child's wrong drop - is never carried back. It
+       vanishes where it lies (shrinks away, a little puff) and a new one rises out of the robot onto its lid, as after a
+       right drop (settle). The "new" cube is the same element, sent home unseen. Resolves once it stands on the lid. */
+    function respawn(b){
+      b._busy = true;                                                       // (not grabbed while it goes - childMeasure)
+      return new Promise(res =>{
+        let gone = null;                                                    // (only its own vanish is cancelled - never the cube's CSS fade-in, or it goes back to opacity 0)
+        const home = ()=>{ if(gone) gone.cancel(); b.classList.remove("rb-away", "over", "lift", "moving"); setPos(b, b._home);
+          b.style.zIndex = b._z || 8; settle(); setTimeout(()=>{ b._busy = false; res(); }, reduce() ? 0 : 120 + 300); };
+        if(reduce()){ b.classList.add("rb-wait"); home(); return; }
+        const q = pos(b), z = s * .9;
+        const d = add(parent, "i", "rb-puff", "left:" + px(q.x + s / 2) + ";top:" + px(q.y + s / 2) + ";width:" + px(z) + ";height:" + px(z) + ";margin:" + px(-z / 2) + " 0 0 " + px(-z / 2));
+        d.style.zIndex = 31;
+        d.animate([{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1)", opacity: .95, offset: .35 }, { transform: "scale(1.5)", opacity: 0 }],
+                  { duration: 520, easing: "ease-out" }).onfinish = ()=> d.remove();
+        gone = b.animate([{ scale: "1", opacity: 1 }, { scale: "1.08", opacity: 1, offset: .25 }, { scale: ".2", opacity: 0 }],
+                         { duration: 300, easing: "cubic-bezier(.5,0,.75,.4)", fill: "forwards" });
+        gone.onfinish = ()=>{ b.classList.add("rb-wait"); home(); };
+      });
+    }
+    /* [robot eyes] review 2026-10-07 ("whenever the cube is dragged and dropped - the demo's and the child's - the eyes
+       should follow it ... express everything like the pencil ... smoother transitions, just like in robots"): the eyes
+       are live (CSS [robot eyes]). GAZE, every frame: a cube on the move in this scene - dragged (.lift), flying home or
+       into place (.moving), the hint's ghost - is watched (smooth pursuit); after it lands the eyes stay on that spot a
+       moment, then wander like a robot's: quick little jumps (saccades) between the child (straight out) and nearby
+       points, every 1.4-3s. gaze({x, y}) (-1..1 each) holds a direction instead (robotIn: on the table), gaze(null)
+       lets go; tau = how quickly they get there. BLINKS: every 2.4-5s, and on each change of mood (a robot's "refresh").
+       Off the page, the loop stops. */
+    const eyesEl = back.querySelector(".rb-eyes"), eyeEls = [...back.querySelectorAll(".rb-eye")], faceEl = back.querySelector(".rb-face");
+    const G = { x: 0, y: 0, tx: 0, ty: 0, over: null, tau: 0, seenAt: -1e9, nextWander: 0 }, GX = 10, GY = 2.8;   // range, em
+    function blink(){ if(reduce()) return; eyeEls.forEach(e => e.classList.add("blink")); setTimeout(()=> eyeEls.forEach(e => e.classList.remove("blink")), 110); }
+    function gaze(o, tau){ G.over = o || null; G.tau = tau || 0; }
+    let blinkAt = performance.now() + 1800, lastT = performance.now();
+    (function loop(t){
+      if(!back.isConnected) return;
+      const dt = Math.min(64, t - lastT); lastT = t;
+      if(G.over){ G.tx = G.over.x; G.ty = G.over.y; }
+      else {
+        const mv = parent.querySelector(".md-block.lift, .md-block.moving, .md-block.ghost");
+        if(mv && faceEl.offsetWidth){
+          const r = mv.getBoundingClientRect(), f = faceEl.getBoundingClientRect(), k = f.width / faceEl.offsetWidth || 1;
+          const dx = (r.left + r.width / 2 - f.left - f.width / 2) / k, dy = (r.top + r.height / 2 - f.top - f.height / 2) / k;
+          G.tx = dx / Math.hypot(dx, 170); G.ty = dy / Math.hypot(dy, 150); G.seenAt = t; G.nextWander = t + 900;
+        } else if(t > G.nextWander){                                      // wander: mostly back to the child, sometimes a glance
+          const home = Math.random() < .45; G.tx = home ? 0 : (Math.random() * 2 - 1) * .45; G.ty = home ? 0 : (Math.random() * 2 - 1) * .35;
+          G.nextWander = t + 1400 + Math.random() * 1600;
+        }
+      }
+      const tau = G.tau || (G.over || t - G.seenAt < 100 ? 80 : 55), a = 1 - Math.exp(-dt / tau);   // pursuit / saccade
+      G.x += (G.tx - G.x) * a; G.y += (G.ty - G.y) * a;
+      eyesEl.style.translate = (G.x * GX).toFixed(2) + "em " + (G.y * GY).toFixed(2) + "em";
+      eyesEl.style.scale = (1 - Math.abs(G.x) * .08).toFixed(3) + " 1";   // a little narrower toward the sides
+      if(t > blinkAt){ blink(); blinkAt = t + 2400 + Math.random() * 2600; }
+      requestAnimationFrame(loop);
+    })(performance.now());
+    function face(kind){
+      const was = ["happy", "sad", "look"].find(c => back.classList.contains(c)) || null;
+      back.classList.remove("happy", "sad", "look"); if(kind) back.classList.add(kind);
+      if(was !== (kind || null) && kind !== "sad") blink();               // (sad squeezes shut on its own)
+    }
+    /* "look" (review 2026-10-05: "add this robot reaction ... at the time of the tutorial or when there is inactivity"):
+       wide-open round eyes - the robot watching. Held through the tutorial's explanation + demonstration (MEASURE_DEMO)
+       and whenever the idle nudge shows the drag (childMeasure onIdle); back to its smile the moment the child picks a
+       cube up (onGrab). The hearts / closed eyes of a drop simply replace it. */
+    function look(on){ if(!back.isConnected) return; if(on){ clearTimeout(faceT); face("look"); } else if(back.classList.contains("look")) face(null); }
+    /* review 2026-10-05: "I don't want any movement in the robot, only his eyes will show expression - less distracting":
+       no hop, no shake - only the face screen cross-fades (CSS .rb-face) */
+    /* review 2026-10-05: "don't show any expression in the tutorial parts - only when the user drags and drops the cubes
+       correctly or incorrectly": react() is called from the child's drops only (MDK.childMeasure onHit / onWrong) - never
+       from the demo hand, the demo's gap / overlap, the answer options or the finish */
+    function react(kind){
+      if(!back.isConnected) return; clearTimeout(faceT); face(kind);
+      faceT = setTimeout(()=> face(null), 1400);
+    }
+    function hold(kind){ clearTimeout(faceT); face(kind); }
+    return { back, front, spots, w, h, settle, link, respawn, react, hold, look, face, gaze, blink, robot: true };
+  }
   /* ---- the painting (T3, review 2026-09-30): a framed crayon painting of a man hauling a stack of blue cubes, on the wall
      where the rack was, shown as supplied (no cord, nothing laid over it). ITS cubes are the ones the child takes. "the
      second I have dragged the cube from the painting it should not be visible in the painting anymore": picked up, a
@@ -1358,7 +1256,7 @@ const MDK = (function(){
     blank: "assets/painting_blank.webp",                                   // the same frame, its paper wiped clean
     upright: "assets/painting_upright.webp",                               // the same scene, him upright holding ONE cube
     // the answer, written in crayon (Kalam, crayon-textured; the order map: when each pixel's stroke is drawn; path: the tip)
-    answer: { src: "assets/painting_answer.webp", order: "assets/painting_answer_order.png", x: .1393, y: .3114, w: .722, h: .2972, px: [722, 148],
+    answer: { src: "assets/painting_answer.webp", order: "assets/painting_answer_order.webp", x: .1393, y: .3114, w: .722, h: .2972, px: [722, 148],
               path: [[0.3493,0.4018,0.0,0],[0.3253,0.4038,0.0059,0],[0.3148,0.4469,0.0125,0],[0.3318,0.4931,0.0199,0],[0.3168,0.5313,0.0267,0],[0.2928,0.5122,0.0335,0],[0.3253,0.5222,0.0787,0],[0.4118,0.467,0.0973,0],[0.4003,0.5112,0.104,0],[0.4188,0.5293,0.1103,0],[0.4413,0.5102,0.1169,0],[0.4513,0.5484,0.1234,0],[0.4188,0.4992,0.1417,0],[0.4438,0.5052,0.1852,0],[0.4633,0.4731,0.1921,0],[0.4738,0.5082,0.1989,0],[0.4808,0.4961,0.2508,0],[0.5043,0.467,0.2579,0],[0.5028,0.4861,0.2737,0],[0.4983,0.5343,0.28,0],[0.5298,0.3957,0.2986,0],[0.5538,0.3967,0.3048,0],[0.5268,0.5504,0.3417,0],[0.5318,0.5022,0.3479,0],[0.5358,0.454,0.3541,0],[0.5853,0.5383,0.3747,0],[0.5923,0.4901,0.3812,0],[0.5588,0.5072,0.3899,0],[0.5818,0.4931,0.3972,0],[0.5618,0.5413,0.4062,0],[0.5848,0.5333,0.4127,0],[0.5653,0.5353,0.4356,0],[0.6103,0.4951,0.4626,0],[0.6338,0.465,0.4698,0],[0.6273,0.5293,0.5069,0],[0.6338,0.5273,0.5162,0],[0.6578,0.5172,0.5226,0],[0.6813,0.5082,0.5297,0],[0.6318,0.5283,0.5405,0],[0.6493,0.5072,0.5493,0],[0.6703,0.5604,0.5854,0],[0.6788,0.5152,0.5919,0],[0.3948,0.4249,0.624,0],[0.4428,0.4299,0.6355,0],[0.4908,0.4329,0.647,0],[0.5388,0.4369,0.6586,0],[0.5868,0.4419,0.6701,0],[0.6348,0.448,0.6816,0],[0.6828,0.451,0.6932,0],[0.7108,0.455,0.6999,0],[0.2206,0.3871,0.7212,1],[0.2248,0.401,0.7237,1],[0.2292,0.4149,0.7261,1],[0.2338,0.4282,0.7285,1],[0.2409,0.43,0.731,1],[0.2485,0.4278,0.7334,1],[0.2559,0.4259,0.7358,1],[0.2634,0.4251,0.7383,1],[0.26,0.4358,0.7407,1],[0.2551,0.4486,0.7431,1],[0.2502,0.4614,0.7456,1],[0.2449,0.4737,0.748,1],[0.2462,0.4886,0.7505,1],[0.2484,0.5043,0.7529,1],[0.2507,0.5203,0.7553,1],[0.2507,0.5308,0.7578,1],[0.2437,0.5252,0.7602,1],[0.2364,0.5197,0.7626,1],[0.2287,0.5144,0.7651,1],[0.2214,0.5199,0.7675,1],[0.2143,0.5284,0.7699,1],[0.2074,0.5366,0.7724,1],[0.2033,0.5338,0.7748,1],[0.2027,0.5169,0.7773,1],[0.2025,0.5002,0.7797,1],[0.2017,0.4848,0.7821,1],[0.1948,0.4757,0.7846,1],[0.1882,0.4671,0.787,1],[0.1817,0.4588,0.7894,1],[0.1787,0.4514,0.7919,1],[0.1865,0.4472,0.7943,1],[0.1945,0.4438,0.7968,1],[0.2028,0.4413,0.7992,1],[0.2095,0.4353,0.8016,1],[0.2121,0.4203,0.8041,1],[0.2147,0.4046,0.8065,1],[0.2172,0.3884,0.8089,1],[0.1848,0.4562,0.8133,1],[0.1948,0.4695,0.82,1],[0.2057,0.5316,0.8267,1],[0.2162,0.5188,0.8333,1],[0.2271,0.5057,0.84,1],[0.2372,0.5127,0.8467,1],[0.2467,0.5199,0.8533,1],[0.2572,0.4354,0.86,1],[0.7892,0.4313,0.8711,1],[0.7914,0.4465,0.8732,1],[0.7937,0.4622,0.8754,1],[0.7961,0.4783,0.8775,1],[0.8035,0.4848,0.8796,1],[0.811,0.4897,0.8818,1],[0.8182,0.4941,0.8839,1],[0.8221,0.4994,0.8861,1],[0.8158,0.5088,0.8882,1],[0.809,0.5176,0.8903,1],[0.8016,0.5263,0.8925,1],[0.799,0.54,0.8946,1],[0.7988,0.556,0.8968,1],[0.7988,0.5719,0.8989,1],[0.799,0.5877,0.901,1],[0.793,0.5798,0.9032,1],[0.7868,0.57,0.9053,1],[0.7808,0.5597,0.9075,1],[0.7746,0.552,0.9096,1],[0.7673,0.5575,0.9117,1],[0.7603,0.5635,0.9139,1],[0.7535,0.5698,0.916,1],[0.748,0.5734,0.9182,1],[0.7505,0.5588,0.9203,1],[0.753,0.5437,0.9224,1],[0.7556,0.5283,0.9246,1],[0.7579,0.513,0.9267,1],[0.7529,0.5002,0.9289,1],[0.748,0.4878,0.931,1],[0.7435,0.4755,0.9331,1],[0.7427,0.4668,0.9353,1],[0.7505,0.4668,0.9374,1],[0.7584,0.4665,0.9396,1],[0.7664,0.4665,0.9417,1],[0.7729,0.4594,0.9438,1],[0.7781,0.4467,0.946,1],[0.7833,0.4347,0.9481,1],[0.7436,0.4735,0.95,1],[0.7534,0.4724,0.9571,1],[0.7635,0.4725,0.9643,1],[0.7741,0.4612,0.9714,1],[0.7847,0.4363,0.9786,1],[0.7962,0.481,0.9857,1],[0.8067,0.4929,0.9929,1],[0.8164,0.4991,1.0,1]] } };   // path: [x, y, t, crayon 0 blue / 1 yellow]
   function paintingGeom(n, s, cols, maxW){
     const w = Math.min(maxW || 480, 480);
@@ -1643,42 +1541,6 @@ const MDK = (function(){
         "--t:" + (5 + (k * .53) % 1.4).toFixed(2) + "s;--d:" + ((k * 1.9) % 5.2).toFixed(2) + "s"); });
     return box;
   }
-  /* anything else the flags' wind moves: tick(g, dt, t) every frame with the same gusts g, while el is on screen */
-  function windOn(el, tick){ if(reduce()) return; _flags.add({ svg: el, tick }); if(!_windRaf) _windRaf = requestAnimationFrame(windTick); }
-  /* [cal-wind] a wall calendar whose top sheet the wind lifts (G2, review 2026-10-01: "add a wind effect on the calendar
-     page"). Three layers of the supplied calendar on one canvas: cal_base.webp (the calendar, its top sheet's "12" wiped -
-     the next, blank sheet), the top sheet (cal_page.webp) cut into CAL.K strips, and cal_head.webp (the blue binding and its
-     rings) over them, so the sheet comes out from under the binding. It is the flags' own wind (windOn - one wind, its
-     gusts g): in a gust the sheet's free lower part lifts off the wall, bending more toward its free edge - each strip turned
-     a little further (foreshortened, a touch wider as it comes nearer, pushed right with the wind, which the flags fly
-     with), with a small flutter; in a lull it settles back, a little after the gust (the paper's lag). Under a lifted sheet
-     the blank one shows, shadowed. Reduced motion: it hangs still. x, y, w: its box (scene px). */
-  const CAL = { W: 260, H: 256, top: 80, bot: 239, K: 10, MAX: 64 };       // the art; the sheet's rows; strips; its widest lift (deg)
-  function calendar(parent, x, y, w){
-    const k = w / CAL.W, h = CAL.H * k, pt = CAL.top * k, ph = (CAL.bot - CAL.top) * k, sh = ph / CAL.K;
-    const box = add(parent, "div", "md-cal", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
-    const base = add(box, "img", "md-cal-base"); base.src = "assets/cal_base.webp"; base.alt = "";
-    const shade = add(box, "div", "md-cal-shade", "top:" + px(pt + ph * .3) + ";height:" + px(ph * .7));
-    const strips = [];
-    for(let i = 0; i < CAL.K; i++) strips.push(add(box, "div", "md-cal-strip", "top:" + px(pt + i * sh) + ";height:" + px(sh + 2) +   // (2px under the next: no seam)
-      ";background-size:" + px(w) + " " + px(h) + ";background-position:0 " + px(-(pt + i * sh))));
-    const head = add(box, "img", "md-cal-head"); head.src = "assets/cal_head.webp"; head.alt = "";
-    let L = 0;
-    windOn(box, (g, dt, t)=>{
-      L += (Math.max(0, Math.min(1, (g - .72) / .2)) - L) * (1 - Math.exp(-dt / .3));    // the gust, felt a little late
-      const PHI = L * (1 + .14 * Math.sin(2 * Math.PI * 3 * t)) * CAL.MAX * Math.PI / 180, D = w * 4;
-      let yy = pt, z = 0; const T = [];                                    // each strip: its top's place, its projected height, scale
-      for(let i = 0; i < CAL.K; i++){
-        const phi = PHI * Math.pow((i + .5) / CAL.K, 1.4), c = Math.cos(phi), sc = D / (D - z - sh / 2 * Math.sin(phi));
-        T.push({ x: z * .3, y: yy, h: sh * c * sc, sx: sc, sy: c * sc }); yy += sh * c * sc; z += sh * Math.sin(phi);
-      }
-      T.push({ x: z * .3 });                                                // (where the last one's bottom edge is)
-      strips.forEach((st, i)=>{ const a = T[i], sk = Math.atan2(T[i + 1].x - a.x, Math.max(.5, a.h)) * 180 / Math.PI;   // slanted to meet the next
-        st.style.transform = "translate(" + a.x.toFixed(2) + "px," + (a.y - (pt + i * sh)).toFixed(2) + "px) skewX(" + sk.toFixed(2) + "deg) scale(" + a.sx.toFixed(4) + "," + a.sy.toFixed(4) + ")"; });
-      shade.style.opacity = (L * .9).toFixed(3);
-    });
-    return box;
-  }
   /* the dashed end lines and their flags. axis "x": two vertical lines at x = a and b, from y0 to y1, flags standing at
      the bottom (the line stops at the flag's ball; its pole carries on to the floor); axis "y": two horizontal lines at
      y = a (bottom) and b (top), from x0 to x1, a flag standing on each at the right */
@@ -1689,10 +1551,15 @@ const MDK = (function(){
   const FLAG_LOW = 46;
   function endLines(parent, axis, a, b, s0, s1){
     const mk = (v, kind)=>{
+      /* [line outside] review 2026-10-05: "the pink dotted line is getting hidden behind the blue cube" - a line centred ON
+         the end had half of its 10px under the first / last block, which starts exactly there. Each now stands just
+         OUTSIDE its end (its inner edge on it): start = before a (left of it on x; below the foot, a, on y), end = past b. */
+      const out = kind === "start" ? (axis === "x" ? -10 : 0) : (axis === "x" ? 0 : -10);
       const l = add(parent, "div", "md-line " + (axis === "x" ? "v" : "h"),
-        axis === "x" ? "left:" + px(v - 5) + ";top:" + px(s0) + ";height:" + px(s1 - 50 - s0)   // stops just above the ball (dashes anchored at its foot, CSS)
-                     : "top:" + px(v - 5) + ";left:" + px(s0) + ";width:" + px(s1 - s0));
-      l._flag = axis === "x" ? flag(parent, kind, v - 4, s1 - 48) : flag(parent, kind, s1 - 4, v - 48);
+        axis === "x" ? "left:" + px(v + out) + ";top:" + px(s0) + ";height:" + px(s1 - 50 - s0)   // stops just above the ball (dashes anchored at its foot, CSS)
+                     : "top:" + px(v + out) + ";left:" + px(s0) + ";width:" + px(s1 - s0));
+      /* [no flags] review 2026-10-05: "remove the flags throughout the game" - the end lines stand alone now (each
+         still stops where its flag's ball was, at the row's edge). flag() and its wind stay for windOn's other users. */
       return l; };
     return { start: mk(a, "start"), end: mk(b, "end") };
   }
@@ -1709,7 +1576,8 @@ const MDK = (function(){
   /* ✓ / ✗ pop at (x, y) (its centre); ✗ stays until removed, ✓ fades by itself */
   function mark(parent, x, y, ok){
     const m = add(parent, "div", "md-mark " + (ok ? "ok" : "no"), "left:" + px(x - 22) + ";top:" + px(y - 22));
-    m.textContent = ok ? "✓" : "✕"; requestAnimationFrame(()=> m.classList.add("in"));
+    m.setAttribute("aria-label", ok ? "सही" : "गलत");                      // the ✓ / ✕ is drawn (CSS), centred - the font's ✕ glyph sat off-centre
+    requestAnimationFrame(()=> m.classList.add("in"));
     if(ok) setTimeout(()=>{ m.classList.add("out"); setTimeout(()=> m.remove(), 400); }, 900);
     return m;
   }
@@ -1744,7 +1612,7 @@ const MDK = (function(){
     const solids = [...scene.querySelectorAll(".md-num, .md-block:not(.ghost), .md-flag, .md-box-back, .md-box-front, .md-painting, .md-plate, .md-endmark, .md-mark")]
       .concat([...document.querySelectorAll("#navBtn, #slideHost .tut-mascot")]).map(e => e.getBoundingClientRect()).filter(b => b.width && b.height);
     const objs = [...scene.querySelectorAll(".md-obj")];
-    const cx = bx.l + bx.w / 2, cy = bx.t + bx.h / 2, sides = prefer === "right" ? ["right", "up", "down", "left"] : ["up", "right", "left", "down"];
+    const cx = bx.l + bx.w / 2, cy = bx.t + bx.h / 2, sides = prefer === "right" ? ["right", "up", "down", "left"] : prefer === "left" ? ["left", "up", "down", "right"] : ["up", "right", "left", "down"];
     const at = (side, d)=> side === "up" ? { x: cx, y: bx.t - d } : side === "down" ? { x: cx, y: bx.t + bx.h + d }
                          : side === "right" ? { x: bx.l + bx.w + d, y: cy } : { x: bx.l - d, y: cy };
     let first = null;
@@ -1767,8 +1635,12 @@ const MDK = (function(){
   /* THE cube size, every measuring slide (review 2026-09-30: "the cubes size should stay same all across the game - this
      slide [T2] has the perfect size of the cube"): T2's 76 stage px. Each slide asks for it and only goes smaller where
      its object can't hold that many 76px cubes (the door is 9 tall: 684px - the scene is ~410) - then it takes the
-     biggest size that fits. The card's old per-slide "s" / "bh" sizes are gone. */
-  const CUBE = 76;
+     biggest size that fits. The card's old per-slide "s" / "bh" sizes are gone.
+     Review 2026-10-06: "the cubes should look of the same size length and breadth and size in all game screen" + "zoom
+     in so that assets looks bigger ... along with the cubes should also look bigger": T2's size on every screen. Every
+     measuring slide asks for exactly CUBE (MEASURE_ASK / COMPARE_MEASURED used to cap at 88, MATCH_ROWS at 76), so the
+     counts are what fits at 74px: the tall screens (T3 door, G2 almirah, G3 fridge, ~400px high) hold 5. */
+  const CUBE = 74;
   function plate(parent, text, cx, y, w, rise){
     w = w || 230; const h = Math.round(w / BADGE_AR);
     const p = add(parent, "div", "md-plate" + (rise ? " rise" : ""), "left:" + px(cx - w / 2) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
@@ -1801,11 +1673,11 @@ const MDK = (function(){
      At least 150px wide, so it reads even in T3's small box. */
   function boxPlate(box, text, rest){
     const bx = parseFloat(box.back.style.left), by = parseFloat(box.back.style.top), W = box.w, H = box.h;
-    // its foot ON the front wall's rim (73% down the box art), not behind it: the badge's lower star sits at its foot,
+    // its foot a little above the front wall's rim (62% down the box art - centred in the box, review 2026-10-05), not behind it: the badge's lower star sits at its foot,
     // and it has to be seen whole when it spins (MEASURE_DEMO .cheer). rest: the spare blocks left in the box (data.spare,
     // review 2026-10-01) - it comes to stand ON them, so they stay in sight under it
     const tops = (rest || []).map(b => (b._home || pos(b)).y).filter(v => v === v);   // (where it rests, even mid-settle)
-    const w = Math.max(W * 0.72, 150), h = Math.round(w / BADGE_AR), foot = Math.min(by + H * 0.72, tops.length ? Math.min(...tops) + 4 : Infinity);
+    const w = Math.max(W * 0.72, 150), h = Math.round(w / BADGE_AR), foot = Math.min(by + H * 0.62, tops.length ? Math.min(...tops) + 4 : Infinity);
     const p = plate(box.back.parentNode, text, bx + W / 2, foot - h, w, true);
     const fz = parseInt(box.front.style.zIndex, 10) || 5; p.style.zIndex = fz; box.front.style.zIndex = fz + 1;
     const k0 = Math.min(0.45, (H * 0.25) / h), drop = (by + H * 0.97) - foot;     // start: small, its top under the front rim
@@ -1816,6 +1688,47 @@ const MDK = (function(){
                { translate: "0 0", scale: "1", opacity: 1 }], { duration: 950, fill: "forwards" });                // and it stands
     return p;
   }
+  /* the result on the robot's slides (review 2026-10-07): "a normal box as throughout the game" - the answer cards' own
+     white box (CSS .md-count: 16px corners, the #D5D8DF rim and its 0 4px 0 edge, the prompt's navy text), not the gold
+     badge - and it comes out from UNDER the measured object ("I want the six blocks to come from the upper side of the
+     table, slipping from there"). countBox: the box, centred on cx, top at `top`, w x h. */
+  function countBox(parent, text, cx, top, w, h){
+    const c = add(parent, "div", "md-count", "left:" + px(cx - w / 2) + ";top:" + px(top) + ";width:" + px(w) + ";height:" + px(h) + ";font-size:" + px(Math.round(h * .45)));
+    c.textContent = text; return c;
+  }
+  /* slipBox (T2, the table): the box waits BEHIND the table (z 0, under the picture), tucked up under its top - its
+     bottom at the apron's lower edge (`hide`), so none of it shows - and slips down out from under the top into the gap
+     between the legs: it drops, overshoots a little with a small swing, and settles. */
+  function slipBox(parent, text, cx, top, w, h, hide){
+    const c = countBox(parent, text, cx, top, w, h); c.style.zIndex = 0;
+    if(reduce()) return c;
+    const up = px(hide - (top + h));
+    c.animate([{ translate: "0 " + up, rotate: "0deg", easing: "cubic-bezier(.55,0,.85,.45)" },          // slips out, gathering speed,
+               { translate: "0 " + px(h * .07), rotate: "1.6deg", offset: .58, easing: "ease-out" },        // a little past, swinging,
+               { translate: "0 " + px(-h * .03), rotate: "-.8deg", offset: .78, easing: "ease-in-out" },
+               { translate: "0 0", rotate: "0deg" }], { duration: 780 });                                  // and settles
+    return c;
+  }
+  /* riseBox (T3, the door): the box comes out of the light under the door - small and flat at `from`, a puff of dust -
+     springs up, a little past, a small dip, and stands in front of the door's foot. */
+  function riseBox(parent, text, cx, foot, w, h, from){
+    const c = countBox(parent, text, cx, foot - h, w, h); c.style.zIndex = 14; c.style.transformOrigin = "50% 100%";
+    if(reduce()) return c;
+    const at = px(from.x - cx) + " " + px(from.y - foot);
+    c.animate([{ translate: at, scale: ".16 .06", opacity: 0, easing: "ease-out" },
+               { translate: at, scale: ".34 .2", opacity: 1, offset: .16, easing: "cubic-bezier(.25,.6,.35,1)" },
+               { translate: "0 " + px(-h * .14), scale: "1.06", opacity: 1, offset: .62, easing: "ease-in-out" },
+               { translate: "0 " + px(h * .02), scale: "1.03 .97", opacity: 1, offset: .82, easing: "ease-out" },
+               { translate: "0 0", scale: "1", opacity: 1 }], { duration: 1050 });
+    for(let j = 0; j < 4; j++){
+      const z = w * (.13 + Math.random() * .05), sx = (j < 2 ? -1 : 1) * (j % 2 ? .22 : .1) * w;
+      const d = add(parent, "i", "rb-puff", "left:" + px(from.x) + ";top:" + px(from.y - z * .2) + ";width:" + px(z) + ";height:" + px(z) + ";margin:" + px(-z / 2) + " 0 0 " + px(-z / 2));
+      d.style.zIndex = 13;
+      d.animate([{ transform: "scale(.3)", opacity: .9 }, { transform: "translate(" + px(sx) + "," + px(-z * .5) + ") scale(1.25)", opacity: 0 }],
+                { duration: 650, delay: 60 + j * 40, easing: "cubic-bezier(.2,.7,.4,1)", fill: "backwards" }).onfinish = ()=> d.remove();
+    }
+    return c;
+  }
   /* a bouncing arrow at (x, y): "down" above a tile, "left" to the right of one */
   function arrow(parent, x, y, dir){ const a = add(parent, "div", "md-arrow " + (dir || "down"), "left:" + px(x - 16) + ";top:" + px(y - 16)); return a; }
   /* the tutorial mascot's pose: "guide" / "cheer" / null = back to the card's own. Review 2026-09-30: "why has Swifty
@@ -1824,13 +1737,10 @@ const MDK = (function(){
      clip (the end screen's). That clip plays once, and <img>s of one URL share one timeline, so each cheer gets its own
      blob: URL of it - it plays from frame 0 and never uses up the end screen's play. */
   const POSE = { cheer: "assets/gif/sw_lg_celebrating_anim.webp" };
-  const _poseBlob = {};
-  function warmPose(){ Object.values(POSE).forEach(p =>{ if(_poseBlob[p]) return; _poseBlob[p] = 1;
-    try{ fetch(p).then(r => r.ok ? r.blob() : null).then(b =>{ if(b) _poseBlob[p] = b; }).catch(()=>{}); }catch(e){} }); }
   function pose(id){
     const m = document.querySelector("#slideHost .tut-mascot"); if(!m) return;
     if(!m._src0) m._src0 = m.getAttribute("src");
-    const p = id && POSE[id], b = p && _poseBlob[p], old = m._blobUrl;
+    const p = id && POSE[id], b = p && Assets.blob(p), old = m._blobUrl;
     m._blobUrl = b instanceof Blob ? URL.createObjectURL(b) : null;
     m.setAttribute("src", p ? (m._blobUrl || p + "?r=" + Date.now()) : m._src0); m.classList.toggle("md-pose", !!p);
     if(old) URL.revokeObjectURL(old);
@@ -1884,11 +1794,11 @@ const MDK = (function(){
     }
     const cancelGhost = ()=>{ tok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); if(hand) hand.off(); };
     const armIdle = ()=>{ clearTimeout(idleT); if(!cfg.idleMs) return;
-      idleT = setTimeout(()=>{ if(live() && !drag) ghost().then(()=>{ if(live()) armIdle(); }); }, cfg.idleMs); };
+      idleT = setTimeout(()=>{ if(live() && !drag){ if(cfg.onIdle) cfg.onIdle(); ghost().then(()=>{ if(live()) armIdle(); }); } }, cfg.idleMs); };
     blocks.forEach(b =>{
       b.addEventListener("pointerdown", ev =>{
-        if(!live() || b._placed || drag || placed >= N) return;
-        ev.preventDefault(); clearTimeout(idleT); cancelGhost();
+        if(!live() || b._placed || b._busy || drag || placed >= N) return;
+        ev.preventDefault(); clearTimeout(idleT); cancelGhost(); if(cfg.onGrab) cfg.onGrab();
         if(b._settle) b._settle();                                         // (a holder's block still settling: in its place first)
         const p = local(scene, ev), bp = pos(b);
         drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false };
@@ -1908,7 +1818,7 @@ const MDK = (function(){
         slot.classList.remove("show", "target");
         if(hit){                                                            // flush against the last one
           b._placed = true; b.classList.add("placed"); drop(b);
-          glide(b, to, reduce() ? 0 : 120, false).then(()=>{ land(b); okFlash(b); });   // correct: a green outline flash (no ✓)
+          glide(b, to, reduce() ? 0 : 120, false).then(()=>{ land(b); okFlash(b); });   // correct: it lands (no ✓, no green outline)
           placed++; const n = placed;
           GameBus.emit("measure_unit_placed", { slide_id: cfg.slide.id, phase: cfg.slide.phase, count: n, of: N });
           Promise.resolve(cfg.onHit ? cfg.onHit(n, to) : null).then(()=>{ if(!live()) return; if(n >= N){ on = false; clearTimeout(idleT); if(cfg.onAll) cfg.onAll(); } else armIdle(); });
@@ -1917,11 +1827,17 @@ const MDK = (function(){
           const k = placed, m = misses[k] = (misses[k] || 0) + 1;
           GameBus.emit("answer_wrong", { slide_id: cfg.slide.id, phase: cfg.slide.phase, attempts: ++state.attempts });
           if(cfg.onWrong) cfg.onWrong(m);
-          glide(b, b._home, reduce() ? 0 : 420, true).then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3;
-            if(!reduce()) b.animate([{ translate: "0 -10px" }, { translate: "0 0" }, { translate: "0 -4px" }, { translate: "0 0" }], { duration: 360, easing: "ease-out" });
+          // [robot] cfg.respawn: it wiggles where it lies, vanishes, and a new one rises on the lid (MDK.robot respawn) - else back to the box
+          const back = cfg.respawn ? (shake(b, 7), wait(reduce() ? 0 : 420).then(()=> cfg.alive() ? cfg.respawn(b) : null))
+                                   : glide(b, b._home, reduce() ? 0 : 420, true);
+          back.then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3;
+            if(!cfg.respawn) shake(b, 7);                                   // a wrong drop wiggles (QA checklist)
             if(!live() || drag || placed !== k) return;
-            if(cfg.hints) cfg.hints.say(m >= 2 ? 2 : 1);
-            if(m >= 2 && hand) setTimeout(()=>{ if(!live() || drag || placed !== k) return;   // attempt 2: the tile glows + the hand shows the drag
+            /* QA checklist 2026-10-05 - three layers: 1 think again (hints.say(1)); 2 the strong hint, the rule - start
+               where the last block ends (hints.say(2)); 3 the visual nudge - the tile glows and the hand shows the
+               drag (hints.say(3)) */
+            if(cfg.hints) cfg.hints.say(Math.min(m, 3));
+            if(m >= 3 && hand) setTimeout(()=>{ if(!live() || drag || placed !== k) return;
               slots[k].classList.add("show", "target"); ghost(true).then(()=>{ if(live()) armIdle(); }); }, 350);
             else armIdle(); });
         }
@@ -1935,591 +1851,22 @@ const MDK = (function(){
   }
   /* pointer -> scene px (the stage is scaled by --scale) */
   function local(scene, ev){ const r = scene.getBoundingClientRect(), k = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; }
-  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, calendar, windOn, nightWindow, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, arrow, pose, warmPose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow };
+  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, robot, robotGeom, ground, nightWindow, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, slipBox, riseBox, arrow, pose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow };
 })();
 
 const SlideModules = {
-  INTRO: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "intro-stage";
-      const letters = slide.data.letters;
-      const tapped = new Set();
-      const tiles = [];
-      // [16f] Size tiles to the REAL container: the r4 tut-card frame is ~990px inside (the old
-      // math assumed 1220 + a -100px breakout and punched 10-card strips through the frame borders
-      // — user-caught live on MTKGA01_L02_S01 s00; same root as the HIKGH04_P2 letter row).
-      // Fit one row at MAXW=960; if tiles would drop below the 110px touch floor, WRAP into two
-      // balanced rows (numerals 0-9 → fives-structure 0-4 / 5-9) sized to the wider row.
-      const GAP = 20, MAXW = 960, n = letters.length;
-      let rowsOf;
-      let tSize = Math.min(184, Math.floor((MAXW - (n-1)*GAP) / n));
-      if (tSize >= 110) { rowsOf = [n]; }
-      else {
-        const top = Math.ceil(n/2), bot = n - top;
-        tSize = Math.min(184, Math.floor((MAXW - (top-1)*GAP) / top));
-        rowsOf = [top, bot];
-      }
-      const tFont = Math.round(tSize * 0.565);
-      const rowEls = rowsOf.map(() => {
-        const r = document.createElement("div"); r.className = "intro-letters";
-        r.style.gap = GAP + "px"; return r;
-      });
-      const rowFor = i => (rowsOf.length === 1 || i < rowsOf[0]) ? rowEls[0] : rowEls[1];
-      // hand-nudge points at the first letter not yet tapped — guides every box
-      function nudgeNext(){
-        for(let i=0;i<letters.length;i++){
-          if(!tapped.has(letters[i])){ pointNudgeAt(tiles[i]); return; }
-        }
-        stopNudge();
-      }
-      letters.forEach((L, i) => {
-        const tile = document.createElement("div"); tile.className = "intro-letter";
-        tile.style.width = tile.style.height = tSize + "px";
-        tile.style.fontSize = tFont + "px";
-        tile.innerHTML = `<span class="ink-glyph">${L}</span>`;
-        tile.onclick = ()=>{
-          if(slide.data.auto) return;   // [16h] Phase-1 autonomous mode: the demo plays itself
-          tile.classList.add("played");
-          const phon = slide.data.phonemes && slide.data.phonemes[L];
-          play(phon ? "assets/voiceover/" + phon + "." + AUDIO_EXT : null);
-          GameBus.emit("intro_letter_tap", { slide_id: slide.id, letter: L });
-          tapped.add(L);
-          // नav unlocks only after EVERY letter has been heard
-          if(tapped.size >= letters.length){ stopNudge(); setNavActive(true); }
-          else { nudgeNext(); }
-        };
-        rowFor(i).appendChild(tile); tiles.push(tile);
-      });
-      rowEls.forEach(r => wrap.appendChild(r));
-      host.appendChild(wrap);
 
-      setNavActive(false);
-      $("navBtn").onclick = ()=>{ if(tapped.size >= letters.length) completeSlide(true); };
-      nudgeNext();
-      // [16h] Phase-1 autonomous mode (lead's 3-phase contract): tiles highlight + speak one by
-      // one BY THEMSELVES; the child watches/listens. आगे unlocks after the last one.
-      if(slide.data.auto){
-        stopNudge(); state.ownsAudio = true;
-        let ai = 0;
-        const aStep = ()=>{
-          if(CARD.slides[state.idx] !== slide) return;
-          if(ai >= letters.length){ stopNudge(); $("navBtn").onclick = ()=> completeSlide(true); setNavActive(true); return; }
-          const L = letters[ai], tile = tiles[ai];
-          tile.classList.add("played"); pointNudgeAt(tile);
-          const phon = slide.data.phonemes && slide.data.phonemes[L];
-          ai++;
-          play(phon ? "assets/voiceover/" + phon + "." + AUDIO_EXT : null, ()=> setTimeout(aStep, 380));
-        };
-        play(audioFor(slide, "prompt") || null, ()=> setTimeout(aStep, 500));
-      }   // start by guiding the first letter
-    }
-  },
 
-  MEET_LETTER: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "meet-stage";
-      if(slide.data.pair){
-        const pair = document.createElement("div"); pair.className = "meet-pair";
-        slide.data.pair.forEach(p => {
-          const item = document.createElement("div"); item.className = "meet-pair-item";
-          item.innerHTML = `
-            <div class="meet-letter-box"><span class="glyph ink-glyph">${p.letter}</span></div>
-            <div class="meet-arrow">→</div>
-            <div class="meet-pic-box">
-              ${imgOrEmoji(p.picture_img, p.picture_emoji, "pic-img", "pic-emoji")}
-              <span class="pic-label">${p.word_hi}</span>
-            </div>`;
-          pair.appendChild(item);
-        });
-        wrap.appendChild(pair);
-      } else {
-        wrap.innerHTML = `
-          <div class="meet-letter-box"><span class="glyph ink-glyph">${slide.data.letter}</span></div>
-          <div class="meet-arrow">→</div>
-          <div class="meet-pic-box">
-            ${imgOrEmoji(slide.data.picture_img, slide.data.picture_emoji, "pic-img", "pic-emoji")}
-            <span class="pic-label">${slide.data.word_hi}</span>
-          </div>`;
-      }
-      host.appendChild(wrap);
-      // नav unlocks only after the VO has played once (students can't skip the model)
-      state.gateNavUntilAudio = true;
-      setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  /* ===== SHAPES (maths) — reuse the same scaffold/nudge/feedback as letters ===== */
-  SHAPE_INTRO: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "intro-stage";
-      const row  = document.createElement("div"); row.className = "intro-shapes";
-      const shapes = slide.data.shapes; const tapped = new Set(); const tiles = [];
-      const GAP = 28, MAXW = 1220, n = shapes.length;
-      const tSize = Math.max(120, Math.min(184, Math.floor((MAXW - (n-1)*GAP) / n)));
-      row.style.gap = GAP + "px";
-      function nudgeNext(){
-        for(let i=0;i<shapes.length;i++){ if(!tapped.has(i)){ pointNudgeAt(tiles[i]); return; } }
-        stopNudge();
-      }
-      shapes.forEach((sh, i) => {
-        const tile = document.createElement("div"); tile.className = "intro-shape";
-        tile.style.width = tile.style.height = tSize + "px";
-        // name label (revealed on tap — child hears the name AND sees it on top of the shape)
-        tile.innerHTML = `<span class="shape-name">${sh.name || ""}</span>` +
-                         shapeSVG(sh.shape, {color: sh.color, size: Math.round(tSize*0.62), rotate: sh.rotate});
-        tile.onclick = ()=>{
-          tile.classList.add("played");
-          play(sh.name_audio ? "assets/voiceover/" + sh.name_audio + "." + AUDIO_EXT : null);
-          GameBus.emit("intro_shape_tap", { slide_id: slide.id, shape: sh.shape });
-          tapped.add(i);
-          if(tapped.size >= shapes.length){ stopNudge(); setNavActive(true); }
-          else { nudgeNext(); }
-        };
-        row.appendChild(tile); tiles.push(tile);
-      });
-      wrap.appendChild(row); host.appendChild(wrap);
-      setNavActive(false);
-      $("navBtn").onclick = ()=>{ if(tapped.size >= shapes.length) completeSlide(true); };
-      nudgeNext();
-    }
-  },
 
-  MEET_SHAPE: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "meet-stage";
-      wrap.innerHTML = `
-        <div class="meet-shape-box">
-          ${shapeSVG(slide.data.shape, {color: slide.data.color, size: 190, rotate: slide.data.rotate})}
-          <span class="label">${slide.data.name}</span>
-        </div>
-        <div class="meet-arrow">→</div>
-        <div class="meet-pic-box">
-          ${imgOrEmoji(slide.data.object_img, slide.data.object_emoji, "pic-img", "pic-emoji")}
-          <span class="pic-label">${slide.data.object_hi}</span>
-        </div>`;
-      host.appendChild(wrap);
-      state.gateNavUntilAudio = true; setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  TAP_SHAPE_BY_NAME: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "shape_name_first_try",
-        stimulus: (()=> {
-          const el = document.createElement("div"); el.className = "stimulus-pic"; el.style.cursor = "pointer";
-          el.innerHTML = `<span class="emoji">🔊</span><span class="lbl">${slide.data.name || "नाम सुनो"}</span>`;
-          el.onclick = ()=>{ state.audioReplays++; play(audioFor(slide,"shape_name") || null); };
-          return el;
-        })(),
-        options: slide.data.options,
-        isCorrect: (opt) => opt.shape === slide.data.target,
-        optionRenderer: (opt) => shapeCell(opt)
-      });
-    }
-  },
 
-  TAP_SHAPE_BY_PICTURE: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "shape_env_first_try",
-        stimulus: stimulusPic(slide.data.object_hi, slide.data.object_emoji, slide.data.object_img),
-        options: slide.data.options,
-        isCorrect: (opt) => opt.shape === slide.data.target,
-        optionRenderer: (opt) => shapeCell(opt)
-      });
-    }
-  },
 
-  TAP_PICTURE_BY_SHAPE: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "shape_object_first_try",
-        stimulus: stimulusShape({shape: slide.data.shape, color: slide.data.color, rotate: slide.data.rotate}),
-        options: slide.data.options,
-        isCorrect: (opt) => opt.correct === true,
-        optionRenderer: (opt) => pictureCell(opt.object_hi, opt.object_emoji, opt.object_img)
-      });
-    }
-  },
 
-  SORT_SHAPE: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "sort-stage shape-sort";
-      const binsRow = document.createElement("div");
-      binsRow.className = "sort-bins" + (slide.data.bins.length >= 4 ? " many" : "");
-      slide.data.bins.forEach(b => {
-        const bin = document.createElement("div");
-        bin.className = "sort-bin dd-zone";            // dd-zone → drop detection
-        bin.dataset.shape = b.shape;
-        // header (faint reference shape + label) INSIDE the box, then a clear drop area
-        bin.innerHTML = `<div class="bin-head-row"><span class="bin-ref">${shapeSVG(b.shape, {color:"#AEB9CC", size:34})}</span><span class="bin-title">${b.label}</span></div>`+
-          `<div class="bin-items"></div>`;
-        binsRow.appendChild(bin);
-      });
-      const tray = document.createElement("div"); tray.className = "sort-tray";
-      const items = slide.data.items.slice().sort(()=> Math.random() - 0.5);
-      items.forEach(it => {
-        const t = document.createElement("div"); t.className = "sort-item"; t.dataset.shape = it.shape;
-        t.innerHTML = shapeSVG(it.shape, {color: it.color, size: 70, rotate: it.rotate});
-        tray.appendChild(t);
-      });
-      wrap.appendChild(binsRow); wrap.appendChild(tray);
-      host.appendChild(wrap);
 
-      state.attempts = 0; state.locked = false;
-      let placed = 0; const need = slide.data.items.length;
-      [...tray.children].forEach(tile => {
-        makeDraggable(tile, (zone, t) => {
-          const bin = zone.closest(".sort-bin"); if(!bin) return;
-          state.attempts++;
-          if(bin.dataset.shape === t.dataset.shape){
-            t.classList.add("snapped");
-            bin.querySelector(".bin-items").appendChild(t);
-            placed++;
-            GameBus.emit("shape_sort_item", { slide_id: slide.id, shape: t.dataset.shape, attempts: state.attempts });
-            if(placed === need){
-              state.locked = true;
-              GameBus.emit("shape_sort_correct", {
-                slide_id: slide.id, phase: slide.phase, value: true,
-                attempts: state.attempts, latency_ms: Date.now() - state.slideStart
-              });
-              setTimeout(()=> celebrateThenAdvance(slide, false), 250);   // standard: confetti + VO + auto-advance, no popup
-            }
-          } else {
-            bin.classList.add("hover"); bin.style.borderColor = "var(--wrong)";
-            setTimeout(()=>{ bin.classList.remove("hover"); bin.style.borderColor = ""; }, 500);
-            dragWrong(slide);   // buzz + Swiftie + spoken try_again (pre-readers need the spoken recovery)
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-          }
-        });
-      });
-    }
-  },
 
-  /* ===== COUNTING (maths) — OTO tap-count, cardinality, meet-number, make-set ===== */
-  COUNT_TAP: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "count-stage";
-      const row  = document.createElement("div"); row.className = "count-row";
-      const N = slide.data.count, obj = slide.data.object, nums = slide.data.numerals || [];
-      // large sets (S04, up to 20): smaller tiles + optional rows-of-N grouping (curriculum: rows of 5/10)
-      if(N > 10 || slide.data.per_row) row.classList.add("dense");
-      if(slide.data.per_row){ row.style.display = "grid"; row.style.gridTemplateColumns = `repeat(${slide.data.per_row}, auto)`; }
-      const items = []; let c = 0;
-      for(let i=0;i<N;i++){
-        const it = document.createElement("div"); it.className = "count-item";
-        it.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji") + `<span class="count-badge"></span>`;
-        row.appendChild(it); items.push(it);
-      }
-      wrap.appendChild(row); host.appendChild(wrap);
 
-      function nudgeNext(){ const nx = items.find(x=>!x.classList.contains("counted")); if(nx) pointNudgeAt(nx); else stopNudge(); }
-      items.forEach(it => {
-        it.onclick = ()=>{
-          if(it.classList.contains("counted")) return;   // one-to-one: never double-count
-          c++; it.classList.add("counted");
-          it.querySelector(".count-badge").textContent = String(c);   // Arabic running count; Hindi word spoken separately
-          GameBus.emit("count_tap", { slide_id: slide.id, phase: slide.phase, n: c });
-          if(c >= N){
-            stopNudge();
-            GameBus.emit("count_oto_complete", { slide_id: slide.id, phase: slide.phase,
-              total: N, value: true, latency_ms: Date.now()-state.slideStart });
-            // say the LAST number, then the total; enable आगे ONLY after "कुल N" finishes
-            play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT, ()=> setTimeout(()=>
-              play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT, ()=> setNavActive(true)), 300));
-          } else {
-            play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT);    // one number word per touch
-            nudgeNext();
-          }
-        };
-      });
-      setNavActive(false);
-      $("navBtn").onclick = ()=>{ if(c >= N) completeSlide(true); };
-      nudgeNext();
-    }
-  },
 
-  CONSERVE_COUNT: {
-    // MTKGA01_L01_S03 "the LAST counted number IS the total" + its core misconception ("the total
-    // changes when objects move"). One slide, two beats: (A) the child tap-counts the set one-to-one
-    // (badges + spoken एक/दो/…, ending "कुल N" — the freeze-the-final-number teach), then (B) the SAME
-    // objects visibly MOVE to scattered spots (badges clear), the move line asks "अब कितनी हैं?" and
-    // numeral options appear — correct is the SAME N; options include N±1 (the moved-so-changed error).
-    // data:{count, object, numerals, options:[{value,audio}]} · audio:{prompt, move, try_again, hint, reveal}.
-    // GENERALISED count-then-pick engine (S03 conservation + S02's tap-count items). One slide:
-    // tap-count the set one-to-one (badges + spoken एक/दो/… → frozen "कुल N"), then numeral options.
-    // data: {count, object, options, arrange?("row"|"scatter"|"circle"|"two_groups"), groups?[a,b],
-    //        move?(default true = objects drift after counting; false = count-then-pick, no drift)}.
-    // move:false emits cardinality_first_try; move:true emits conserve_count_first_try.
-    mount(host, slide){
-      const d = slide.data, N = d.count, obj = d.object;
-      const arrange = d.arrange || "row";
-      const doMove  = d.move !== false;
-      state.ownsAudio = true; setNavActive(false);
-      const wrap = document.createElement("div"); wrap.className = "count-stage conserve";
-      const row  = document.createElement("div"); row.className = "count-row arr-" + arrange + (N > 8 ? " dense" : "");
-      const items = []; let c = 0;
-      const mkItem = ()=>{ const it = document.createElement("div"); it.className = "count-item";
-        it.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji") + `<span class="count-badge"></span>`;
-        items.push(it); return it; };
-      if(arrange === "two_groups"){
-        const g = d.groups || [Math.ceil(N/2), Math.floor(N/2)];
-        g.forEach((gn, gi)=>{ const cl = document.createElement("div"); cl.className = "count-cluster";
-          for(let i=0;i<gn;i++) cl.appendChild(mkItem()); row.appendChild(cl);
-          if(gi === 0){ const plus = document.createElement("div"); plus.className = "count-plus"; plus.textContent = "और"; row.appendChild(plus); } });
-      } else if(arrange === "circle"){
-        for(let i=0;i<N;i++){ const it = mkItem(); const a = -Math.PI/2 + i*2*Math.PI/N, R = N > 6 ? 176 : 140;
-          it.style.position = "absolute";
-          it.style.left = `calc(50% + ${Math.round(Math.cos(a)*R)}px)`;
-          it.style.top  = `calc(50% + ${Math.round(Math.sin(a)*R)}px)`;
-          it.style.marginLeft = "-48px"; it.style.marginTop = "-48px"; row.appendChild(it); }
-      } else {
-        for(let i=0;i<N;i++){ const it = mkItem();
-          if(arrange === "scatter") it.style.transform = `translateY(${((i*23)%25)-12}px) rotate(${((i*37)%21)-10}deg)`;
-          row.appendChild(it); }
-      }
-      wrap.appendChild(row); host.appendChild(wrap);
-      const nudgeNext = ()=>{ const nx = items.find(x=>!x.classList.contains("counted")); if(nx) pointNudgeAt(nx); else stopNudge(); };
-      const askOptions = ()=>{
-        mountTapOptions({
-          slide, host, signalName: doMove ? "conserve_count_first_try" : "cardinality_first_try",
-          stimulus: null, nudgeTarget: null,
-          options: d.options,
-          columnsHint: Math.min(d.options.length, 5),
-          isCorrect: (opt) => opt.value === N,
-          optionRenderer: (opt) => slide.phase === "tutorial" ? numFingerCell(opt.value) : bigNumCell(opt.value),
-          mastery: slide.phase === "mastery"
-        });
-      };
-      const afterCount = ()=>{
-        if(doMove){
-          items.forEach((it,i)=>{ const keep = slide.phase === "tutorial" &&
-              it.querySelector(".count-badge").textContent === String(N);
-            if(!keep) it.querySelector(".count-badge").textContent = "";
-            it.classList.add("moved");
-            it.style.transform = `translate(${((i*53)%81)-40}px, ${((i*37)%61)-30}px) rotate(${((i*29)%25)-12}deg)`; });
-          sfxTap();
-          setTimeout(()=>{ play(audioFor(slide, "move") || null, ()=>{}); askOptions(); }, 950);
-        } else {
-          play(audioFor(slide, "ask") || null, ()=>{}); askOptions();
-        }
-      };
-      items.forEach(it => {
-        it.onclick = ()=>{
-          if(it.classList.contains("counted") || it.classList.contains("moved")) return;   // one-to-one; inert once moved
-          c++; it.classList.add("counted");
-          it.querySelector(".count-badge").textContent = String(c);
-          GameBus.emit("count_tap", { slide_id: slide.id, phase: slide.phase, n: c });
-          if(c >= N){
-            stopNudge();
-            play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT, ()=> setTimeout(()=>
-              play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT, ()=> setTimeout(afterCount, 450)), 300));
-          } else {
-            play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT);
-            nudgeNext();
-          }
-        };
-      });
-      state.replayAudio = ()=> play(audioFor(slide, c >= N ? (doMove ? "move" : "ask") : "prompt") || null, ()=>{});
-      play(audioFor(slide, "prompt") || null, ()=>{});
-      nudgeNext();
-    }
-  },
-
-  COUNT_ACTION: {
-    // S02 themed tap-count: tap each object and it ENACTS to a target while counting — pop (balloon
-    // vanishes), feed (flies to the monster's mouth), or basket (drops into the basket). After the last
-    // one the frozen "कुल N" plays and numeral options appear. data:{count, object, options, theme
-    // ("pop"|"feed"|"basket")}. audio:{prompt, ask, try_again, hint, reveal}.
-    mount(host, slide){
-      const d = slide.data, N = d.count, obj = d.object, theme = d.theme || "pop";
-      state.ownsAudio = true; setNavActive(false);
-      const wrap = document.createElement("div"); wrap.className = "count-stage act act-" + theme;
-      let target = null;
-      if(theme === "feed"){ target = document.createElement("div"); target.className = "act-target act-monster"; target.textContent = "👹"; wrap.appendChild(target); }
-      if(theme === "basket"){ target = document.createElement("div"); target.className = "act-target act-basket";
-        target.innerHTML = imgOrEmoji("obj_basket", "🧺", "act-basket-img", "act-basket-emoji"); wrap.appendChild(target); }
-      const row = document.createElement("div"); row.className = "count-row act-row" + (N > 8 ? " dense" : "");
-      const items = []; let c = 0;
-      for(let i=0;i<N;i++){ const it = document.createElement("div"); it.className = "count-item act-item";
-        it.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji") + `<span class="count-badge"></span>`;
-        row.appendChild(it); items.push(it); }
-      wrap.appendChild(row); host.appendChild(wrap);
-      const nudgeNext = ()=>{ const nx = items.find(x=>!x.classList.contains("done")); if(nx) pointNudgeAt(nx); else stopNudge(); };
-      const askOptions = ()=>{ mountTapOptions({
-        slide, host, signalName: "cardinality_first_try", stimulus: null, nudgeTarget: null,
-        options: d.options, columnsHint: Math.min(d.options.length, 5),
-        isCorrect: (opt) => opt.value === N,
-        optionRenderer: (opt) => slide.phase === "tutorial" ? numFingerCell(opt.value) : bigNumCell(opt.value),
-        mastery: slide.phase === "mastery" }); };
-      items.forEach(it => {
-        it.onclick = ()=>{
-          if(it.classList.contains("done")) return;
-          c++; it.classList.add("done", "act-go");   // act-go = fly/pop animation (theme-scoped CSS)
-          it.querySelector(".count-badge").textContent = String(c);
-          if(theme === "feed" && target) target.classList.add("chomp");
-          sfxTap();
-          GameBus.emit("count_tap", { slide_id: slide.id, phase: slide.phase, n: c });
-          if(c >= N){
-            stopNudge();
-            play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT, ()=> setTimeout(()=>
-              play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT, ()=> setTimeout(()=>{
-                play(audioFor(slide, "ask") || null, ()=>{}); askOptions(); }, 450)), 300));
-          } else { play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT); nudgeNext(); }
-        };
-      });
-      state.replayAudio = ()=> play(audioFor(slide, c >= N ? "ask" : "prompt") || null, ()=>{});
-      play(audioFor(slide, "prompt") || null, ()=>{});
-      nudgeNext();
-    }
-  },
-
-  COUNT_DRAG_MATCH: {
-    // S02 drag items. mode "num_to_box": count the set, then DRAG the correct NUMBER CARD into the
-    // answer box (#2, #9). mode "obj_to_num": count, then DRAG the object onto the correct NUMBER (#11).
-    // data:{count, object, options:[{value}], mode}. audio:{prompt, ask, try_again, reveal}.
-    mount(host, slide){
-      const d = slide.data, N = d.count, obj = d.object, mode = d.mode || "num_to_box";
-      state.ownsAudio = true; setNavActive(false);
-      const wrap = document.createElement("div"); wrap.className = "count-stage dragmatch";
-      const setRow = document.createElement("div"); setRow.className = "count-row show-set" + (N > 8 ? " dense" : "");
-      const items = []; let c = 0;
-      for(let i=0;i<N;i++){ const it = document.createElement("div"); it.className = "count-item";
-        it.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji") + `<span class="count-badge"></span>`;
-        setRow.appendChild(it); items.push(it); }
-      wrap.appendChild(setRow);
-      const dz = document.createElement("div"); dz.className = "cdm-zone";   // built after counting
-      const tray = document.createElement("div"); tray.className = "cdm-tray";
-      wrap.appendChild(dz); wrap.appendChild(tray); host.appendChild(wrap);
-      const nudgeNext = ()=>{ const nx = items.find(x=>!x.classList.contains("counted")); if(nx) pointNudgeAt(nx); else stopNudge(); };
-      const settleWin = (revealed)=>{ state.locked = true;
-        GameBus.emit("cardinality_first_try", { slide_id: slide.id, phase: slide.phase, value: !revealed, latency_ms: Date.now()-state.slideStart });
-        celebrateThenAdvance(slide, revealed); };
-      const buildDrag = ()=>{
-        // shuffle the numeral options
-        const opts = d.options.slice(); for(let i=opts.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [opts[i],opts[j]]=[opts[j],opts[i]]; }
-        if(mode === "obj_to_num"){
-          // number cards are the DROP ZONES; a single draggable object-chip is the tile
-          dz.className = "cdm-numrow";
-          opts.forEach(o=>{ const z = document.createElement("div"); z.className = "cdm-numzone dd-zone"; z.dataset.val = String(o.value);
-            z.innerHTML = `<span class="bignum-glyph">${devNumeral(o.value)}</span>`; dz.appendChild(z); });
-          const tile = document.createElement("div"); tile.className = "cdm-objtile";
-          tile.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji"); tray.appendChild(tile);
-          makeDraggable(tile, (zone)=>{ if(state.locked || !zone) return;
-            if(parseInt(zone.dataset.val,10) === N){ zone.classList.add("filled","correct"); tile.classList.add("snapped"); settleWin(false); }
-            else { zone.classList.add("wrong"); setTimeout(()=>zone.classList.remove("wrong"),500); dragWrong(slide);
-              state.attempts=(state.attempts||0)+1; if(state.attempts>=(CARD.scaffold_rules.max_attempts||3)){ const zc=[...dz.children].find(z=>parseInt(z.dataset.val,10)===N); if(zc){zc.classList.add("filled","correct","reveal-glow"); tile.classList.add("snapped"); play(audioFor(slide,"reveal")||null,()=>{}); settleWin(true);} } }
-          });
-        } else {
-          // one BOX is the drop zone; number cards are the draggable tiles
-          dz.className = "cdm-box dd-zone"; dz.innerHTML = `<span class="cdm-box-q">?</span>`;
-          opts.forEach(o=>{ const tile = document.createElement("div"); tile.className = "cdm-card"; tile.dataset.val = String(o.value);
-            tile.innerHTML = `<span class="bignum-glyph">${devNumeral(o.value)}</span>`; tray.appendChild(tile);
-            makeDraggable(tile, (zone)=>{ if(state.locked || zone !== dz) return;
-              if(o.value === N){ dz.classList.add("filled","correct"); dz.innerHTML = `<span class="bignum-glyph">${devNumeral(N)}</span>`; tile.classList.add("snapped"); settleWin(false); }
-              else { dz.classList.add("wrong"); setTimeout(()=>dz.classList.remove("wrong"),500); dragWrong(slide);
-                state.attempts=(state.attempts||0)+1; if(state.attempts>=(CARD.scaffold_rules.max_attempts||3)){ dz.classList.add("filled","correct","reveal-glow"); dz.innerHTML=`<span class="bignum-glyph">${devNumeral(N)}</span>`; play(audioFor(slide,"reveal")||null,()=>{}); settleWin(true); } }
-            });
-          });
-        }
-        play(audioFor(slide, "ask") || null, ()=>{});
-      };
-      items.forEach(it => { it.onclick = ()=>{ if(it.classList.contains("counted")) return;
-        c++; it.classList.add("counted"); it.querySelector(".count-badge").textContent = String(c);
-        GameBus.emit("count_tap", { slide_id: slide.id, phase: slide.phase, n: c });
-        if(c >= N){ stopNudge(); play("assets/voiceover/vo_num_"+c+"."+AUDIO_EXT, ()=> setTimeout(()=>
-          play("assets/voiceover/vo_total_"+N+"."+AUDIO_EXT, ()=> setTimeout(buildDrag, 450)), 300)); }
-        else { play("assets/voiceover/vo_num_"+c+"."+AUDIO_EXT); nudgeNext(); }
-      }; });
-      state.attempts = 0; state.locked = false;
-      state.replayAudio = ()=> play(audioFor(slide, c >= N ? "ask" : "prompt") || null, ()=>{});
-      play(audioFor(slide, "prompt") || null, ()=>{});
-      nudgeNext();
-    }
-  },
-
-  DEMO_COUNT: {
-    // TUTORIAL TEACH, TAP-TO-COUNT ([QA 04] - was the [16h] autonomous count, which the FLN QA
-    // checklist rejects: "tutorial intro is interactive, not auto-playing"). All N objects are
-    // visible; after the prompt the hand points at the next one; each TAP counts it - a BIG running
-    // count updates 1..N with vo_num_N; then the conclusion line plays and आगे unlocks.
-    // NO options — never a test, and no wrong tap is possible (a tap always counts the next unit).
-    // Zero (N=0): empty tray, straight to the conclusion. data:{count, object} audio:{prompt?, conclude}
-    mount(host, slide){
-      /* data.bare (review 2026-09-30, T1: "remove all the assets as shown in this screen"): NO counting art - no
-         units, badges, running count or result plate; the prompt plays, then the conclusion, then आगे unlocks. */
-      const d = slide.data, bare = !!d.bare, N = bare ? 0 : d.count, obj = d.object;
-      state.ownsAudio = true; setNavActive(false); setSwMood("teach");
-      const wrap = document.createElement("div"); wrap.className = "demo-stage";
-      const counter = document.createElement("div"); counter.className = "demo-count";
-      counter.textContent = N === 0 ? "0" : "";
-      const row = document.createElement("div"); row.className = "count-row demo-row" + (N > 8 && !d.per_row ? " dense" : "");
-      const measuring = mkIsMeasure(slide);
-      if(measuring) row.classList.add("mk-rail");   // [kit] units laid flush - no gaps, which is the skill
-      if(d.per_row){ row.classList.add("perrow"); row.style.gridTemplateColumns = `repeat(${d.per_row}, auto)`; }
-      const items = [];
-      for(let k = 0; k < N; k++){
-        const it = document.createElement("div"); it.className = "count-item demo-item";
-        it.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji") + `<span class="count-badge"></span>`;
-        row.appendChild(it); items.push(it);
-      }
-      if(N === 0){ row.classList.add("demo-empty"); }
-      if(!bare){ wrap.appendChild(counter); wrap.appendChild(row); }
-      host.appendChild(wrap);
-      /* [QA 04] TUTORIAL INTRO IS INTERACTIVE, NOT AUTO-PLAYING. The count used to run by itself;
-         now the CHILD taps each unit to hear it counted: after the prompt, the hand points (below)
-         at the next unit, a tap counts it - "placed" face + glow, badge, big running numeral,
-         vo_num_k - and the spoken numeral wears the white outline while its clip plays. Taps land
-         in left-to-right order (any tap counts the NEXT unit, so the count is never out of order)
-         and are ignored while a numeral is still being spoken. आगे unlocks only once every unit
-         has been heard AND the conclusion line has played. */
-      let i = 0, busy = true, finished = false;
-      const tutPrompt = ()=> document.querySelector("#slideHost .tut-prompt");
-      let concluded = false;                                         // (a replayed prompt must not conclude twice)
-      const conclude = ()=>{ if(concluded) return; concluded = true; stopNudge();
-        /* [kit] the measurement lands on the sheet's own result plate - the count
-           the child just made, restated as "<n> ब्लॉक्स" with the sparkle. */
-        if(measuring && N > 0) mkShowResult(row, N);
-        play(audioFor(slide, "conclude") || null, ()=>{ finished = true; setNavActive(true); }); };
-      const nudgeNext = ()=>{ if(i < N) pointNudgeAt(items[i]); else stopNudge(); };
-      const countNext = ()=>{
-        if(CARD.slides[state.idx] !== slide || busy || i >= N) return;
-        busy = true; stopNudge();
-        const it = items[i];
-        it.classList.add("counted", "demo-hit");
-        /* [kit] a counted unit settles into its "placed" face and flashes the glow */
-        if(measuring){ mkSetBlockState(it, MK.placed); mkGlow(it); }
-        it.querySelector(".count-badge").textContent = String(i + 1);
-        counter.textContent = String(i + 1);
-        counter.classList.remove("demo-pop"); void counter.offsetWidth; counter.classList.add("demo-pop");
-        counter.classList.add("speaking");
-        i++;
-        play("assets/voiceover/vo_num_" + i + "." + AUDIO_EXT, ()=>{
-          counter.classList.remove("speaking"); busy = false;
-          if(i >= N) setTimeout(conclude, 400); else nudgeNext();
-        });
-      };
-      items.forEach(it => { it.style.cursor = "pointer"; it.onclick = countNext; });
-      const tp0 = tutPrompt(); if(tp0) tp0.classList.add("speaking");
-      play(audioFor(slide, "prompt") || null, ()=>{
-        const tp = tutPrompt(); if(tp) tp.classList.remove("speaking");
-        busy = false;
-        if(N === 0) setTimeout(conclude, 400); else nudgeNext();
-      });
-      /* replay = the prompt again (or the conclusion once done). While it plays the prompt wears the
-         outline; the child's next tap is held until it ends, and the hand returns to the next unit. */
-      state.replayAudio = ()=>{
-        if(finished || (!bare && i >= N)){ play(audioFor(slide, "conclude") || null, ()=>{}); return; }
-        busy = true; stopNudge();
-        const tp = tutPrompt(); if(tp) tp.classList.add("speaking");
-        play(audioFor(slide, "prompt") || null, ()=>{ if(tp) tp.classList.remove("speaking"); busy = false;
-          if(bare) setTimeout(conclude, 400); else nudgeNext(); });   // a bare slide: the replayed prompt still leads on to the conclusion
-      };
-    }
-  },
 
   MEASURE_DEMO: {
     /* T2 (the table, SME deck page 3) and T3 (the door, page 4): the deck's measuring lesson, step by step, each step
@@ -2544,7 +1891,7 @@ const SlideModules = {
     mount(host, slide){
       const d = slide.data, N = d.n || 6, DEMO = Math.max(1, Math.min(d.demo || 2, N - 1)), AX = d.axis === "y" ? "y" : "x";
       const K = MDK, reduce = K.reduce(), px = K.px;
-      state.ownsAudio = true; setNavActive(false); setSwMood("teach"); K.warmPose();   // her cheer clip, in memory well before the end
+      state.ownsAudio = true; setNavActive(false); setSwMood("teach");   // (her cheer clip is one of this slide's files: Assets has it before the slide mounts)
       const scene = document.createElement("div"); scene.className = "md-stage"; host.appendChild(scene);
       const card = host.closest(".tut-card"); if(card) card.classList.add("tc-measure", "tc-floor");
       const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
@@ -2561,7 +1908,9 @@ const SlideModules = {
          floor and door" - per slide, from the card: data.holder "painting" (MDK.wallPainting instead of the toy box), data.floor
          "wood" (the card's floor: planks + a skirting board, CSS), data.obj.light [x0, x1, y0] (the gap under the door leaf,
          as fractions of the picture: a warm light in it, spilling onto the floor) */
-      const PAINTING = d.holder === "painting"; let paintMaxW = 0;
+      /* [robot] review 2026-10-05: the robot mop replaces every holder (the toy box, T3's painting) - data.keep_holder brings
+         the old one back. It stands on the card's floor at the bottom left, beside Swifty; the measured object is centred. */
+      const ROBOT = !d.keep_holder, PAINTING = !ROBOT && d.holder === "painting"; let paintMaxW = 0;
       const PCOLS = Math.min(3, Math.ceil(Math.sqrt(N)));                   // his stack: 2 x 2 for 4, 3 x 3 for 9
       if(card && d.floor) card.classList.add("floor-" + d.floor);
       if(card && d.wall) card.classList.add("wall-" + d.wall);               // data.wall "paint": plain painted wall, not graph paper
@@ -2574,34 +1923,57 @@ const SlideModules = {
            between the legs, and ✓ pops on the block itself - the height only holds the table + (1 - RISE) x S, and obj.w
            is reachable. The table stays centred, or within OFF_MAX of it - it gives up size before it gives up the
            centre; the box may use the card's side padding (RIGHT = W + 18, the card's inner edge is at W + 30). */
-        const RISE = 0.55, fr = (f1 - f0) / N, GAP_B = 38, OFF_MAX = 40, LEFT_MIN = 170, M = 8, RIGHT = W + 18;
+        /* [t2-on-top] review 2026-10-05: "I want the cubes to come above the table and not down" - the row now stands ON
+           the tabletop: its base on the top's surface just behind the front edge (TOPY of the picture; the cream top runs
+           0.006..0.185 of obj_table_measure.webp, the olive edge band below it), still A0..A1 = the top's full width.
+           Above the row the height keeps ROOM_UP for its digits and the "place here" arrow (target(): p.y - 30); the
+           table gives up size before that room. The end lines run from just above the row down to the floor. */
+        const TOPY = 0.17, ROOM_UP = 58, DOWN = 10;
+        const fr = (f1 - f0) / N, GAP_B = 38, OFF_MAX = 40, LEFT_MIN = 170, M = 8, RIGHT = W + 18;
         const boxW = ow => K.toyboxGeom(N, ow * fr, BOX_COLS, true).w + 12;   // + the front rim's 6px each side
-        const place = ow => Math.min((W - ow) / 2, RIGHT - boxW(ow) - GAP_B - ow);
-        const DROP = K.FLAG_LOW - 14;                                        // the flags below the row (the kit's FLAG_LOW)
-        OW = Math.min(d.obj.w || 400, (avail - 2 - M - DROP) / (ar + (1 - RISE) * fr), K.CUBE / fr);   // its cube: the game's one size
-        while(OW > 240 && ((W - OW) / 2 - place(OW) > OFF_MAX || place(OW) < LEFT_MIN)) OW -= 4;
+        /* [robot gap] review 2026-10-05: "why is there no space between the table and the robot?" - the robot stands beside
+           Swifty, the table was centred regardless, and its front-left foot met the robot. The table centres only where that
+           leaves ROBOT_GAP of floor between them, else it moves right - and gives up size only if it would leave the card. */
+        const mascot = document.querySelector("#slideHost .tut-mascot"), mR = mascot && mascot.getBoundingClientRect();
+        const rbX = mR && mR.width > 20 ? (mR.right - sR.left) / kS + 4 : 114, ROBOT_GAP = 36;
+        const place = ow => ROBOT ? Math.max((W - ow) / 2, rbX + K.robotGeom(N, ow * fr).w + ROBOT_GAP) : Math.min((W - ow) / 2, RIGHT - boxW(ow) - GAP_B - ow);
+        OW = Math.min(d.obj.w || 400, (avail - 2 - M - ROOM_UP - DOWN) / (ar * (1 - TOPY) + fr), K.CUBE / fr);   // its cube: the game's one size
+        while(OW > 240 && (ROBOT ? place(OW) + OW > W - 8 : ((W - OW) / 2 - place(OW) > OFF_MAX || place(OW) < LEFT_MIN))) OW -= 4;
         OH = OW * ar; S = OW * fr; OX = place(OW);
-        OY = Math.max(2, (avail - M - OH - (1 - RISE) * S - DROP) / 2);
+        const UP = ROOM_UP + S - TOPY * OH;                                  // how far the row + its digits rise above the picture
+        OY = UP + Math.max(0, (avail - M - UP - OH - DOWN) / 2);
         A0 = OX + OW * f0; A1 = OX + OW * f1;
-        const RY = OY + OH - RISE * S; slotXY = k => ({ x: A0 + k * S, y: RY });
-        lines = K.endLines(scene, "x", A0, A1, OY + 12, RY + S + K.FLAG_LOW);
-        const under = OY + OH * 0.43, room = RY - 22 - under;                  // below the apron, above the row's digits
+        const RY = OY + OH * TOPY - S; slotXY = k => ({ x: A0 + k * S, y: RY });
+        /* [short lines] review 2026-10-05: "reduce the dotted line length" - from just above the row to the bottom of the
+           top's front band (0.27 of the picture), not down to the floor (endLines stops a line 50px above s1) */
+        lines = K.endLines(scene, "x", A0, A1, RY - 10, OY + OH * 0.27 + 16 + 50);   // (+16: one dash below the band, review 2026-10-05)
+        const under = OY + OH * 0.43, room = OY + OH * 0.82 - under;           // between the legs, below the apron
         plateH = Math.max(48, Math.min(PLATE_H - 2, room - 4));
         plateAt = { cx: (A0 + A1) / 2, y: under + (room - plateH) / 2 };
-        boxAt = { x: A1 + GAP_B + 6, y: RY + S + 6 - K.toyboxGeom(N, S, BOX_COLS, true).h };   // its rim a little in front of the row
+        boxAt = { x: A1 + GAP_B + 6, y: OY + OH + 6 - K.toyboxGeom(N, S, BOX_COLS, true).h };   // on the floor, level with the front feet
         floorY = OY + OH * 0.84;                                             // above where the back legs end
       } else {                                                               // T3: the door, the column beside it (on its right)
         const cR0 = card ? card.getBoundingClientRect() : null;
         const bottom = cR0 ? (cR0.bottom - sR.top) / kS - 10 - 8 : avail, navL = (navR.left - sR.left) / kS, navRt = (navR.right - sR.left) / kS;
         // the game's cube (MDK.CUBE) - but N of them stand as tall as the door, so here it is as big as the height allows.
         // The rack's badge pops over the rack, so the floor band under the door (FLOOR) no longer holds a plate.
-        const FLOOR = PAINTING ? 24 : PLATE_H;                              // (24: room for 5 x 76px cubes - "increase the size of door")
+        const FLOOR = PAINTING || ROBOT ? 4 : PLATE_H;                               // (4, was 24: more room for the door's 9 cubes - review 2026-10-06)
         S = Math.min(K.CUBE, (bottom - 6 - FLOOR) * (f1 - f0) / N); OH = N * S / (f1 - f0); OW = OH / ar;
         const gW = OW + 14 + S + 40;
         OX = Math.min(W - gW - 12, Math.max(navRt + 24, W * 0.62 - gW / 2)); OY = bottom - FLOOR - OH;
+        /* [t3-left] review 2026-10-05: "place the dotted lines and cubes on the left side of the door - there is a lot of
+           vacant space on the left". The column (and its digits, on its left now) stands left of the door; the door moves
+           right by the column + its gap, into the room the column had on its right - so the group keeps its place and the
+           column stays clear of आगे (the door used to start just 24px right of it). */
+        const LEFT = 30 + S + 14;                                           // the digits, the column, the gap
+        OX = Math.min(W - OW - 12, Math.max(OX + S + 14, navRt + 24 + LEFT) + 60);   // (+60: review 2026-10-05 "shift this door a little towards right" - the column + lines go with it)
+        /* review 2026-10-06: "the next button should stay at the bottom center only, as in all screens" - so आगे is never moved
+           (the 2026-10-05 navAside / centred-group layout is gone) and the group (digits + column + door) stands as far
+           left as it can while clearing आगे: its digits start 16px right of the button. */
+        OX = Math.min(W - OW - 12, navRt + 16 + LEFT) - 60;   // (-60: review 2026-10-06 "shift the door a little more towards left" - the column + lines go with it; agreed: when आगे appears at the end it covers the bottom cube's "1")
         A0 = OY + OH * f1; A1 = OY + OH * f0;                                // A0 = bottom, A1 = top
-        const CX = OX + OW + 14; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
-        lines = K.endLines(scene, "y", A0, A1, OX - 8, CX + S + 40);
+        const CX = OX - 14 - S; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
+        lines = K.endLines(scene, "y", A0, A1, CX - 10, OX + OW * 0.4);      // [short lines] the column + the door's left side
         plateAt = { cx: OX + (OW + 14 + S) / 2, y: A0 + 8 };
         if(PAINTING){                                                        // [t3-room] the painting hangs on the wall between Swiftie and the door
           const xL = 150, xR = OX - 44; paintMaxW = xR - xL; const G = K.paintingGeom(N, S, PCOLS, paintMaxW);
@@ -2614,11 +1986,22 @@ const SlideModules = {
         }
         floorY = A0; avail = Math.max(avail, bottom);
       }
+      if(ROBOT){                                                             // [robot] beside Swifty, on the floor
+        const g = K.robotGeom(N, S), cRb = card ? card.getBoundingClientRect() : null, m = document.querySelector("#slideHost .tut-mascot");
+        const mr = m && m.getBoundingClientRect().width > 20 ? (m.getBoundingClientRect().right - sR.left) / kS : 110;   // (T2's place() keeps the table clear of this spot)
+        /* review 2026-10-05 ("on the floor, not between the floor and the wall"): its base half-way down the floor that shows
+           - between the floor line (floorY, the card's --floor-top) and the card's inner bottom edge - at least 0.9 of a
+           cube in front of the floor line where the floor is that deep (T2); on T3's shallow floor, at its front edge */
+        const inner = cRb ? (cRb.bottom - sR.top) / kS - 10 : avail;
+        const foot = Math.min(inner - 6, floorY + Math.max(S * 0.9, (inner - floorY) * 0.5));
+        boxAt = { x: Math.max(0, mr + 4), y: foot - g.h };
+      }
       scene.style.height = px(avail);
       if(card){ const cR = card.getBoundingClientRect(); card.style.setProperty("--floor-top", px((sR.top - cR.top) / kS - 10 + floorY - 10)); }   // (inside the 10px border)
       const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
-      K.add(scene, "div", "md-shadow", AX === "x" ? "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92)
-                                                     : "left:" + px(OX - 6) + ";top:" + px(A0 - 13) + ";width:" + px(OW + 12));
+      if(!K.ground(scene, OX, OY, OW, OH, d.obj.feet, d.obj.ground_depth))   // [ground] its feet on the floor, else the old ellipse
+        K.add(scene, "div", "md-shadow", AX === "x" ? "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92)
+                                                       : "left:" + px(OX - 6) + ";top:" + px(A0 - 13) + ";width:" + px(OW + 12));
       const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(scene, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
       if(d.obj.light){                                                       // the light under the door (its gap, as fractions)
         const [lx0, lx1, ly0] = d.obj.light, gy = OY + OH * ly0, gh = Math.max(3, OY + OH - gy);
@@ -2628,15 +2011,97 @@ const SlideModules = {
       /* data.spare (review 2026-10-01: "throughout the game in the cube boxes there can be left 1 or 2, sometimes no cubes
          in the basket"): the box holds N + spare blocks - the child stops at the end line, not when the box is empty, and
          the spare ones stay in it. (The painting keeps its own: the man is left holding one.) */
-      const NB = N + (PAINTING ? 0 : Math.max(0, d.spare | 0));
-      const box = PAINTING ? K.wallPainting(scene, boxAt.x, boxAt.y, N, S, PCOLS, paintMaxW) : K.toybox(scene, boxAt.x, boxAt.y, NB, S, BOX_COLS, BOX_OPEN);
+      const NB = N + (ROBOT ? 1 : PAINTING ? 0 : Math.max(0, d.spare | 0));   // (the robot: endless - one cube on its lid at a time, one left on it at the end)
+      const box = ROBOT ? K.robot(scene, boxAt.x, boxAt.y, NB, S) : PAINTING ? K.wallPainting(scene, boxAt.x, boxAt.y, N, S, PCOLS, paintMaxW) : K.toybox(scene, boxAt.x, boxAt.y, NB, S, BOX_COLS, BOX_OPEN);
       const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S, p.rot); b.style.zIndex = p.z != null ? p.z : 3 + Math.floor(j / BOX_COLS); b._z = b.style.zIndex; return b; });
       if(box.link) box.link(blocks);                                         // the painting: its cubes wait, unseen, on the painted ones
+      /* data.robot_enter (T2, review 2026-10-07 "only after the 2 dotted lines come on both sides, show the robo mop
+         entering, then the next explanation"): the robot, its lid's aura and its cubes wait unseen; once both end lines
+         are up it drives in. Review 2026-10-07 ("he will enter sideways, his eyes seeing the table, then he will rotate in
+         front ... only seen inside the game screen box", then "use this for the side-eye view" + "a better animation when
+         he enters and when he rotates to show his front face"):
+           drive - its profile (robot_side.webp, cube on board, eyes on the table) glides in from past the card's left
+                   edge - smoothly, like a robot: no bumps, no tilts, no hops (review 2026-10-07: "it's kind of jumping,
+                   which shouldn't happen, even when he is entering");
+           look  - it stops, a beat with its eyes on the table;
+           turn  - a quick spin in place to face the child (see "turn in place" below): smeared, swapped at the
+                   smear's peak, settled sharp; its live eyes sweep from the far right to the middle; then a blink.
+         While it moves the scene is clipped to the card's inner box (inside its 10px border, rounded corners): it never
+         shows over the border or outside the card. */
+      const rbParts = ROBOT && d.robot_enter ? [box.back, box.front, ...scene.querySelectorAll(".rb-aura"), ...blocks] : null;
+      if(rbParts) rbParts.forEach(e => e.style.visibility = "hidden");
+      const robotIn = async ()=>{
+        if(!rbParts) return;
+        if(reduce){ rbParts.forEach(e => e.style.visibility = ""); return; }
+        const BD = 10, RAD = 24, sR2 = scene.getBoundingClientRect(), k = sR2.width / (scene.offsetWidth || 1) || 1;
+        const cR = card ? card.getBoundingClientRect() : sR2, bd = card ? BD : 0;
+        const clip = { t: (cR.top - sR2.top) / k + bd, r: (sR2.right - cR.right) / k + bd, b: (sR2.bottom - cR.bottom) / k + bd, l: (cR.left - sR2.left) / k + bd };
+        scene.style.clipPath = "inset(" + px(clip.t) + " " + px(clip.r) + " " + px(clip.b) + " " + px(clip.l) + " round " + px(card ? RAD : 0) + ")";
+        const back = box.back, side = back.querySelector(".rb-side"), body = back.querySelector(".rb-in");
+        const lidParts = rbParts.filter(e => e !== back && e !== box.front);   // the cubes + the aura: shown as it faces us
+        const dx = clip.l - box.w - 12 - boxAt.x;                            // starts just past the card's inner left edge
+        const DRIVE = 2000, TURN = 950, PER = "perspective(" + px(box.w * 2.4) + ") ", ANG = 28;
+        try{
+          back.classList.add("profile"); box.face("look");
+          back.style.visibility = box.front.style.visibility = "";
+          /* ---- drive: one smooth glide ---- */
+          await back.animate([{ translate: px(dx) + " 0" }, { translate: "0 0" }], { duration: DRIVE, easing: "cubic-bezier(.42,0,.3,1)" }).finished;
+          if(!alive()) return;
+          /* ---- look: a beat on the table ---- */
+          await K.wait(500); if(!alive()) return;
+          /* ---- turn in place: a quick spin ----
+             review 2026-10-07 ("it was looking like a two-image transition"): the profile and the front view are two
+             different drawings (other proportions, wheels, a painted cube) - cross-fading them showed both at once. Now
+             it SPINS: the profile smears sideways (a horizontal motion blur, an SVG filter) and stretches toward the
+             front view's height; at the peak of the smear it is swapped - one frame, no dissolve - for the front view,
+             equally smeared, which settles back to sharp as its live eyes sweep from the far right to the child. Two
+             swirl arcs whip round its base meanwhile, so the swap reads as one fast turn. The real cube (+ aura) comes
+             in at the swap, smeared with it. */
+          const SPIN = 1400, CUT = .42, BLUR = Math.max(6, box.w * .045);   // (1400, was 680 - review 2026-10-07: "just slow this part")
+          const fid = "rbSmear" + Date.now(), NS = "http://www.w3.org/2000/svg";
+          const fsvg = document.createElementNS(NS, "svg"); fsvg.setAttribute("width", "0"); fsvg.setAttribute("height", "0"); fsvg.style.position = "absolute";
+          fsvg.innerHTML = '<filter id="' + fid + '" x="-25%" y="-10%" width="150%" height="120%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="0 0"/></filter>';
+          scene.appendChild(fsvg);
+          const gb = fsvg.querySelector("feGaussianBlur"), cubes = lidParts.filter(e => e.classList.contains("md-block")), auras = lidParts.filter(e => !cubes.includes(e));
+          const smeared = [back, ...cubes]; smeared.forEach(e => e.style.filter = "url(#" + fid + ")");
+          /* the swirl: two arcs round the base, on the footprint's oval (in front of the robot, under its cube) */
+          const sw = K.add(scene, "div", "rb-swirl", "left:" + px(boxAt.x - box.w * .12) + ";top:" + px(boxAt.y + box.h * .35) + ";width:" + px(box.w * 1.24) + ";height:" + px(box.h * .8));
+          sw.style.zIndex = 7;
+          sw.innerHTML = '<svg viewBox="0 0 124 50" preserveAspectRatio="none"><path d="M6 25 A56 20 0 0 0 118 25"/><path d="M118 25 A56 20 0 0 0 6 25"/></svg>';
+          sw.querySelectorAll("path").forEach((pa, j) => pa.animate([{ strokeDashoffset: 120, opacity: 0 }, { opacity: .95, offset: .3 }, { opacity: .95, offset: .6 }, { strokeDashoffset: -120, opacity: 0 }],
+                                                                     { duration: SPIN * .9, delay: SPIN * .08 + j * 40, easing: "cubic-bezier(.3,.2,.4,1)", fill: "both" }));
+          const t0 = performance.now(); let cut = false;
+          if(box.gaze) box.gaze({ x: 1.5, y: -.2 }, 1);                       // the live eyes wait where the profile's are
+          side.style.transformOrigin = "50% 100%";
+          await new Promise(res =>{
+            (function step(t){
+              if(!alive()) return res();
+              const u = Math.min(1, (t - t0) / SPIN);
+              const bl = u < CUT ? BLUR * Math.pow(u / CUT, 1.6) : BLUR * Math.pow(1 - (u - CUT) / (1 - CUT), 1.4);   // the smear, peaking at the swap
+              gb.setAttribute("stdDeviation", bl.toFixed(2) + " " + (bl * .08).toFixed(2));
+              if(u < CUT){ const q = u / CUT; side.style.transform = "scale(" + (1 - .04 * q) + "," + (1 + .09 * q) + ")"; }   // toward the front view's proportions
+              else {
+                if(!cut){ cut = true; back.classList.remove("profile"); side.style.transform = "";   // the swap: one frame
+                  lidParts.forEach(e => e.style.visibility = ""); auras.forEach(e => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380 }));
+                  if(box.gaze) box.gaze({ x: 0, y: 0 }, 280); }                  // the eyes sweep round to the child
+                const q = (u - CUT) / (1 - CUT), e = 1 - Math.pow(1 - q, 3), y = .93 + .07 * e + .025 * Math.sin(Math.PI * e);
+                body.style.transform = "scale(" + (.97 + .03 * e) + "," + y.toFixed(4) + ")";
+              }
+              if(u < 1) requestAnimationFrame(step); else res();
+            })(t0);
+          });
+          smeared.forEach(e => e.style.filter = ""); body.style.transform = ""; side.style.transform = side.style.transformOrigin = "";
+          fsvg.remove(); setTimeout(()=> sw.remove(), 200);
+          if(!alive()) return;
+          await K.wait(120); if(box.gaze) box.gaze(null); if(box.blink) box.blink();   // facing the child: a blink
+          await K.wait(300);
+        } finally { scene.style.clipPath = ""; if(box.gaze) box.gaze(null); }
+      };
       box.front.style.zIndex = 3 + Math.ceil(NB / BOX_COLS);
       const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      const side = AX === "x" ? "top" : "right";
+      const side = AX === "x" ? "top" : "left";                             // [t3-left] the column is left of the door: its digits on its left
       const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
       const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : b._z; };
       // a correct block: its number + a green outline on the block itself (review 2026-09-30: "I don't want a tick mark ...
@@ -2650,11 +2115,13 @@ const SlideModules = {
       }
       let phase = "demo", arrowEl = null;
       const target = n =>{ if(arrowEl){ arrowEl.remove(); arrowEl = null; } if(phase !== "child" || n >= N) return;
-        const p = slotXY(n); arrowEl = AX === "x" ? K.arrow(scene, p.x + S / 2, p.y - 30, "down") : K.arrow(scene, p.x + S + 30, p.y + S / 2, "left"); };
+        const p = slotXY(n); arrowEl = AX === "x" ? K.arrow(scene, p.x + S / 2, p.y - 30, "down") : K.arrow(scene, p.x - 30, p.y + S / 2, "right"); };   // [t3-left] from the open side, pointing at the tile
       /* ---- the child's turn: MDK.childMeasure ---- */
-      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, placed0: DEMO, idleMs: 6000,
-        hints: { say: a => say(a === 1 ? "block_try" : "block_hint") },   // the hint sheet's Drag & Drop ladder (MDK.childMeasure)
-        onHit: (n, tile)=>{ placeMark(tile, n); target(n); if(box.settle) box.settle(blocks.filter(b => !b._placed)); return sayNum(n); },   // the box's pile settles
+      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, placed0: DEMO, idleMs: IDLE_MS, respawn: box.respawn,
+        hints: { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },   // the hint sheet's Drag & Drop ladder (MDK.childMeasure)
+        onHit: (n, tile)=>{ placeMark(tile, n); target(n); if(box.react) box.react("happy"); if(box.settle) box.settle(blocks.filter(b => !b._placed)); return sayNum(n); },   // the box's pile settles
+        onWrong: ()=>{ if(box.react) box.react("sad"); },                    // [robot] its face: hearts / closed eyes
+        onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); },   // [robot] watching while idle
         onAll: finish });
       /* the result, on the VO's word (review 2026-09-30: "when VO says 6 blocks the word should pop up, after that
          immediately the stars on the border rotate in inner direction to represent celebration"): the badge rises out
@@ -2681,8 +2148,17 @@ const SlideModules = {
           const txt = devNumeral(N) + " " + (d.unit_hi || "ब्लॉक्स");
           if(PAINTING){ const pw = Math.min(220, box.w * .5);                // pops up where his erased cubes were
             plateEl = K.plate(scene, txt, plateAt.cx, plateAt.y - pw / K.BADGE_AR / 2, pw); plateEl.style.zIndex = 20; }
-          else plateEl = K.boxPlate(box, txt, blocks.filter(b => !b._placed));                 // rises out of the box (onto its spare blocks)
-          setTimeout(()=>{ if(alive()) cheer(); }, reduce ? 0 : 600);                    // ~its peak: it stands, the stars spin
+          else if(!box.robot) plateEl = K.boxPlate(box, txt, blocks.filter(b => !b._placed));   // rises out of the box
+          else if(AX === "x"){                                               // [robot] T2: slips down from under the tabletop (review 2026-10-07)
+            const apron = OY + OH * .39, top = apron + 6;                     // (obj_table_measure.webp: top + apron solid to 0.39 of it, the back legs 0.163..0.833 apart)
+            const h = Math.max(48, Math.min(72, OY + OH * .8 - top)), w = Math.min(220, OW * .6);
+            plateEl = K.slipBox(scene, txt, (A0 + A1) / 2, top, w, h, apron - 2);
+          } else {                                                           // [robot] T3: out of the light under the door
+            const lt = scene.querySelector(".md-doorlight"), w = Math.min(220, OW * .92), cx = OX + OW / 2;
+            if(lt && !reduce) lt.animate([{ filter: "brightness(1)" }, { filter: "brightness(1.9)", offset: .3 }, { filter: "brightness(1)" }], { duration: 900, easing: "ease-out" });
+            plateEl = K.riseBox(scene, txt, cx, A0 - 2, w, 76, { x: cx, y: A0 - 4 });
+          }
+          setTimeout(()=>{ if(alive()) cheer(); }, reduce ? 0 : box.robot ? 1100 : 600);   // ~its peak: it stands, the stars spin (the robot's box: once it has settled, a pop)
         });
       }
       state.replayAudio = ()=>{
@@ -2699,12 +2175,15 @@ const SlideModules = {
           const tp = document.querySelector("#slideHost .tut-prompt");
           requestAnimationFrame(()=> scene.classList.add("in"));             // the object + the toy box come in
           if(tp) tp.classList.add("speaking"); await say("prompt"); guard(); if(tp) tp.classList.remove("speaking");
+          if(box.look) box.look(true);                                       // [robot] wide-eyed, watching the lesson (until the child's first grab)
           K.show(lines.start, true); await say("explain_a"); guard(); K.unpulse(lines.start);
           K.show(lines.end, true); await say("explain_b"); guard(); K.unpulse(lines.end);
+          await robotIn(); guard(); if(box.look && rbParts) box.look(true);   // [robot_enter] in only now, then watching
           K.pose("guide"); await say("demo"); guard();
           for(let k = 0; k < DEMO; k++){                                     // एक... दो...
             await handDrag(blocks[k], slotXY(k)); guard();
             blocks[k]._placed = true; blocks[k].classList.add("placed"); drop(blocks[k]); K.okFlash(blocks[k]); placeMark(slotXY(k), k + 1);
+            if(box.robot) box.settle();                                       // [robot] the next cube rises onto its lid (no face: only the child's drops get one)
             await sayNum(k + 1); guard();
           }
           // the rule: start where the last one ends ...
@@ -2722,11 +2201,20 @@ const SlideModules = {
             const bx = AX === "x" ? (kind === "gap" ? { l: e0.x + 2, t: e0.y - 8, w: GAP - 4, h: S + 16 } : { l: e0.x - GAP, t: e0.y - 8, w: GAP, h: S + 16 })
                                   : (kind === "gap" ? { l: e0.x - 8, t: e0.y + S - GAP + 2, w: S + 16, h: GAP - 4 } : { l: e0.x - 8, t: e0.y + S, w: S + 16, h: GAP });
             const boxEl = K.add(scene, "div", "md-err", "left:" + px(bx.l) + ";top:" + px(bx.t) + ";width:" + px(bx.w) + ";height:" + px(bx.h));
-            const sp = K.freeSpot(scene, bx, 22, AX === "x" ? "up" : "right");  // clear of the bubbles, blocks, flag, door ...
+            /* review 2026-10-05: "the white outline will be on EACH dotted line": the dashes are drawn as SVG - each dash twice,
+               a wider white one under the purple one (same dash pattern, round caps), so every dash has its own white edge */
+            { const sw = 4, ins = 3.5, rw = Math.max(1, bx.w - 2 * ins), rh = Math.max(1, bx.h - 2 * ins), r = 8;
+              const rect = 'x="' + ins + '" y="' + ins + '" width="' + rw + '" height="' + rh + '" rx="' + r + '" fill="none" stroke-linecap="round" stroke-dasharray="7 7"';
+              boxEl.innerHTML = '<svg class="md-err-dash" width="' + bx.w + '" height="' + bx.h + '" viewBox="0 0 ' + bx.w + ' ' + bx.h + '" aria-hidden="true">' +
+                '<rect ' + rect + ' stroke="#FFFFFF" stroke-width="' + (sw + 3.5) + '"/><rect ' + rect + ' stroke="#6D28D9" stroke-width="' + sw + '"/></svg>'; }
+            const sp = K.freeSpot(scene, bx, 22, AX === "x" ? "up" : "left");   // clear of the bubbles, blocks, flag, door ... ([t3-left] the open side)
             const x = K.mark(scene, sp.x, sp.y, false);
             if(!reduce) g.animate([{ rotate: "0deg" }, { rotate: "-6deg" }, { rotate: "6deg" }, { rotate: "-4deg" }, { rotate: "0deg" }], { duration: 600, easing: "ease-in-out" });
             await v; guard(); await K.wait(1000); guard();
-            boxEl.classList.add("out"); x.classList.add("out"); await handDrag(g, g._home); guard(); boxEl.remove(); x.remove();
+            boxEl.classList.add("out"); x.classList.add("out");
+            if(box.respawn){ if(kind === "over") g.classList.remove("over"); await box.respawn(g); }   // [robot] it vanishes, a new one rises on the lid
+            else await handDrag(g, g._home);
+            guard(); boxEl.remove(); x.remove();
             if(kind === "over") g.classList.remove("over");
           }
           // the child's turn: the ghost drag shows how while the VO asks
@@ -2772,7 +2260,9 @@ const SlideModules = {
       if(d.fill === "stage"){ const stR = $("stage").getBoundingClientRect();
         H = Math.max(H, (stR.bottom - scene.getBoundingClientRect().top) / kS - 14); }
       scene.style.height = px(H);
-      const OPT_H = 100, ar = d.obj.ar || 1, f0 = d.obj.a0 || 0, f1 = d.obj.a1 != null ? d.obj.a1 : 1;
+      // (review 2026-10-07 "these boxes are really below - shift them up", "consistency in the game elements": the answers'
+      //  row and everything laid above it sit 24px higher on every MEASURE_ASK screen - 100 -> 124; the cube stays 74)
+      const OPT_H = 124, ar = d.obj.ar || 1, f0 = d.obj.a0 || 0, f1 = d.obj.a1 != null ? d.obj.a1 : 1;
       let S, OX, OY, OW, OH, A0, A1, slotXY, lines, boxAt;
       /* [centre] review 2026-10-01: "place all the main objects in the center" - the measured object is centred on the
          screen (it used to be the object + box group, which pushed the object aside); the box, the row / column and the
@@ -2782,11 +2272,14 @@ const SlideModules = {
       const FLAG = 44;                                                       // a flag's reach beyond its line
       /* the holder: the toy box, or (data.holder "basket", G1 - review 2026-10-01: "use this for better slide") the woven
          basket of the supplied mock-up (MDK.basket) */
-      const BASKET = d.holder === "basket", ART = ["laundry", "cloudtub", "wicker"].indexOf(d.holder) >= 0;   // [rooms] the other holders
-      const hold = s_ => BASKET ? K.basketGeom(N, s_) : ART ? K.holderGeom(N, s_, d.holder) : K.toyboxGeom(N, s_, 3);
+      /* [robot] review 2026-10-05: the robot mop replaces every holder (data.keep_holder brings the old one back): on the
+         floor at the bottom left of the screen (under Swifty's header circle), the measured object centred */
+      const ROBOT = !d.keep_holder;
+      const BASKET = !ROBOT && d.holder === "basket", ART = !ROBOT && ["laundry", "cloudtub", "wicker"].indexOf(d.holder) >= 0;   // [rooms] the other holders
+      const hold = s_ => ROBOT ? K.robotGeom(N, s_) : BASKET ? K.basketGeom(N, s_) : ART ? K.holderGeom(N, s_, d.holder) : K.toyboxGeom(N, s_, 3);
       if(AX === "x"){
         const DROP = K.FLAG_LOW - 12;                                        // the flags below the row (the kit's FLAG_LOW)
-        S = Math.min(88, (H - OPT_H - 44 - DROP) / (N * ar / (f1 - f0) + 1));       // larger focus group on G1-G3
+        S = Math.min(K.CUBE, (H - OPT_H - 44 - DROP) / (N * ar / (f1 - f0) + 1));   // the game's one cube (MDK.CUBE)
         // ... or the width: half the object + the box beside it (a gap no smaller than the end flag) within the half-stage
         while(S > 24 && N * S / (f1 - f0) / 2 + FLAG + hold(S).w + 12 > W / 2 + ROOM_R) S -= 1;
         OW = N * S / (f1 - f0); OH = OW * ar;
@@ -2796,23 +2289,39 @@ const SlideModules = {
         const GAP = Math.max(FLAG, Math.min(60, W + ROOM_R - (OX + OW) - boxW));   // (review 2026-10-01: "the katiya is not at the
                                                                                //  center" - the object itself centred, never the group)
         A0 = OX + OW * f0; A1 = OX + OW * f1; const RY = OY + OH + 14; slotXY = k => ({ x: A0 + k * S, y: RY });
-        lines = K.endLines(scene, "x", A0, A1, OY + 10, RY + S + K.FLAG_LOW);
+        lines = K.endLines(scene, "x", A0, A1, OY + OH * (d.line_top != null ? d.line_top : 0.45), RY + S + 16 + K.FLAG_LOW);   // data.line_top: where the lines start, a fraction down the object (G1, review 2026-10-06: "the dotted lines are very big - shorten them")   // (+16: one dash below the row)   // [short lines] the object's lower half + the row
         const bh = hold(S).h; boxAt = { x: OX + OW + GAP + (d.box_dx || 0), y: RY + S - bh + S * 0.3 };   // (data.box_dx: a nudge, px)
       } else {
         // the game's cube, unless the height can't take it - the height less 48px for the top line's flag, which stands ON
         // that line (it used to rise into the header and lose its cloth there)
-        S = Math.min(88, (H - OPT_H - 34 - 48) / N * (f1 - f0));                    // larger focus group on G2/G3
+        S = Math.min(K.CUBE, (H - OPT_H - 34 - 48) / N * (f1 - f0));                // the game's one cube (MDK.CUBE)
         const half = s_ => N * s_ / (f1 - f0) / ar / 2;                      // ... or the width: each side of the centred object
-        while(S > 24 && (half(S) + 14 + S + 40 + FLAG > W / 2 + ROOM_R || half(S) + 40 + hold(S).w + 12 > W / 2 + ROOM_L)) S -= 1;
+        /* [g-left] review 2026-10-05 (G2, G3: "same request" as T3 - the column and the dotted lines on the LEFT of the object,
+           where the space is): the column stands left of the object, the robot left of the column - so the left half holds
+           the object's half, the column, a gap and the robot; the right half only the object's half */
+        while(S > 24 && (half(S) + FLAG > W / 2 + ROOM_R || half(S) + 14 + S + 32 + hold(S).w > W / 2 + ROOM_L)) S -= 1;
         OH = N * S / (f1 - f0); OW = OH / ar;
         const boxW = hold(S).w + 12; OX = (W - OW) / 2; OY = H - OPT_H - 22 - OH;
         const GAP = Math.max(40, Math.min(70, OX + ROOM_L - boxW));
-        A0 = OY + OH * f1; A1 = OY + OH * f0; const CX = OX + OW + 14; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
-        lines = K.endLines(scene, "y", A0, A1, OX - 8, CX + S + 40);
+        A0 = OY + OH * f1; A1 = OY + OH * f0; const CX = OX - 14 - S; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });   // [g-left]
+        lines = K.endLines(scene, "y", A0, A1, CX - 10, OX + OW * 0.4);      // [short lines] the column + the object's left side
         const bh = hold(S).h; boxAt = { x: OX - GAP - boxW, y: A0 - bh + S * 0.3 };
       }
+      /* [robot] review 2026-10-05: "reposition the robot on the floor with correct shadow - it looks like it is in between the
+         floor and the wall": its base used to sit ON the object's base line, which here is where the wall meets the floor.
+         Follow-up ("I don't see much change"): it now stands well IN FRONT of that line - its base half-way down the floor
+         that shows below the floor line (the backdrop's --horizon, as set below), at least 0.9 of a cube in front of it.
+         Only if it would then run into the answers' row (centred, ~200px cards 30px apart) does it stop just above it. */
+      if(ROBOT){ const g = hold(S);
+        const x = Math.min(-ROOM_L + 24, (AX === "y" ? OX - 14 - S - 24 : OX - 40) - g.w);   // [g-left] left of the column
+        const hz = d.bg ? (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6) : OY + OH;   // where the wall meets the floor
+        let base = Math.min(H - 12, hz + Math.max(S * 0.9, (H - hz) * 0.5));
+        const nO = d.options.length, optL = W / 2 - (nO * 200 + (nO - 1) * 30) / 2, optT = H - OPT_H + 8;
+        if(x + g.w > optL - 12 && base > optT - 6) base = Math.max(hz + 14, optT - 6);
+        boxAt = { x, y: base - g.h }; }
       const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
-      K.add(scene, "div", "md-shadow", "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92));
+      if(!K.ground(scene, OX, OY, OW, OH, d.obj.feet, d.obj.ground_depth))   // [ground] its feet on the floor, else the old ellipse
+        K.add(scene, "div", "md-shadow", "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92));
       const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(scene, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
       /* data.bg (G1 "yard"): the stage's plain two-tone backdrop (CSS .stage[data-bg]) - its wall meets the ground behind the
          object, half-way up it, in stage px (review 2026-10-01: "keep the background minimal only - non distracting,
@@ -2825,25 +2334,27 @@ const SlideModules = {
       if(d.window && d.bg){ const st = $("stage"), stR = st.getBoundingClientRect(), kSt = stR.width / (st.offsetWidth || 1) || 1;
         const hz = parseFloat(st.style.getPropertyValue("--horizon")) || d.window.h0, ox = (SR0.left - stR.left) / kSt, oy = (SR0.top - stR.top) / kSt;
         K.nightWindow(scene, d.window.x - ox, d.window.y - d.window.h0 + hz - oy, d.window.w, d.window); }
-      const NB = N + Math.max(0, d.spare | 0);                              // data.spare: blocks left in the holder at the end (as MEASURE_DEMO)
-      const box = BASKET ? K.basket(scene, boxAt.x, boxAt.y, NB, S) : ART ? K.holder(d.holder, scene, boxAt.x, boxAt.y, NB, S) : K.toybox(scene, boxAt.x, boxAt.y, NB, S, 3);
+      const NB = N + (ROBOT ? 1 : Math.max(0, d.spare | 0));                // data.spare: blocks left in the holder at the end (as MEASURE_DEMO); the robot: endless, one left on it
+      const box = ROBOT ? K.robot(scene, boxAt.x, boxAt.y, NB, S) : BASKET ? K.basket(scene, boxAt.x, boxAt.y, NB, S) : ART ? K.holder(d.holder, scene, boxAt.x, boxAt.y, NB, S) : K.toybox(scene, boxAt.x, boxAt.y, NB, S, 3);
       /* [cal-wind] G2 (review 2026-10-01: "add a shadow to all three elements ... see perfect shadows on the objects"): one light,
          from the upper left and in front. The pink tub stands on the floor a little before the wall: its shadow on the floor
          under its feet, as the almirah's, a little to the right (its own filter gives the contact shadow and a faint one on
          the wall). data.calendar {w, top}: the wall calendar (MDK.calendar - its sheet in the flags' wind), centred
          over the holder, its top edge `top` x the object's height below the object's top. */
-      if(d.holder === "laundry" || d.holder === "cloudtub" || d.holder === "wicker"){ const hg = hold(S); K.add(scene, "div", "md-shadow md-shadow-floor",
+      if(ART){ const hg = hold(S); K.add(scene, "div", "md-shadow md-shadow-floor",
         "left:" + px(boxAt.x + hg.w * .03) + ";top:" + px(boxAt.y + hg.h - 17) + ";width:" + px(hg.w * 1.02)); }
-      if(d.calendar){ const cw = d.calendar.w || 90; K.calendar(scene, boxAt.x + hold(S).w / 2 - cw / 2, OY + OH * (d.calendar.top || 0), cw); }
       const blocks = box.spots.map((p, j)=>{ const b = K.cube(scene, j, p.x, p.y, S, p.rot); b.style.zIndex = p.z != null ? p.z : 3 + Math.floor(j / 3); b._z = b.style.zIndex; return b; });
-      if(!BASKET && !ART) box.front.style.zIndex = 3 + Math.ceil(NB / 3);  // (the basket and the other holders set their own)
+      if(!BASKET && !ART && !ROBOT) box.front.style.zIndex = 3 + Math.ceil(NB / 3);  // (the basket and the other holders set their own)
+      if(box.link) box.link(blocks);                                         // [robot] only the next cube shows, on its lid
       const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       let phase = "measure";
       /* ---- measure ---- */
-      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, idleMs: 6000,
-        hints: { say: a => say(a === 1 ? "block_try" : "block_hint") }, onAll: ask,
-        onHit: ()=>{ if(box.settle) box.settle(blocks.filter(b => !b._placed)); } });   // the holder's pile settles
+      const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, idleMs: IDLE_MS, respawn: box.respawn,
+        hints: { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") }, onAll: ask,
+        onHit: ()=>{ if(box.react) box.react("happy"); if(box.settle) box.settle(blocks.filter(b => !b._placed)); },   // the holder's pile settles
+        onWrong: ()=>{ if(box.react) box.react("sad"); },                   // [robot] its face: hearts / closed eyes
+        onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); } });   // [robot] watching while idle
       /* ---- ask ---- */
       const opts = K.add(scene, "div", "mq-opts", "top:" + px(H - OPT_H + 8));
       const optEls = d.options.map(v =>{ const o = K.add(opts, "button", "mq-opt"); o.type = "button"; o.textContent = devNumeral(v) + " " + (d.unit_hi || "ब्लॉक्स"); o._v = v; return o; });
@@ -2852,25 +2363,45 @@ const SlideModules = {
       function ask(){
         phase = "ask"; run.stop();
         // an empty holder fades away; one with spare blocks left in it stays (they were not needed)
-        if(!blocks.some(b => !b._placed)){ box.back.classList.add("empty"); box.front.classList.add("empty"); }
+        if(!ROBOT && !blocks.some(b => !b._placed)){ box.back.classList.add("empty"); box.front.classList.add("empty"); }   // (the robot stays)
         $("promptText").textContent = d.ask_hi || slide.prompt_hi;
         opts.classList.add("in"); busy = true;
-        say("ask").then(()=>{ busy = false; });
+        say("ask").then(()=>{ busy = false; armAskIdle(); });
       }
       async function onWrong(o){
         wrong++; busy = true;
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e){}
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
         sfxWrongSoft(); setSwMood("tryagain");
-        o.classList.add("wrong"); K.shake(o, 9); setTimeout(()=> o.classList.remove("wrong"), 900);   // shakes and returns
-        if(wrong === 1){ await say("try_again"); }                                                  // the sheet's attempt 1: think again
-        else if(wrong === 2){ setTimeout(()=>{ if(alive() && !state.locked) K.softGlow(right); }, 600); await say("hint"); }   // attempt 2: the right card glows softly
-        else { reveal(); return; }                                                                  // after the sheet's last attempt: shown, on
-        if(alive() && !state.locked){ busy = false; setSwMood("point"); }
+        o.classList.add("wrong"); K.shake(o, 9); setTimeout(()=> o.classList.remove("wrong"), 900);   // wiggles and returns
+        /* QA checklist 2026-10-05 - THREE layers of feedback for a wrong answer:
+           1 ... clarification: think again, look at the options (audio.try_again)
+           2 ... a strong hint - the procedure: count the blocks laid, that many blocks is its length (audio.hint)
+           3 ... the visual nudge: the wrong cards lock (faded, untappable), the right one glows and the hand points at
+                 it (audio.nudge) - the child still taps it themselves */
+        if(wrong === 1){ await say("try_again"); }
+        else if(wrong === 2){ await say("hint"); }
+        else { lockToRight(); await say("nudge"); }
+        if(alive() && !state.locked){ busy = false; setSwMood("point"); armAskIdle(); }
       }
+      function lockToRight(){
+        optEls.forEach(x =>{ if(x !== right){ x.classList.add("faded", "locked"); x.disabled = true; } });
+        right.classList.add("hint-on"); K.softGlow(right);
+        setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right); }, 300);
+      }
+      /* an idle child in the question (7s, QA checklist 2026-10-05): the question is asked again - and on the third
+         layer, the hand returns to the right card */
+      let askIdleT = 0;
+      function armAskIdle(){ clearTimeout(askIdleT); askIdleT = setTimeout(()=>{
+        if(!alive() || phase !== "ask" || busy || state.locked) return;
+        if(right.classList.contains("hint-on")) placeNudge(right);
+        busy = true; say("ask").then(()=>{ if(alive() && !state.locked){ busy = false; armAskIdle(); } });
+      }, IDLE_MS); }
       function onRight(o, revealed){
-        state.locked = true; busy = true; stopNudge();
-        o.classList.add("correct");
+        state.locked = true; busy = true; stopNudge(); clearTimeout(askIdleT);
+        o.classList.remove("hint-on"); o.classList.add("correct");
+        // review 2026-10-06 (one behaviour on every answer screen, as T1 / G4 / P1): the other cards dim, always
+        optEls.forEach(x =>{ if(x !== o) x.classList.add("faded"); });
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrong + 1, score: wrong === 0 ? 1 : 0 }); }catch(e){}
         recordResult(slide, wrong === 0 && !revealed);
         const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "cardinality_first_try";
@@ -2881,7 +2412,7 @@ const SlideModules = {
       function reveal(){ GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" });
         optEls.forEach(x =>{ if(x !== right) x.classList.add("faded"); }); onRight(right, true); }
       optEls.forEach(o => o.addEventListener("click", ()=>{
-        if(phase !== "ask" || busy || state.locked || !alive()) return; stopNudge();
+        if(phase !== "ask" || busy || state.locked || !alive() || o.classList.contains("locked")) return; stopNudge(); clearTimeout(askIdleT);
         if(o === right) onRight(o, false); else onWrong(o);
       }));
       state.replayAudio = ()=>{ if(phase === "measure"){ say("prompt"); run.ghost(); } else if(!busy) say("ask"); };
@@ -2920,7 +2451,9 @@ const SlideModules = {
       const items = d.items, unit = d.unit_hi || "ब्लॉक्स", GAP = 56, PW = 148, PH = Math.round(PW / MDK.BADGE_AR), NUM = 44, CG = 10;
       /* the block size: the two (plus, for columns, their digits and count plates) across the width; the taller one
          (plus, for rows, its blocks, the digits and the plate) down the height */
-      let S = 88;                                                            // larger focus group on G4/P1, as far as the two fit
+      // data.zoom (P1 only, review 2026-10-07: "zoom in this screen a bit" - chosen knowing its cubes then differ from the
+      // other screens' 74px): the slide's cube, objects and riders scale together; the fit rules below still cap it
+      let S = MDK.CUBE * (d.zoom || 1);                                      // the game's one cube, as far as the two fit
       if(AX === "x") S = Math.min(S, (W - GAP - 40) / items.reduce((a, it)=> a + it.n, 0),
                                      (H - 24 - 8 - NUM - PH) / (Math.max(...items.map(it => it.n * it.ar)) + 1));
       else S = Math.min(S, (H - 40) / Math.max(...items.map(it => it.n)),
@@ -2944,14 +2477,17 @@ const SlideModules = {
          in order, or (data.riders_random, review 2026-10-01: "the event should stay random - sometimes the turtle on the
          long chair, sometimes the short one, same for the cat") shuffled each time the slide opens. It drops in with its
          object, shakes and dims with it. */
+      /* (review 2026-10-05: the turtle is gone, the cat rides alone - so the SEATS are shuffled, not the riders, or one
+         rider would always sit on the first chair) */
       const seats = items.filter(it => it.seat), riders = (d.riders || []).slice(0, seats.length);
-      if(d.riders_random) for(let i = riders.length - 1; i > 0; i--){ const j = (Math.random() * (i + 1)) | 0; [riders[i], riders[j]] = [riders[j], riders[i]]; }
+      if(d.riders_random) for(let i = seats.length - 1; i > 0; i--){ const j = (Math.random() * (i + 1)) | 0; [seats[i], seats[j]] = [seats[j], seats[i]]; }
       const riderOn = new Map(seats.map((it, i)=> [it, riders[i]]));
       let shade = 0;
       const els = items.map((it, i)=>{
         const g = geo[i], ox = x, oy = base - g.h, e = { it, blocks: [] };
-        if(AX === "y") K.add(scene, "div", "md-shadow", "left:" + px(ox + g.w * .02) + ";top:" + px(base - 13) + ";width:" + px(g.w + CG + S));
-        e.img = K.add(scene, "img", "md-obj cm-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(g.w) + ";height:" + px(g.h));
+        const gnd = K.ground(scene, ox, oy, g.w, g.h, it.feet, it.ground_depth);   // [ground] its feet on the floor
+        if(AX === "y" && !gnd) K.add(scene, "div", "md-shadow", "left:" + px(ox + g.w * .02) + ";top:" + px(base - 13) + ";width:" + px(g.w + CG + S));
+        e.img = K.add(scene, "img", "md-obj cm-obj" + (it.ground === "flat" ? " gnd-flat" : ""), "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(g.w) + ";height:" + px(g.h));
         e.img.src = it.src; e.img.alt = "";
         const R = riderOn.get(it);
         if(R){ const st = it.seat, rw = S * R.w, rh = rw * (R.ar || 1);
@@ -2974,7 +2510,7 @@ const SlideModules = {
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       let wrong = 0, busy = true;
       function onRight(e, revealed){
-        state.locked = true; busy = true; stopNudge();
+        state.locked = true; busy = true; stopNudge(); clearTimeout(idleT);
         e.img.classList.add("cm-right"); els.forEach(o =>{ if(o !== e){ o.img.classList.add("cm-dim"); if(o.rider) o.rider.classList.add("cm-dim"); } });
         e.blocks.forEach(b => b.classList.add("glow"));
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrong + 1, score: wrong === 0 ? 1 : 0 }); }catch(e2){}
@@ -2996,403 +2532,375 @@ const SlideModules = {
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e2){}
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
         sfxWrongSoft(); setSwMood("tryagain");
-        K.shake(e.img, 10); if(e.rider) K.shake(e.rider, 10);                                      // shakes and returns (its rider with it)
-        if(wrong === 1){ await K.wait(250); await say("try_again"); }                              // the sheet's attempt 1: think again
-        else if(wrong === 2){ setTimeout(()=>{ if(alive() && !state.locked) K.softGlow(right.img, true); }, 600); await K.wait(250); await say("hint"); }   // attempt 2: the right one glows softly
-        else { GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" }); onRight(right, true); return; }
-        if(alive() && !state.locked){ busy = false; setSwMood("point"); }
+        K.shake(e.img, 10); if(e.rider) K.shake(e.rider, 10);                                      // wiggles and returns (its rider with it)
+        /* QA checklist 2026-10-05 - three layers: 1 think again (audio.try_again); 2 the strong hint - count both rows,
+           more blocks is longer (audio.hint); 3 the wrong one locks (dimmed, untappable), the right one glows and the
+           hand points at it (audio.nudge) - the child still taps it */
+        if(wrong === 1){ await K.wait(250); await say("try_again"); }
+        else if(wrong === 2){ await K.wait(250); await say("hint"); }
+        else {
+          els.forEach(o =>{ if(o !== right){ o.locked = true; [o.img, o.rider].concat(o.blocks).forEach(x =>{ if(x) x.classList.add("cm-dim", "cm-locked"); }); } });
+          K.softGlow(right.img, true); setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.hit); }, 300);
+          await K.wait(250); await say("nudge");
+        }
+        if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
+      /* an idle child (7s, QA checklist 2026-10-05): the question again - on the third layer the hand comes back too */
+      let idleT = 0;
+      function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{
+        if(!alive() || busy || state.locked) return;
+        if(wrong >= 3) placeNudge(right.hit);
+        busy = true; say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
+      }, IDLE_MS); }
       els.forEach(e => e.hit.addEventListener("click", ()=>{
-        if(busy || state.locked || !alive()) return;
+        if(busy || state.locked || !alive() || e.locked) return; clearTimeout(idleT);
         if(e === right) onRight(e, false); else { stopNudge(); onWrong(e); }
       }));
       state.replayAudio = ()=>{ if(!busy) say("prompt"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
-      say("prompt").then(()=>{ if(alive() && !state.locked && !wrong) busy = false; });
+      say("prompt").then(()=>{ if(alive() && !state.locked && !wrong){ busy = false; armIdle(); } });
       setTimeout(()=>{ if(alive() && busy && !state.locked && !wrong) busy = false; }, 1600);   // a tap may come while the question plays
     }
   },
 
-  MATCH_MEASURE: {
-    /* P2 (the bench, the blackboard, the stool) and P3 (the window, the water bottle, the TV) - SME deck pages 10-11
-       (review 2026-09-30: "follow the ppt slides instructions"). Left: the three objects, each in its own card and
-       ALREADY measured - its blocks laid flush along it (a row on top of a long one, a column beside a tall one) with
-       dashed lines at its two ends. Right: the three measurement boxes, "<k> ब्लॉक्स", in the deck's shuffled order.
-       The child drags a box onto an object. HINTS = the FLN hint logic sheet, Drag & Drop (review 2026-09-30: "for the
-       hint part follow the excel sheet, not the slides"), counted per box:
-         right ........ the box snaps into that card's slot and locks (green) + SFX + audio.item_ok ("शाबाश! सही जगह पर
-                        रखा।"); the third one - the confetti (once, the game complete) + audio.correct (the deck's
-                        all-matched line), then on
-         wrong #1 ..... the card it was dropped on shakes, the box returns: audio.try_again ("फिर से सोचिए। ध्यान से देखिए
-                        और सही जगह चुनिए।")
-         wrong #2 ..... it shakes, the box returns; the box's right card glows softly and the hand points at its slot:
-                        audio.hint ("ब्लॉक्स को ध्यान से गिनिए और सही जगह पर रखिए।")
-         wrong #3 ..... (the sheet stops at 2) the box moves in by itself (never stuck)
-       A drop on no card / on a card already matched just goes back. The cards are laid out in data.rows (one card in a
-       row: its slot at its right; several: each slot below). data: { unit_hi, rows:[[id..]..], items:[{id, src, ar, n,
-       axis}], boxes:[n..], strip } (strip: the boxes in a row under the cards, not a column beside them) audio: prompt,
-       correct, item_ok, try_again, hint. */
+
+  MATCH_ROWS: {
+    /* P2, P3 - the SME's recommendations (2026-10-06, pages 10 + 11): "Show three objects on the left with blocks already
+       placed ... on the right, three shuffled measurement boxes. The child matches each object with its correct measurement."
+         setup ........ each object with its n blocks already laid flush - along its longer side (axis "x": on top of it)
+                        or from the bottom up beside it (axis "y": its height) - the measured span's two ends dashed. The
+                        objects are scaled so their blocks look plausible (one block size on the slide: it is the unit).
+                        Three rows (or, when that gives the blocks more room - tall objects - three cards side by side);
+                        the boxes, "<n> ब्लॉक्स", in the deck's shuffled order, in a column on the right.
+         a match ...... the child drags a box onto an object. Right: it locks in beside / under that object (green), the
+                        object's blocks flash green, a positive SFX. All three: confetti + audio.correct ("शाबाश! आपने सभी
+                        चीज़ों को उनके सही माप से मिला दिया।"), on.
+         wrong (counted per object - the one it was dropped on):
+           1 .......... the box bounces back (the object wiggles) + audio.try_again
+           2 .......... it bounces back, then that object's blocks light up one by one with their counting digits 1, 2,
+                        3 ... (each one said - vo_num_k): the measure, counted
+           3 on ....... it bounces back and the hand points at the right box for that object (it glows softly)
+         idle 7s ...... the hand on the next box still to place (flow only).
+       data: { unit_hi, bg, join, items:[{ id, src, n, axis, ar (h / w of the picture) }], boxes:[n, ...] (the shuffled order) }
+       audio: prompt, correct, try_again. CSS [match rows].
+       [lines] data.join "lines" (P2, P3 - review 2026-10-06: "change from drag and drop to match the following"): the
+       objects stay as cards side by side, the shuffled boxes stand in a row under them, a dot on each card's foot and each
+       box's head. The child joins an object to a box with a line - drags from either dot (or card / box) to the other
+       side, or taps one then the other (HI01's pair games: a red flash for a wrong pair, never solved for the child).
+       Right: the line stays, green. Wrong: the line flashes red and fades, the same ladder - the 3rd rung's hand travels
+       from the object's dot to its box's dot (HI01 travelNudge) and loops until the next pair. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
-      const scene = document.createElement("div"); scene.className = "md-stage mm"; host.appendChild(scene);
+      const scene = document.createElement("div"); scene.className = "md-stage mr" + (d.join === "lines" ? " mr-wide" : ""); host.appendChild(scene);   // [lines] CSS .mr-wide
       const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
       const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
-      const W = scene.offsetWidth || 1033;
-      let H = Math.max(420, host.getBoundingClientRect().height / kS - 6);
-      /* data.fill "stage" (P3, review 2026-10-01: "these are cropped from upper side - fix it"): the scene runs down to the
-         stage's own bottom edge (14px clear) - the room kept for the hidden next button - so the cards, centred in it, sit
-         lower and the fruit magnets holding them clear the top of the slide's frame (.slide-stage clips above it) */
-      if(d.fill === "stage"){ const stR = $("stage").getBoundingClientRect();
-        H = Math.max(H, (stR.bottom - scene.getBoundingClientRect().top) / kS - 14); }
+      const W = scene.offsetWidth || 1033, stR = $("stage").getBoundingClientRect();
+      const H = Math.max(420, (stR.bottom - scene.getBoundingClientRect().top) / kS - 14);   // down to the stage's bottom (no आगे here)
       scene.style.height = px(H);
-      const unit = d.unit_hi || "ब्लॉक्स", TONES = ["yellow", "blue", "green"], BTONES = ["green", "blue", "yellow"];
-      /* data.strip (review 2026-09-30: every cube the game's 76px - three measured objects + the boxes' column can't hold
-         that): the objects in ONE row across the whole width, the boxes in a row UNDER them, a little tighter */
-      const STRIP = !!d.strip;
-      /* [photos] review 2026-10-01: "redesign these slides for better relatable visuality and adding meaning". data.look:
-           "board"  (P2) photos of the class's furniture pinned on the class notice board; the sizes are brown paper
-                    tags, pinned on under the right photo with a swing
-           "fridge" (P3) photos from home held on the fridge door by fruit magnets; the sizes are Mummy's sticky notes -
-                    the size to buy - and once all three are matched each photo shows what the size was for: a curtain on
-                    the window, a cover on the TV, a sleeve on the bottle (item.fit)
-         Each card is a white photo: its picture a little scene of the object's own place (item.scene: "floor" / "wall" /
-         "shelf" / "table", in the look's colours, item.wall to vary it), its broad bottom margin the label's place. */
-      const LOOK = d.look || "";
-      const PALS = { board: { wall: ["#FBF1D6", "#F3E3BF"], floor: ["#DDB27B", "#C99762"], edge: "#B58149" },
-                     fridge: { wall: ["#F1EBE2", "#E8DFD2"], floor: ["#D8B48A", "#C29A6C"], edge: "#A67A4B" } };
-      const picBg = (kind, base, pal, wall)=>{                               // the photo's little scene; base = the object's foot
-        const w0 = wall || pal.wall[0], w1 = pal.wall[1], b = Math.round(base);
-        if(kind === "wall") return "linear-gradient(180deg," + w0 + "," + w1 + ")";
-        if(kind === "shelf") return "linear-gradient(180deg," + w0 + " 0," + w1 + " " + b + "px," + pal.edge + " " + b + "px," + pal.floor[0] + " " + (b + 3) + "px," + pal.floor[1] + " " + (b + 12) + "px," +
-          "rgba(70,40,15,.28) " + (b + 12) + "px,rgba(70,40,15,0) " + (b + 22) + "px," + w1 + " " + (b + 22) + "px," + w1 + " 100%)";
-        if(kind === "table") return "linear-gradient(180deg," + w0 + " 0," + w1 + " " + b + "px," + pal.edge + " " + b + "px," + pal.floor[0] + " " + (b + 3) + "px," + pal.floor[0] + " " + (b + 10) + "px," +
-          pal.edge + " " + (b + 10) + "px," + pal.floor[1] + " " + (b + 13) + "px," + pal.floor[1] + " 100%)";
-        return "linear-gradient(180deg," + w0 + " 0," + w1 + " " + b + "px,#FFFFFF " + b + "px,#FFFFFF " + (b + 6) + "px," + pal.floor[0] + " " + (b + 6) + "px," + pal.floor[1] + " 100%)";   // floor, a skirting
-      };
-      const MAGNETS = ["mango", "strawberry", "sunflower"];
-      /* data.tags (P2, review 2026-10-01: "replace it with good quality assets"): the size tags are the supplied pictures -
-         { "<k>": {src, bw, x0, y0, h, hx, hy} }, each with its text drawn on; its card body's width, the crop's offsets and
-         height, and its hole, all in units of the body's height (the box's height; the red loop hangs out on the left).
-         P3's supplied sticky notes the same, without a hole (no hx / hy) */
-      const TAGS = LOOK && d.tags ? d.tags : null, BH = STRIP ? 64 : 74;
-      const BW = TAGS ? Math.ceil(BH * Math.max(...Object.keys(TAGS).map(k => TAGS[k].bw))) + 4 : 184;
-      const PAD = STRIP ? 12 : 16, GUT = 14, DIG = 14;                       // a box; card padding; gutter; room for the end lines
-      /* data.card (P2, review 2026-10-01: "replace the white sticky notes with these HD quality assets"): each photo is the
-         supplied photo card, 9-sliced to its size (CSS border-image) - {src, slice: [t, r, b, l] (its px), k (its scale on
-         screen), frame (the white border round the photo window, screen px), bottom (the margin under it, the slot's place),
-         lip (the card's edge at the foot), gap (round the picture in the window)}. Without it the cards are drawn (PAD). */
-      const PHOTO = LOOK && d.card ? d.card : null;                          // (P3 too - review 2026-10-01: "why I see no change in the
-                                                                             //  assets of this scene"; card.scene: its little scene kept in the window)
-      const FR = PHOTO ? PHOTO.frame : PAD, BOT = PHOTO ? PHOTO.bottom : BH + 2 * PAD, GAPI = PHOTO ? PHOTO.gap : 0;
-      /* the HD card 9-sliced onto a canvas of its own, at the card's size and the screen's resolution, each piece a device
-         pixel over its neighbours (CSS border-image left hairline seams at its slices - review 2026-10-01: "there are
-         lines in the white note paper") */
-      const cardArt = PHOTO ? new Image() : null; if(cardArt) cardArt.src = PHOTO.src;
-      function paintCard(el, w, h){
-        const cv = K.add(el, "canvas", "mm-cardcv"), R = Math.max(1, Math.min(3, kS * (window.devicePixelRatio || 1)));
-        cv.width = Math.round(w * R); cv.height = Math.round(h * R);
-        const draw = ()=>{
-          const g = cv.getContext("2d"), [t, r, b, l] = PHOTO.slice, k = PHOTO.k * R, W0 = cardArt.naturalWidth, H0 = cardArt.naturalHeight;
-          const xs = [0, l, W0 - r, W0], ys = [0, t, H0 - b, H0];             // the art's columns / rows
-          const X = [0, Math.round(l * k), cv.width - Math.round(r * k), cv.width], Y = [0, Math.round(t * k), cv.height - Math.round(b * k), cv.height];
-          g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
-          [[1, 1], [0, 1], [2, 1], [1, 0], [1, 2], [0, 0], [2, 0], [0, 2], [2, 2]].forEach(([j, i])=>{   // the middle, the edges, the corners last
-            const o0 = j ? 1 : 0, o1 = j < 2 ? 1 : 0, p0 = i ? 1 : 0, p1 = i < 2 ? 1 : 0;
-            g.drawImage(cardArt, xs[j], ys[i], xs[j + 1] - xs[j], ys[i + 1] - ys[i], X[j] - o0, Y[i] - p0, X[j + 1] - X[j] + o0 + o1, Y[i + 1] - Y[i] + p0 + p1);
-          });
-        };
-        if(cardArt.complete && cardArt.naturalWidth) draw(); else cardArt.addEventListener("load", draw, { once: true });
+      const unit = d.unit_hi || "ब्लॉक्स", TONES = ["yellow", "blue", "green"];
+      const say = role => new Promise(r =>{ const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      /* ---- layout ---- */
+      // [lines] match the following in two COLUMNS (review 2026-10-07 "change the match the following horizontal lines to
+      // vertical"): the objects stacked on the left, the boxes stacked on the right, the lines run across between them. The
+      // stack has to fit the scene's height, so the cube is the largest that does - asked first, and chosen knowing it is
+      // under the game's 74 here (~48 on both P2 and P3, the same: no column of three measured objects holds 74). Before, a row of cards over
+      // a row of boxes (2026-10-06 - 07). A dot on each card's right edge and each box's left edge.
+      const LINES = d.join === "lines", DOT = 21;                          // (21: the Figma connector, FLN "Match the following" 1162:29905)
+      // a box; the panels' padding / gap; end-line overhang (12 / 10, was 16 / 14: P2's three rows hold the game's 44px cube).
+      // [lines] review 2026-10-06 "increase the size of all 6 boxes": the boxes 196 x 76 -> 236 x 92
+      const BW = LINES ? 236 : 196, BH = LINES ? 92 : 76, BG = 22, PAD = LINES ? 8 : 12, G = LINES ? 12 : 10, ENDS = 10;   // [lines] 8 / 12 (review 2026-10-07: the 3rd card sat on the stage's bottom edge)
+      const LX = 8, LW = LINES ? W - 2 * LX : W - BW - 64 - LX;            // the objects' area (left); the boxes' column (right) - [lines] the whole width
+      const items = d.items.map(it => Object.assign({ ar: 1, axis: "x" }, it));
+      // an object + its blocks, for a block size S: w = wc * S, h = hc * S
+      // it.span [f0, f1] (axis "y"): the part of the picture's height the blocks measure (default all of it) - review
+      // 2026-10-07 "increase the size of monitor just a little": the monitor's 1 block is its screen (0 - .826), the stand below
+      const spanOf = it => it.span ? it.span[1] - it.span[0] : 1;
+      const coef = it => it.axis === "x" ? { wc: it.n, hc: it.n * it.ar + 1 } : { wc: it.n / (it.ar * spanOf(it)) + 1.2, hc: it.n / spanOf(it) };
+      const rowH = (H - 2 * G) / 3;
+      const S_rows = Math.min(...items.map(it =>{ const c = coef(it); return Math.min((LW - 2 * PAD - 2 * ENDS) / c.wc, (rowH - 2 * PAD - ENDS) / c.hc); }));
+      const SLOT = BH + 18, cardH = H - SLOT - 6;
+      const sumW = items.reduce((a, it)=> a + coef(it).wc, 0);
+      const S_cols = Math.min((LW - 2 * G - items.length * 2 * (PAD + ENDS)) / sumW, ...items.map(it => (cardH - 2 * PAD - ENDS) / coef(it).hc));
+      // [lines] the stack: the three objects' heights + each card's padding and end-line room + the gaps, 8px over and under
+      // review 2026-10-07 "make the 6 boxes with images and cube of exactly the same size": every [lines] slide's card
+      // (P2 and P3, all six) is one size - as tall as the tallest object of the two needs, as wide as the widest - so the
+      // cube is the largest that lets three of those cards stand in the stack (P3 cut to 3 / 2 / 1 so it stays 48)
+      const lineItems = [].concat(...CARD.slides.filter(s => s.type === "MATCH_ROWS" && s.data && s.data.join === "lines")
+        .map(s => s.data.items), items).map(it => Object.assign({ ar: 1, axis: "x" }, it));
+      const maxHc = Math.max(...lineItems.map(it => coef(it).hc)), nI = items.length;
+      const S_stack = (H - 40 - G * (nI - 1) - nI * (2 * PAD + ENDS)) / (nI * maxHc);   // (40: ~20px clear over and under the stack; the cube stays 48)
+      const ROWS = !LINES && S_rows >= S_cols, S = Math.min(K.CUBE, Math.floor(LINES ? S_stack : ROWS ? S_rows : S_cols));   // the game's one cube
+      scene.classList.add(LINES ? "mr-stack" : ROWS ? "mr-rows" : "mr-cols");
+      // each object's panel (scene px)
+      let panels, boxX = W - BW - 26;
+      if(LINES){
+        // one card size for all six on P2 + P3 (the widest object's width, the tallest one's height - review 2026-10-07);
+        // the cards, the lines' band (160 - 340) and the boxes centred across the scene
+        const gwOf = it => it.axis === "x" ? it.n * S : S + 10 + it.n * S / (it.ar * spanOf(it));
+        const cw = Math.max(...lineItems.map(gwOf)) + 2 * (PAD + ENDS), hs = items.map(()=> maxHc * S + 2 * PAD + ENDS);   // [same size] one card for all six
+        const band = Math.max(160, Math.min(340, LW - cw - BW - 40)), x0 = LX + (LW - cw - band - BW) / 2;
+        let y = (H - hs.reduce((a, h)=> a + h, 0) - G * (items.length - 1)) / 2;
+        panels = hs.map(h =>{ const p = { x: x0, y, w: cw, h }; y += h + G; return p; });
+        boxX = x0 + cw + band;
       }
-      /* item.art (P3, review 2026-10-01: "replace the assets on this screen with the attached HD quality assets"): each
-         photo is the supplied card - {src, ar (its height / width), frame: [x0, y0, x1, y1] (the card's body in it,
-         fractions), slot: [x, y, w, h] (where its label slot was - wiped from the picture, the game draws it and fades it
-         under the note), scene: [x0, y0, x1, y1] (its picture window), base (the shelf line in it, where the object and
-         its blocks stand) - these as fractions of the body}. The cards all one height, side by side, as big as the room
-         allows (artPlan). The supplied cards had their blocks drawn on at three different sizes, and the bottle stood
-         taller than its two (review 2026-10-01: "bottle is longer than the cube so game logic is affected"): the cards
-         are now only the frame and the room - the object (item.src, item.ar its height / width), its blocks, its end
-         lines and its magnet are the game's, the object exactly n blocks long and the block the same on every card */
-      const ART = !!LOOK && d.items.every(it => it.art);
-      // [art] the fruit magnet's box, of the card's width (review 2026-10-01: "decrease the size of circle pins" - the
-      // supplied ones were ~.28 of it); room round the blocks inside the picture; the gap between a column and its object
-      const MAG = .18, APAD = 8, AGAP = .12;
-      const COLW = STRIP ? 0 : BW + 44, AX0 = 8, AW = W - COLW - AX0 - 8;   // the boxes' column; the objects' area
-      // data.strip_up (P3, review 2026-10-01: "shift the options a little upper"): the strip that much higher off the foot
-      const SB = STRIP ? 10 + (d.strip_up || 0) : 0;
-      const HC = STRIP ? H - BH - SB - 12 : H;                               // the cards' height (the strip is below them)
-      const items = d.items, byId = {}; items.forEach((it, i)=>{ byId[it.id] = it; it._k = i; });
-      const rows = d.rows || items.map(it => [it.id]);
-      /* an object's content at block size S: a row on top of a long one, a column left of a tall one */
-      // (item.pic {w, h}: a supplied picture with its blocks drawn on - its size in blocks, so they are the game's cube)
-      const need = (it, S)=> it.pic ? { w: it.pic.w * S, h: it.pic.h * S }
-                           : it.axis === "y" ? { w: DIG + S + 10 + it.n * S / it.ar, h: it.n * S }
-                                             : { w: it.n * S, h: DIG + S + it.n * S * it.ar };
-      function plan(S){                                                       // the rows at block size S, or null
-        const out = []; let y = 0;
-        for(const r of rows){
-          const ns = r.map(id => need(byId[id], S));
-          if(r.length === 1){
-            if(ns[0].w + BW + 3 * PAD > AW) return null;
-            const h = Math.max(ns[0].h, BH) + 2 * PAD; out.push({ ids: r, y, h, ws: [AW], slot: "right" }); y += h + GUT;
-          } else {
-            const ws = ns.map(n => Math.max(n.w + 2 * GAPI, BW) + 2 * FR), sum = ws.reduce((a, b)=> a + b, 0), free = AW - GUT * (r.length - 1);
-            if(sum > free) return null;
-            const h = Math.max(...ns.map(n => n.h)) + 2 * GAPI + FR + BOT; out.push({ ids: r, y, h, ws: ws.map(w => w * free / sum), slot: "below" }); y += h + GUT;
-          }
+      else if(ROWS) panels = items.map((it, i)=> ({ x: LX, y: i * (rowH + G), w: LW, h: rowH }));
+      else {
+        const ws = items.map(it => coef(it).wc * S + 2 * (PAD + ENDS)), free = LW - ws.reduce((a, b)=> a + b, 0) - G * (items.length - 1);
+        let x = LX + Math.max(0, free / 2);
+        // the cards as tall as their tallest object needs (not the whole height), the cards + their slots centred
+        const ch = Math.min(cardH, Math.max(...items.map(it => coef(it).hc * S)) + 2 * PAD + ENDS + 20), cy = Math.max(0, (H - ch - SLOT) / 2);
+        panels = ws.map(w =>{ const p = { x, y: cy, w, h: ch }; x += w + G; return p; });
+      }
+      // [lines] the boxes stacked in the right column, spread evenly over the cards' height
+      const nB = d.boxes.length, T0 = panels[0].y, T1 = panels[panels.length - 1].y + panels[panels.length - 1].h;
+      const homes = d.boxes.map((v, j)=> LINES ? { x: boxX, y: T0 + (j + .5) * (T1 - T0) / nB - BH / 2 }
+                                      : ROWS ? { x: boxX, y: panels[j].y + (rowH - BH) / 2 }
+                                            : { x: boxX, y: (H - 3 * BH - 2 * BG) / 2 + j * (BH + BG) });
+      const slotOf = i => ROWS ? { x: boxX, y: panels[i].y + (rowH - BH) / 2 } : { x: panels[i].x + (panels[i].w - BW) / 2, y: panels[i].y + panels[i].h + 12 };
+      /* ---- the objects, their blocks, the ends ---- */
+      let shade = 0;
+      const objs = items.map((it, i)=>{
+        const P = panels[i], c = coef(it), e = { it, i, blocks: [], wrong: 0, done: false };
+        e.panel = K.add(scene, "div", "mr-panel" + (LINES ? "" : " tone-" + TONES[i % 3]), "left:" + px(P.x) + ";top:" + px(P.y) + ";width:" + px(P.w) + ";height:" + px(P.h));
+        if(!ROWS && !LINES) e.slotEl = K.add(scene, "div", "mr-slot", "left:" + px(slotOf(i).x) + ";top:" + px(slotOf(i).y) + ";width:" + px(BW) + ";height:" + px(BH));
+        // the object + its blocks, centred in the panel (on its floor). [lines] review 2026-10-07 "place the assets in
+        // center of respective boxes": in the middle of its card both ways, measured on what is drawn (blocks + object;
+        // a column's group is S + 10 + the object's width, not the layout's wc estimate)
+        const gw = LINES && it.axis !== "x" ? S + 10 + it.n * S / (it.ar * spanOf(it)) : c.wc * S, gh = c.hc * S;
+        const gx = P.x + (P.w - gw) / 2, gy = ROWS ? P.y + (P.h - gh) / 2 + ENDS / 2 : LINES ? P.y + (P.h - gh) / 2 : P.y + P.h - PAD - gh;
+        let ox, oy, ow, oh;
+        if(it.axis === "x"){ ow = it.n * S; oh = ow * it.ar; ox = gx; oy = gy + S; }
+        else { oh = it.n * S / spanOf(it); ow = oh / it.ar; ox = gx + S + 10; oy = gy; }
+        const m0 = it.axis === "x" ? 0 : oy + oh * (it.span ? it.span[0] : 0), m1 = m0 + it.n * S;   // the measured span (y)
+        e.img = K.add(scene, "img", "md-obj mr-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh));
+        e.img.src = it.src; e.img.alt = "";
+        e.tiles = [];
+        for(let k = 0; k < it.n; k++){
+          const t = it.axis === "x" ? { x: ox + k * S, y: oy - S } : { x: gx, y: m1 - (k + 1) * S };
+          const b = K.cube(scene, shade++, t.x, t.y, S); b.classList.add("placed", "mr-cube"); b.style.zIndex = 4; e.blocks.push(b); e.tiles.push(t);
         }
-        return y - GUT <= HC - 8 ? { rows: out, h: y - GUT } : null;
-      }
-      function artPlan(){                                                     // [art] one row, the bodies one height, the magnets' room above
-        const ids = rows.flat(), A = id => byId[id].art;
-        const asp = id => (A(id).frame[3] - A(id).frame[1]) * A(id).ar / (A(id).frame[2] - A(id).frame[0]);   // a body's height / width
-        const ov = Math.max(...ids.map(id => Math.max(A(id).frame[1] / (A(id).frame[3] - A(id).frame[1]), MAG / 2 / asp(id) + .01)));   // the magnet over it, per body height
-        const FH = Math.min((AW - GUT * (ids.length - 1)) / ids.reduce((s, id)=> s + 1 / asp(id), 0), (HC - 8) / (1 + ov), d.art_h || Infinity);
-        const ws = ids.map(id => FH / asp(id)), tot = ws.reduce((a, b)=> a + b, 0) + GUT * (ids.length - 1);
-        return { rows: [{ ids, y: FH * ov, h: FH, ws, x0: (AW - tot) / 2 }], h: FH * (1 + ov) };
-      }
-      let S = K.CUBE, P = ART ? artPlan() : plan(S); while(!P && S > 20) P = plan(--S);   // the game's cube, as far as the cards fit
-      if(!P){ console.warn("[MATCH_MEASURE] the cards do not fit"); P = { rows: [], h: 0 }; }
-      /* [art] the block: the biggest every card's picture holds (the game's cube at most) - a tall object with its column
-         beside it, a long one with its row on top, between the picture's sides and from its shelf up to below the magnet */
-      const artFit = (it, w, h)=>{
-        const A = it.art, aw = (A.scene[2] - A.scene[0]) * w - 2 * APAD, ah = A.base * h - Math.max(A.scene[1] * h + APAD, MAG * w / 2 + 6);
-        return it.axis === "y" ? Math.min(ah / it.n, aw / (1 + AGAP + it.n / it.ar)) : Math.min(aw / it.n, ah / (1 + it.n * it.ar));
-      };
-      if(ART && P.rows.length) S = Math.floor(2 * Math.min(K.CUBE, ...P.rows.flatMap(r => r.ids.map((id, j)=> artFit(byId[id], r.ws[j], r.h))))) / 2;
-      const Y0 = (HC - P.h) / 2;
-      const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
-      /* ---- the cards: each object with its blocks and end lines, its slot (+ the hand's anchor at its centre) ---- */
-      const cards = []; let shade = 0;
-      P.rows.forEach(r =>{
-        let x = AX0 + (r.x0 || 0);
-        r.ids.forEach((id, j)=>{
-          const it = byId[id], w = r.ws[j], y = Y0 + r.y, h = r.h, c = { it, x, y, w, h, done: false, blocks: [] };
-          c.el = K.add(scene, "div", "mm-card " + (LOOK ? "mm-ph look-" + LOOK : "t-" + TONES[it._k % 3]), "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h) + ";--k:" + it._k);
-          if(ART){                                                           // [art] the supplied picture: the card element is its body
-            const A = it.art, iw = w / (A.frame[2] - A.frame[0]), ih = iw * A.ar;
-            c.el.classList.add("art"); c.el.style.borderRadius = px(w * .044);   // (its corners: the hover / right ring follows them)
-            const im = K.add(c.el, "img", "mm-art", "left:" + px(-A.frame[0] * iw) + ";top:" + px(-A.frame[1] * ih) + ";width:" + px(iw) + ";height:" + px(ih));
-            im.src = A.src; im.alt = ""; im.draggable = false;
-            const sx = x + A.slot[0] * w, sy = y + A.slot[1] * h, sw = A.slot[2] * w, sh = A.slot[3] * h;
-            c.slot = { x: sx + (sw - BW) / 2, y: sy + (sh - BH) / 2 };          // the note lands centred on the slot
-            c.slotEl = K.add(scene, "div", "mm-slot at-" + LOOK + " art", "left:" + px(sx) + ";top:" + px(sy) + ";width:" + px(sw) + ";height:" + px(sh));
-            c.anchor = K.add(scene, "div", "md-anchor", "left:" + px(sx + sw / 2 - 1) + ";top:" + px(sy + sh / 2 - 10));
-            const mg = K.add(c.el, "img", "mm-deco magnet art", "left:" + px((1 - MAG) * w / 2) + ";top:" + px(-MAG * w / 2) + ";width:" + px(MAG * w) + ";height:" + px(MAG * w));
-            mg.src = "assets/prop_" + MAGNETS[it._k % MAGNETS.length] + ".webp"; mg.alt = "";   // (centred on the card's top edge, holding it)
-            // the object n blocks long, standing on the shelf, its blocks flush along it and the end lines across both
-            const X0 = A.scene[0] * w, X1 = A.scene[2] * w, base = A.base * h, L = it.n * S;
-            let ox, oy, ow, oh;
-            if(it.axis === "y"){                                             // a column of n on its left, foot to top
-              oh = L; ow = L / it.ar; oy = base - oh;
-              const gw = S * (1 + AGAP) + ow, cx = X0 + (X1 - X0 - gw) / 2; ox = cx + S * (1 + AGAP);
-              for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(c.el, shade++, cx, base - (k + 1) * S, S));
-              K.add(c.el, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy - 1) + ";width:" + px(gw + 16));
-              K.add(c.el, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(base - 1) + ";width:" + px(gw + 16));
-            } else {                                                         // a row of n on top, end to end
-              ow = L; oh = L * it.ar; ox = X0 + (X1 - X0 - ow) / 2; oy = base - oh;
-              for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(c.el, shade++, ox + k * S, oy - S, S));
-              const gh = S + 10 + Math.min(oh * .3, 30);
-              K.add(c.el, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S - 10) + ";height:" + px(gh));
-              K.add(c.el, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S - 10) + ";height:" + px(gh));
-            }
-            c.blocks.forEach(b =>{ b.classList.add("placed"); b.style.zIndex = 4; });
-            c.img = K.add(c.el, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh));
-            c.img.src = it.src; c.img.alt = ""; c.img.draggable = false;
-            c.obox = { x: x + ox, y: y + oy, w: ow, h: oh };                  // (in the stage: the fit is laid over it there)
-            cards.push(c); x += w + GUT; return;
-          }
-          const n = need(it, S);
-          let ax, ay, aw, ah;
-          if(r.slot === "right"){ c.slot = { x: x + w - PAD - BW, y: y + (h - BH) / 2 }; ax = x + PAD; ay = y + PAD; aw = w - BW - 3 * PAD; ah = h - 2 * PAD; }
-          else { c.slot = { x: x + (w - BW) / 2, y: PHOTO ? y + h - BOT + (BOT - PHOTO.lip - BH) / 2 : y + h - PAD - BH };
-                 ax = x + FR; ay = y + FR; aw = w - 2 * FR; ah = h - FR - BOT; }
-          if(PHOTO){ c.el.classList.add("hd"); paintCard(c.el, w, h); }      // the HD photo card: its own cream window, no drawn scene
-          if(LOOK){                                                          // the photo's picture (its scene is set once the object is placed)
-            if(!PHOTO || PHOTO.scene) c.pic = K.add(c.el, "div", "mm-pic", "left:" + px(ax - x) + ";top:" + px(ay - y) + ";width:" + px(aw) + ";height:" + px(ah));
-            const dc = K.add(c.el, "img", "mm-deco " + (LOOK === "board" ? "pin" : "magnet"), "");
-            dc.src = "assets/" + (LOOK === "board" ? "prop_pushpin" : "prop_" + MAGNETS[it._k % MAGNETS.length]) + ".webp"; dc.alt = "";
-          }
-          c.slotEl = K.add(scene, "div", "mm-slot" + (LOOK ? " at-" + LOOK : "") + (PHOTO ? " hd" : ""), "left:" + px(c.slot.x) + ";top:" + px(c.slot.y) + ";width:" + px(BW) + ";height:" + px(BH));
-          c.anchor = K.add(scene, "div", "md-anchor", "left:" + px(c.slot.x + BW / 2 - 1) + ";top:" + px(c.slot.y + BH / 2 - 10));
-          const x0 = ax + (aw - n.w) / 2, y0 = ay + (ah - n.h) / 2;
-          let ox, oy, ow, oh;
-          if(it.pic){ ox = x0; oy = y0; ow = n.w; oh = n.h; }                // the supplied picture: its blocks and all
-          else if(it.axis === "y"){                                          // a column from its foot to its top, on its left
-            oh = it.n * S; ow = oh / it.ar; const cx = x0 + DIG; ox = cx + S + 10; oy = y0;
-            for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(scene, shade++, cx, oy + oh - (k + 1) * S, S));
-            const gw = S + 10 + ow * .6 + 8;
-            K.add(scene, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy - 1) + ";width:" + px(gw));
-            K.add(scene, "div", "mm-guide h", "left:" + px(cx - 8) + ";top:" + px(oy + oh - 1) + ";width:" + px(gw));
-          } else {                                                           // a row on top, from one end to the other
-            ow = it.n * S; oh = ow * it.ar; ox = x0; oy = y0 + DIG + S;
-            for(let k = 0; k < it.n; k++) c.blocks.push(K.cube(scene, shade++, ox + k * S, oy - S, S));
-            const gh = S + 8 + Math.min(oh * .4, 40);
-            K.add(scene, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S - 8) + ";height:" + px(gh));
-            K.add(scene, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S - 8) + ";height:" + px(gh));
-          }
-          c.blocks.forEach(b =>{ b.classList.add("placed"); b.style.zIndex = 4; });
-          c.img = K.add(scene, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh)); c.img.src = it.src; c.img.alt = "";
-          c.obox = { x: ox, y: oy, w: ow, h: oh };
-          if(c.pic) c.pic.style.background = picBg(it.scene || "floor", oy + oh - ay, PALS[LOOK] || PALS.board, it.wall);
-          cards.push(c); x += w + GUT;
-        });
+        // the measured span's two ends, dashed (as the game's measuring slides)
+        // (review 2026-10-06 "decrease the length of dotted lines": they ran the blocks' and the whole object's length and
+        //  past both, nearly card edge to card edge - now the blocks plus a short reach into the object, 4px over)
+        const TK = 4, IN = it.axis === "x" ? Math.min(oh, S * .45) : Math.min(ow, S * .45);
+        if(it.axis === "x"){ [ox, ox + it.n * S].forEach(x => K.add(scene, "i", "mr-end v", "left:" + px(x - 3) + ";top:" + px(oy - S - TK) + ";height:" + px(S + IN + TK))); }
+        else { [m1, m0].forEach(y => K.add(scene, "i", "mr-end h", "left:" + px(gx - TK) + ";top:" + px(y - 3) + ";width:" + px(S + 10 + IN + TK))); }
+        e.side = it.axis === "x" ? "above" : "left";
+        if(LINES){ e.dot = { x: P.x + P.w, y: P.y + P.h / 2 }; e.dotEl = K.add(scene, "i", "mr-dot l", "left:" + px(e.dot.x - DOT / 2) + ";top:" + px(e.dot.y - DOT / 2)); }
+        return e;
       });
       /* ---- the boxes ---- */
-      const BX = W - COLW + 26, BG = Math.min(110, (H - d.boxes.length * BH - 24) / Math.max(1, d.boxes.length - 1)), tot = d.boxes.length * BH + (d.boxes.length - 1) * BG;
-      // (P2's supplied tags: their red loops hang LOOP px out on the left - kept clear of the tag before, the row centred with them)
-      const LOOP = TAGS && LOOK === "board" ? Math.ceil(Math.max(...Object.keys(TAGS).map(k => TAGS[k].x0 * BH - (BW - TAGS[k].bw * BH) / 2))) : 0;
-      const SG = 40 + LOOP, stripW = d.boxes.length * BW + (d.boxes.length - 1) * SG;   // the strip: side by side, centred, at the foot
-      const boxes = d.boxes.map((v, i)=>{
-        const home = STRIP ? { x: (W - stripW + LOOP) / 2 + i * (BW + SG), y: H - BH - SB } : { x: BX, y: (H - tot) / 2 + i * (BH + BG) };
-        const b = K.add(scene, "div", "mm-box " + (LOOK ? "lb-" + LOOK : "b-" + BTONES[i % 3]), "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(BW) + ";height:" + px(BH) + ";--k:" + i);
-        if(TAGS && TAGS[v]){                                                 // the supplied tag: its body centred in the box
-          const T = TAGS[v], bl = (BW - T.bw * BH) / 2; b.classList.add("tagimg");
-          const im = K.add(b, "img", "mm-tagimg", "height:" + px(T.h * BH) + ";left:" + px(bl - T.x0 * BH) + ";top:" + px(-T.y0 * BH));
-          im.src = T.src; im.alt = devNumeral(v) + " " + unit; im.draggable = false;
-          if(T.hx != null){ b._hole = { x: bl + T.hx * BH, y: T.hy * BH }; b.style.transformOrigin = px(b._hole.x) + " " + px(b._hole.y); }   // it swings on its hole
-          else if(LOOK === "fridge") b.style.rotate = [.6, 2.8, 1.5][i % 3] + "deg";   // (the notes are drawn a little askew: each its own way)
-        } else if(LOOK){                                                     // a paper tag (its hole, its string) / a sticky note (its curl)
-          b.innerHTML = '<span class="mm-shape"></span>' + (LOOK === "board" ? '<span class="mm-str"></span><span class="mm-hole"></span>' : '<span class="mm-curl"></span>') + '<span class="mm-txt"></span>';
-          b.querySelector(".mm-txt").textContent = devNumeral(v) + " " + unit;
-          if(LOOK === "fridge") b.style.rotate = [-2.5, 1.8, -1.2][i % 3] + "deg";   // torn off the pad by hand
-        } else b.textContent = devNumeral(v) + " " + unit;
-        b.setAttribute("role", "button");
-        b._v = v; b._home = home; b._done = false; b._wrong = 0; return b;
+      const boxes = d.boxes.map((v, j)=>{
+        const b = K.add(scene, "div", "mr-box" + (LINES ? "" : " tone-" + ["green", "blue", "yellow"][j % 3]), "left:" + px(homes[j].x) + ";top:" + px(homes[j].y) + ";width:" + px(BW) + ";height:" + px(BH));
+        b.textContent = devNumeral(v) + " " + (v === 1 ? "ब्लॉक" : unit); b._v = v; b._home = homes[j]; b._done = false; b.setAttribute("role", "button");
+        if(LINES){ b.classList.add("mr-pin"); b._dot = { x: homes[j].x, y: homes[j].y + BH / 2 };
+          b._dotEl = K.add(scene, "i", "mr-dot r", "left:" + px(b._dot.x - DOT / 2) + ";top:" + px(b._dot.y - DOT / 2)); }
+        return b;
       });
-      const cardFor = b => cards.find(c => c.it.n === b._v);                // where a box belongs
-      const cardAt = p => cards.find(c => p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h);
-      let drag = null, busy = false, wrongAll = 0, revealed = false, matched = 0;
-      const goHome = (b, bounce)=> K.glide(b, b._home, reduce ? 0 : 380, true).then(()=>{ b.style.zIndex = "";
+      const rightBox = e => boxes.find(b => !b._done && b._v === e.it.n);
+      const centre = b =>{ const p = K.pos(b); return { x: p.x + BW / 2, y: p.y + BH / 2 }; };
+      const objAt = p => objs.find(e =>{ const P = panels[e.i]; return p.x >= P.x && p.x <= P.x + P.w && p.y >= P.y && p.y <= P.y + P.h; });
+      let drag = null, busy = true, wrongAll = 0, matched = 0, idleT = 0, count = null;
+      const home = (b, bounce)=> K.glide(b, b._home, reduce ? 0 : 380, true).then(()=>{ b.style.zIndex = "";
         if(bounce && !reduce && alive()) b.animate([{ translate: "0 -12px" }, { translate: "0 0" }, { translate: "0 -5px" }, { translate: "0 0" }], { duration: 380, easing: "ease-out" }); });
-      function settle(c, b, rev){
-        c.done = true; b._done = true; matched++; b.style.zIndex = 13;
-        return K.glide(b, c.slot, reduce ? 0 : (rev ? 800 : 160), !!rev).then(()=>{
+      // [lines] no idle hand (review 2026-10-07 "remove hand nudge from match the following" - the one-time demo shows the move)
+      function armIdle(){ clearTimeout(idleT); if(LINES) return; idleT = setTimeout(()=>{
+        if(!alive() || busy || drag || state.locked) return;
+        const nb = boxes.find(b => !b._done); if(nb && placeNudge(nb)) state.nudgeUsed = true;
+      }, IDLE_MS); }
+      /* a right match: the box locks in beside (rows) / under (cards) its object; a box already standing in that place
+         (rows) moves to the one this box came from */
+      function lockIn(e, b){
+        e.done = true; b._done = true; matched++; stopNudge(); b.classList.remove("hint");
+        const to = slotOf(e.i), other = ROWS && boxes.find(x => x !== b && !x._done && Math.abs(x._home.x - to.x) < 1 && Math.abs(x._home.y - to.y) < 1);
+        if(other){ other._home = b._home; K.glide(other, other._home, reduce ? 0 : 420, true); }
+        b._home = to; b.style.zIndex = 12;
+        return K.glide(b, to, reduce ? 0 : 220, false).then(()=>{
           if(!alive()) return;
-          b.classList.add("ok"); c.el.classList.add("ok"); K.land(b, true);
-          if((b._hole || PHOTO || ART) && c.slotEl) c.slotEl.classList.add("filled");   // (on the HD card its slot fades - it showed round the tag / note)
-          if(LOOK === "board"){                                            // pinned on through its hole: it swings on the pin, settles
-            // (P2's supplied tags hang in their slot, no pin of their own - review 2026-10-01: "remove extra wall clips")
-            if(!b._hole){ const pn = K.add(b, "img", "mm-tagpin", ""); pn.src = "assets/prop_pushpin.webp"; pn.alt = ""; }
-            if(!reduce) b.animate([{ rotate: "-10deg" }, { rotate: "7deg" }, { rotate: "-4deg" }, { rotate: "2deg" }, { rotate: "0deg" }], { duration: 1150, easing: "ease-out" });
-          } else if(LOOK === "fridge" && !reduce) b.animate([{ scale: "1.1" }, { scale: ".97" }, { scale: "1" }], { duration: 300, easing: "ease-out" });   // pressed on
-          if(!rev){ sfxCorrect(); setSwMood("happy"); }                     // the sheet: locks + glows (the confetti waits for the last one)
-          GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: c.it.id, value: c.it.n, attempts: b._wrong + 1, revealed: !!rev });
-          if(matched === cards.length) finish(); else if(!rev) say("item_ok");                        // ...+ "शाबाश! सही जगह पर रखा।"
+          b.classList.add("ok"); e.panel.classList.add("ok"); if(e.slotEl) e.slotEl.classList.add("filled");
+          e.blocks.forEach(x => K.okFlash(x)); sfxCorrect(); setSwMood("happy");
+          GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: e.it.id, value: e.it.n, attempts: e.wrong + 1 });
+          if(matched === objs.length) finish(); else { busy = false; armIdle(); }
         });
       }
-      async function miss(c, b){                                               // the sheet's Drag & Drop ladder, per box
-        const m = ++b._wrong, home = cardFor(b); wrongAll++; busy = true;
-        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: c.it.id, box: b._v, attempts: m });
-        sfxWrongSoft(); setSwMood("tryagain");
-        K.shake(c.el, 8);                                                    // the wrong drop area shakes...
-        await goHome(b, true); if(!alive()) return;                          // ...and the box returns
-        if(m === 1) await say("try_again");                                  // attempt 1: think again
-        else if(m === 2){ K.softGlow(home.el); placeNudge(home.anchor); await say("hint"); }   // attempt 2: its right card glows + the hand on it
-        else {                                                               // after the sheet's last attempt: it moves in by itself
-          revealed = true; stopNudge();
-          GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, object: home.it.id, box: b._v, attempts: m, reason: "wrong" });
-          await settle(home, b, true);
-        }
-        if(alive() && !state.locked){ busy = false; setSwMood("point"); }
-      }
-      /* [photos] what the sizes were for (data.look "fridge", item.fit {kind: "curtain" | "cover" | "sleeve", src?, x, y, w,
-         h}): over each photo's object, in turn - a curtain slides down its rod over the window, a cover drops onto the TV, a
-         knitted sleeve slides up the bottle. A generated picture (fit.src) replaces the drawn one; x / y / w / h are its box
-         as fractions of the object's (defaults per kind). */
-      const FITBOX = { curtain: { x: -.17, y: -.13, w: 1.34, h: 1.15 }, cover: { x: -.05, y: -.05, w: 1.1, h: .52 }, sleeve: { x: -.09, y: .34, w: 1.18, h: .64 } };
-      function fitSVG(kind){
-        const V = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="100%">';
-        if(kind === "curtain") return V + '<defs><linearGradient id="fcF" x1="0" x2="1"><stop offset="0" stop-color="#E4735F"/><stop offset=".5" stop-color="#F5A08C"/><stop offset="1" stop-color="#E4735F"/></linearGradient>' +
-          '<pattern id="fcP" width="8" height="100" patternUnits="userSpaceOnUse"><rect width="8" height="100" fill="url(#fcF)"/><circle cx="4" cy="20" r="1.1" fill="#FFF1D6" opacity=".8"/><circle cx="4" cy="52" r="1.1" fill="#FFF1D6" opacity=".8"/><circle cx="4" cy="84" r="1.1" fill="#FFF1D6" opacity=".8"/></pattern></defs>' +
-          '<path d="M1 6 L34 6 C30 30 23 50 16 60 C22 71 27 86 29 99 L1 99 Z" fill="url(#fcP)"/><path d="M99 6 L66 6 C70 30 77 50 84 60 C78 71 73 86 71 99 L99 99 Z" fill="url(#fcP)"/>' +
-          '<rect x="1" y="57" width="17" height="5" rx="2" fill="#F2C94C"/><rect x="82" y="57" width="17" height="5" rx="2" fill="#F2C94C"/>' +
-          '<rect x="0" y="2" width="100" height="4" rx="2" fill="#C9A046"/><circle cx="1.5" cy="4" r="2.4" fill="#B88A2E"/><circle cx="98.5" cy="4" r="2.4" fill="#B88A2E"/></svg>';
-        if(kind === "cover"){ let hem = "M99 72"; for(let i = 0; i < 10; i++){ const x0 = 99 - i * 9.8, x1 = x0 - 9.8; hem += " Q" + ((x0 + x1) / 2) + " 86 " + x1 + " 72"; }
-          return V + '<defs><pattern id="fvP" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="#F7D6E0"/><circle cx="3" cy="3" r="1.6" fill="#E98AA8"/><circle cx="9" cy="9" r="1.6" fill="#8CC7A1"/></pattern>' +
-          '<linearGradient id="fvS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF" stop-opacity=".3"/><stop offset="1" stop-color="#7A3050" stop-opacity=".18"/></linearGradient></defs>' +
-          '<path d="M6 2 H94 Q99 2 99 8 V72 ' + hem.slice(7) + ' L1 72 V8 Q1 2 6 2 Z" fill="url(#fvP)"/><path d="M6 2 H94 Q99 2 99 8 V72 ' + hem.slice(7) + ' L1 72 V8 Q1 2 6 2 Z" fill="url(#fvS)"/>' +
-          '<path d="' + hem + '" fill="none" stroke="#FFFFFF" stroke-width="2.2"/></svg>'; }
-        return V + '<defs><pattern id="fsP" width="100" height="16" patternUnits="userSpaceOnUse"><rect width="100" height="8" fill="#7CC9A0"/><rect y="8" width="100" height="8" fill="#F5CF63"/></pattern>' +   // sleeve
-          '<pattern id="fsK" width="6" height="100" patternUnits="userSpaceOnUse"><path d="M3 0 V100" stroke="#000" stroke-opacity=".08" stroke-width="1.4"/></pattern></defs>' +
-          '<rect x="2" y="6" width="96" height="92" rx="14" fill="url(#fsP)"/><rect x="2" y="6" width="96" height="92" rx="14" fill="url(#fsK)"/>' +
-          '<rect x="0" y="0" width="100" height="12" rx="6" fill="#4FA97A"/><rect x="0" y="0" width="100" height="12" rx="6" fill="url(#fsK)"/></svg>';
-      }
-      function showFits(){
-        const withFit = cards.filter(c => c.it.fit && c.obox);
-        return new Promise(done =>{
-          if(!withFit.length) return done();
-          withFit.forEach((c, i)=> setTimeout(()=>{
+      async function miss(e, b){
+        const m = ++e.wrong; wrongAll++; busy = true; stopNudge();
+        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: e.it.id, box: b._v, attempts: m });
+        sfxWrongSoft(); setSwMood("tryagain"); K.shake(e.panel, 8); K.shake(e.img, 8);
+        await (LINES ? wrongLine(e, b) : home(b, true)); if(!alive()) return;
+        if(m === 1) await say("try_again");                                   // 1: bounced back
+        else if(m === 2){                                                    // 2: its blocks counted, one by one, digits on
+          if(count) count.forEach(x => x.remove()); count = [];
+          for(let k = 0; k < e.blocks.length; k++){
             if(!alive()) return;
-            const f = c.it.fit, fb = Object.assign({}, FITBOX[f.kind] || FITBOX.cover, f), B = c.obox;
-            const el = K.add(scene, "div", "mm-fit fit-" + f.kind, "left:" + px(B.x + B.w * fb.x) + ";top:" + px(B.y + B.h * fb.y) + ";width:" + px(B.w * fb.w) + ";height:" + px(B.h * fb.h));
-            if(f.src){ const im = K.add(el, "img", "", "width:100%;height:100%;display:block"); im.src = f.src; im.alt = ""; } else el.innerHTML = fitSVG(f.kind);
-            _tone([520, 660], "sine", .18, .05);                               // a soft swish
-            if(!reduce) el.animate(f.kind === "curtain" ? [{ clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0 0)" }]
-                                 : f.kind === "sleeve" ? [{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0 0 0 0)" }]
-                                 : [{ translate: "0 -34px", opacity: 0 }, { translate: "0 4px", opacity: 1, offset: .7 }, { translate: "0 0", opacity: 1 }],
-                                 { duration: 650, easing: "cubic-bezier(.3,.8,.4,1)", fill: "both" });
-            if(i === withFit.length - 1) setTimeout(done, reduce ? 0 : 750);
-          }, reduce ? 0 : 550 + i * 700));
-        });
+            e.blocks[k].classList.add("mr-counting"); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));
+            await sayNum(k + 1); e.blocks[k].classList.remove("mr-counting");
+          }
+        } else {                                                             // 3 on: the hand on its right box
+          const rb = rightBox(e); if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
+        }
+        if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
       function finish(){
-        state.locked = true; busy = true; stopNudge();
-        const first = wrongAll === 0 && !revealed;
-        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongAll + 1, score: first ? 1 : 0 }); }catch(e){}
+        state.locked = true; busy = true; stopNudge(); clearTimeout(idleT);
+        const first = wrongAll === 0;
+        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongAll + 1, score: first ? 1 : 0 }); }catch(e2){}
         recordResult(slide, first); setSwMood("happy");
-        /* the confetti ONCE, now that every box is on its card (review 2026-10-01: "confetti will only drop after all 3 are
-           correctly placed - that means that slide's game is perfectly completed"); not when one was shown (as an MCQ) */
-        if(!revealed){ try{ confettiCannon(); }catch(e){} }
-        (d.finale ? K.wait(reduce ? 0 : 350).then(finale) : Promise.resolve()).then(showFits)
-          .then(()=> setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 700)); }, 450));
+        try{ confettiCannon(); }catch(e2){}
+        setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(true); }, 700)); }, 450);
       }
-      /* data.finale (P2, review 2026-10-01: "after all 3 are correctly placed they should come in the center and get a
-         little big"): the cards with their tags glide as one group to the middle of the scene (the strip's room too, empty
-         now) and grow to finale.scale - each part transformed about the group's centre, so they keep their places */
-      function finale(){
-        if(!alive() || !cards.length) return;
-        const x0 = Math.min(...cards.map(c => c.x)), x1 = Math.max(...cards.map(c => c.x + c.w));
-        const y0 = Math.min(...cards.map(c => c.y)), y1 = Math.max(...cards.map(c => c.y + c.h));
-        const gx = (x0 + x1) / 2, gy = (y0 + y1) / 2, dx = W / 2 - gx, dy = H / 2 - gy, s = d.finale.scale || 1.08;
-        // (each card's parts on the scene too: its picture, its blocks, its slot - and the tags)
-        cards.flatMap(c => [c.el, c.img, c.slotEl].concat(c.blocks || [])).filter(e => e && e.parentNode === scene).concat(boxes).forEach(e =>{
-          e.style.transformOrigin = px(gx - parseFloat(e.style.left)) + " " + px(gy - parseFloat(e.style.top));
-          e.animate([{ transform: "none" }, { transform: "translate(" + px(dx) + "," + px(dy) + ") scale(" + s + ")" }],
-                    { duration: reduce ? 0 : 800, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" });
+      /* ---- [lines] joining an object and a box with a line ---- */
+      const NS = "http://www.w3.org/2000/svg";
+      let svg = null, live = null, sel = null, down = null, travel = null, hov = null;
+      if(LINES){ svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "mr-lines"); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+        svg.setAttribute("width", W); svg.setAttribute("height", H); scene.appendChild(svg); }
+      // a line = <g class="mr-ln">: the 3.5px stroke (Figma 2px, thickened a little - review 2026-10-07) and, at its far end, the handle dot (Figma "Arrow": r 5.33)
+      const setLine = (g, a, b)=>{ const l = g._l, c = g._c; l.setAttribute("x1", a.x); l.setAttribute("y1", a.y); l.setAttribute("x2", b.x); l.setAttribute("y2", b.y);
+        c.setAttribute("cx", b.x); c.setAttribute("cy", b.y); };
+      const mkLine = (a, b, cls)=>{ const g = document.createElementNS(NS, "g"), l = document.createElementNS(NS, "line"), c = document.createElementNS(NS, "circle");
+        g.setAttribute("class", "mr-ln " + (cls || "")); l.setAttribute("pathLength", "1"); c.setAttribute("r", "5.33");
+        g.appendChild(l); g.appendChild(c); g._l = l; g._c = c; setLine(g, a, b); svg.appendChild(g); return g; };
+      const near = (p, q, r)=> Math.hypot(p.x - q.x, p.y - q.y) < r;
+      const hitAt = p =>{                                                    // an open card or box (or its dot) under p
+        const inR = (x, y, w, h)=> p.x >= x - 6 && p.x <= x + w + 6 && p.y >= y - 6 && p.y <= y + h + 6;
+        const e = objs.find(o => !o.done && (inR(panels[o.i].x, panels[o.i].y, panels[o.i].w, panels[o.i].h) || near(p, o.dot, 30)));
+        if(e) return { kind: "obj", e, el: e.panel, dot: e.dot, dotEl: e.dotEl };
+        const b = boxes.find(x => !x._done && (inR(x._home.x, x._home.y, BW, BH) || near(p, x._dot, 30)));
+        return b ? { kind: "box", b, el: b, dot: b._dot, dotEl: b._dotEl } : null;
+      };
+      const hover = h =>{ if(hov) hov.el.classList.remove("hover"); hov = h; if(h) h.el.classList.add("hover"); };
+      function pick(h){ unpick(); sel = h; h.el.classList.add("sel"); h.dotEl.classList.add("sel"); sfxTap(); }
+      function unpick(){ if(live){ live.remove(); live = null; } if(!sel) return; sel.el.classList.remove("sel"); sel.dotEl.classList.remove("sel"); sel = null; }
+      function stopTravel(){ if(travel){ travel.el.getAnimations().forEach(a => a.cancel()); travel.el.remove(); travel = null; } }
+      function clearHelp(){ stopTravel(); stopNudge(); boxes.forEach(x => x.classList.remove("hint")); objs.forEach(o => o.panel.classList.remove("hint")); }
+      // the 3rd-rung hand: from the box's dot up to its object's dot, again and again (the move itself, not just "this one").
+      // It travels UP so it rests in the band between the rows - the engine's hand rule [QA 12]: never on a label (ending
+      // on the box, its hand covered the box's "<n> ब्लॉक्स"); a line may start from either side, so it is the same move.
+      function travelHand(a, b){
+        stopTravel(); travel = K.hand(scene, 0); travel.on(reduce ? b : a);   // (reduced motion: the hand waits at the end)
+        const dx = b.x - a.x, dy = b.y - a.y, at = (x, y, o, f)=> ({ translate: x + "px " + y + "px", opacity: o, offset: f });
+        if(!reduce) travel.el.animate([at(0, 0, 0, 0), at(0, 0, 1, .06), at(dx, dy, 1, .6), at(dx, dy, 1, .88), at(dx, dy, 0, 1)],
+                                      { duration: 2000, iterations: Infinity, easing: "ease-in-out" });
+      }
+      function pairUp(a, h){
+        const e = a.kind === "obj" ? a.e : h.e, b = a.kind === "box" ? a.b : h.b;
+        unpick(); hover(null); clearHelp();
+        if(e.it.n === b._v) lockLine(e, b); else miss(e, b);
+      }
+      // (review 2026-10-07 "if I connect with correct or wrong one, the line again comes from right to left and gets
+      //  connected - this should not happen": the child's own line is already there, so the kept / red line just takes
+      //  its place, colour only - no "draw" re-animation)
+      function lockLine(e, b){
+        e.done = true; b._done = true; matched++; busy = true;
+        mkLine(e.dot, b._dot, "ok"); e.dotEl.classList.add("ok"); b._dotEl.classList.add("ok");
+        // (review 2026-10-07 "after correct match the cubes should not show green outline": the card, the line and the box
+        //  turn green - the cubes stay as they are, no okFlash)
+        b.classList.add("ok"); e.panel.classList.add("ok"); sfxCorrect(); setSwMood("happy");
+        GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: e.it.id, value: e.it.n, attempts: e.wrong + 1 });
+        if(matched === objs.length) finish(); else { busy = false; armIdle(); }
+      }
+      // a wrong pair: the line is drawn red, both ends flash red, then it fades (red first, always - HI01 28r)
+      const wrongLine = (e, b)=> new Promise(r =>{
+        const ends = [b, e.panel, e.dotEl, b._dotEl];                       // (Figma frame 5: both cards, both dots, the line red)
+        const l = mkLine(e.dot, b._dot, "no"); ends.forEach(x => x.classList.add("no")); K.shake(b, 8);
+        setTimeout(()=>{ l.classList.add("gone"); ends.forEach(x => x.classList.remove("no")); setTimeout(()=>{ l.remove(); r(); }, 320); }, reduce ? 500 : 750);
+      });
+      if(LINES){
+        scene.addEventListener("pointerdown", ev =>{
+          stopDemo(); touched = true;                                        // (a child who has started never gets the demo)
+          if(!alive() || busy || state.locked) return;
+          const p = K.local(scene, ev), h = hitAt(p);
+          if(!h){ unpick(); return; }
+          ev.preventDefault(); stopNudge(); clearTimeout(idleT);
+          if(sel && sel.kind !== h.kind){ pairUp(sel, h); return; }         // the 2nd tap, on the other side
+          pick(h); down = { id: ev.pointerId, p };
+          try{ scene.setPointerCapture(ev.pointerId); }catch(e2){}
+          live = mkLine(h.dot, h.dot, "live");
         });
-        return K.wait(reduce ? 0 : 850);
+        scene.addEventListener("pointermove", ev =>{
+          if(!down || ev.pointerId !== down.id || !sel || !live) return;
+          const p = K.local(scene, ev), h = hitAt(p); setLine(live, sel.dot, p); hover(h && h.kind !== sel.kind ? h : null);
+        });
+        const lineUp = ev =>{
+          if(!down || ev.pointerId !== down.id) return;
+          const p = K.local(scene, ev), moved = !near(p, down.p, 14), h = hitAt(p); down = null; hover(null);
+          if(sel && h && h.kind !== sel.kind){ pairUp(sel, h); return; }    // dragged onto the other side
+          if(live){ live.remove(); live = null; }
+          if(moved) unpick();                                                // dragged into nothing: let go
+          armIdle();
+        };
+        scene.addEventListener("pointerup", lineUp); scene.addEventListener("pointercancel", lineUp);
       }
-      boxes.forEach(b =>{
+      if(!LINES) boxes.forEach(b =>{
         b.addEventListener("pointerdown", ev =>{
           if(!alive() || busy || b._done || drag || state.locked) return;
-          ev.preventDefault(); stopNudge();
+          ev.preventDefault(); stopNudge(); clearTimeout(idleT);
           const p = K.local(scene, ev), bp = K.pos(b);
-          drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y };
-          try{ b.setPointerCapture(ev.pointerId); }catch(e){}
+          drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, moved: false };
+          try{ b.setPointerCapture(ev.pointerId); }catch(e2){}
           b.classList.add("lift"); b.style.zIndex = 30; sfxTap();
         });
         b.addEventListener("pointermove", ev =>{
           if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
-          const p = K.local(scene, ev); K.setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy });
-          const c = cardAt({ x: p.x - drag.ox + BW / 2, y: p.y - drag.oy + BH / 2 });
-          cards.forEach(o => o.el.classList.toggle("hover", o === c && !o.done));
+          const p = K.local(scene, ev); K.setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy }); drag.moved = true;
+          const e = objAt(centre(b)); objs.forEach(o => o.panel.classList.toggle("hover", o === e && !o.done));
         });
         const up = ev =>{
           if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
-          drag = null; b.classList.remove("lift"); cards.forEach(o => o.el.classList.remove("hover"));
-          const at = K.pos(b), c = cardAt({ x: at.x + BW / 2, y: at.y + BH / 2 });
-          if(!c || c.done){ goHome(b, false); return; }
-          if(c.it.n === b._v) settle(c, b, false); else miss(c, b);
+          drag = null; b.classList.remove("lift"); objs.forEach(o => o.panel.classList.remove("hover"));
+          const e = objAt(centre(b));
+          if(!e || e.done){ home(b, false); armIdle(); return; }
+          if(e.it.n === b._v) lockIn(e, b); else miss(e, b);
         };
         b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
       });
+      /* [lines] THE DEMO (review 2026-10-07 "see the figma keep the animation like this only for the 1 time"; Figma FLN
+         "Match the following" 1162:29905, frame 2): after the instruction, once per session (window.MR_DEMO_SEEN), the
+         Figma hand appears on the first object's dot - the card and its dot turn blue - and travels to its RIGHT box's
+         ring (review 2026-10-07 "the hand animation is not correct, it's going straight every time": it used to slide
+         two-thirds toward the box level with it). The white arrow is the art's own (assets/nudge_hand_head.svg = the
+         nudge_slide_right_v1 arrowhead + hand, cropped at x 102), its shaft a CSS bar behind it that grows from the dot
+         to the hand ("the white arrow will only come and expand with the hand distance"), the whole turned to the
+         travel. A beat on the ring, then all of it and the blue clear (nothing is joined). Any touch ends it at once.
+         Reduced motion: none. */
+      let demoEls = null, demoRaf = 0, demoT = [], touched = false;
+      function stopDemo(){
+        if(!demoEls) return;
+        cancelAnimationFrame(demoRaf); demoT.forEach(clearTimeout); demoT = [];
+        demoEls.arrow.remove(); demoEls.e.panel.classList.remove("sel"); demoEls.e.dotEl.classList.remove("sel");
+        demoEls = null;
+      }
+      function demo(){
+        if(!LINES || window.MR_DEMO_SEEN || reduce || !alive() || state.locked || touched || matched || wrongAll || sel) return;
+        const e = objs[0], rb = rightBox(e); if(!rb) return;
+        window.MR_DEMO_SEEN = true;
+        const a = e.dot, end = rb._dot, dx = end.x - a.x, dy = end.y - a.y, D = Math.hypot(dx, dy);
+        // the arrow, from the dot along the travel: [shaft][head]. In the head art the arrow's tip is 32px right of its
+        // left edge (x 134 of the 185 art, cropped at 102) on the shaft's axis (y 76.55) - the tip rides the travel's end
+        const arrow = K.add(scene, "div", "mr-demo", "left:" + px(a.x) + ";top:" + px(a.y) + ";rotate:" + Math.atan2(dy, dx) + "rad");
+        const shaft = K.add(arrow, "i", "mr-demo-shaft"), head = K.add(arrow, "img", "mr-demo-head");
+        head.src = "assets/nudge_hand_head.svg"; head.alt = "";
+        const put = L =>{ head.style.left = px(L - 32); shaft.style.width = px(Math.max(0, L - 32 + 1)); };
+        demoEls = { arrow, e }; put(0);
+        demoT.push(setTimeout(()=>{ if(!demoEls) return; arrow.classList.add("on"); e.panel.classList.add("sel"); e.dotEl.classList.add("sel"); }, 100));
+        demoT.push(setTimeout(()=>{
+          if(!demoEls) return;
+          const t0 = performance.now(), MS = 1600, ease = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+          const step = now =>{ if(!demoEls) return; const k = ease(Math.min(1, (now - t0) / MS)); put(D * k);
+            if(k < 1) demoRaf = requestAnimationFrame(step); };
+          demoRaf = requestAnimationFrame(step);
+        }, 600));
+        demoT.push(setTimeout(()=>{ if(demoEls) arrow.classList.remove("on"); }, 2900));
+        demoT.push(setTimeout(stopDemo, 3250));
+      }
       state.replayAudio = ()=>{ if(!busy) say("prompt"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
-      say("prompt");
+      say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); demo(); } });
+      setTimeout(()=>{ if(alive() && busy && !matched && !wrongAll) busy = false; }, 1600);   // a drag may start while the instruction plays
     }
   },
-
   CLASSROOM_FIT: {
     /* P4 - the classroom game, SME deck pages 12-13 (review 2026-09-30: "follow the ppt slides instructions"). The
        classroom (assets/scene_classroom.svg) in the upper part with four empty spaces, each showing its size: a strip
@@ -3418,17 +2926,52 @@ const SlideModules = {
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
-      const scene = document.createElement("div"); scene.className = "md-stage cf"; host.appendChild(scene);
+      /* [room full] data.room.full (review 2026-10-07, the new full-screen classroom picture assets/bg_classroom.webp): the
+         picture is the STAGE's backdrop (data.bg "classroom" - so the side bands carry it on); the room's coordinates are
+         the stage's own 1333 x 750, the spaces laid on the picture's wall / rug / floor; the tray floats over its foot */
+      const FULL = !!(d.room && d.room.full);
+      const scene = document.createElement("div"); scene.className = "md-stage cf" + (FULL ? " cf-roomfull" : d.no_head ? " cf-full" : ""); host.appendChild(scene);
       const alive = ()=> CARD.slides[state.idx] === slide && scene.isConnected;
       const kS = scene.getBoundingClientRect().width / (scene.offsetWidth || 1) || 1;
-      const W = scene.offsetWidth || 1033, H = Math.max(440, host.getBoundingClientRect().height / kS - 6); scene.style.height = px(H);
-      const RW = 1033, RH = 340, RX = (W - RW) / 2, TY = RH + 10, TH = H - TY, SC = d.sc || 36, unit = d.unit_hi || "ब्लॉक्स";
+      const W = scene.offsetWidth || 1033, H0 = Math.max(440, host.getBoundingClientRect().height / kS - 6);
+      /* [full] data.no_head (review 2026-10-07 "remove the instruction box, only its VO; do this full screen"): the
+         classroom keeps its own 1033 x 340 coordinates (every space, label and decor in the card data) and is zoomed
+         as a whole by Z to the stage's width; the tray under it; the two centred in the height. Z = 1 otherwise. */
+      const RW0 = FULL ? 1333 : 1033, RH0 = FULL ? 750 : 340, Z = FULL ? W / RW0 : d.no_head ? Math.min((W - 24) / RW0, (H0 - 190) / RH0) : 1;
+      const RWz = RW0 * Z, RHz = RH0 * Z;
+      const TH = FULL ? (d.tray_h || 124) * Z : d.no_head ? Math.min(H0 - (RHz + 14), 176) : H0 - (RHz + 14);
+      const TY = FULL ? RHz - TH - 10 * Z : RHz + 14, H = FULL ? RHz : TY + TH;
+      scene.style.height = px(H); if(d.no_head && !FULL) scene.style.marginTop = px(Math.max(0, (H0 - H) / 2));
+      const RW = RW0, RH = RH0, RX = (W - RWz) / 2, SC = d.sc || 36, unit = d.unit_hi || "ब्लॉक्स";
       const items = d.items;
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const setHead = t =>{ $("promptText").textContent = t; };
+      /* [juice] review 2026-10-07 "make the end game screen the best": motion only, no new hints (the SME's measure rules
+         stand). rectIn(el): an element's box in scene px (the room is zoomed by Z, the stage by kS) */
+      const rectIn = el =>{ const a = el.getBoundingClientRect(), b = scene.getBoundingClientRect();
+        return { x: (a.left - b.left) / kS, y: (a.top - b.top) / kS, w: a.width / kS, h: a.height / kS }; };
+      // a right drop's flourish, in room px: dust off the floor (or chalk dust off the wall) and a few sparks over it
+      function burst(r, wall){
+        if(reduce) return;
+        const fx = K.add(room, "div", "cf-fx"), base = wall ? r.y + r.h / 2 : r.y + r.h - 4;
+        for(let k = 0; k < 9; k++){
+          const side = k % 2 ? 1 : -1, x0 = r.x + r.w / 2 + side * (r.w / 2 - 6) * (wall ? .9 : .7 + Math.random() * .3);
+          const pf = K.add(fx, "i", "cf-puff" + (wall ? " chalk" : ""), "left:" + px(x0 - 9) + ";top:" + px(base - 9));
+          pf.animate([{ translate: "0 0", scale: .4, opacity: .9 }, { translate: (side * (18 + Math.random() * 26)) + "px " + (-(8 + Math.random() * 18)) + "px", scale: 1.5, opacity: 0 }],
+                     { duration: 650 + Math.random() * 250, easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" });
+        }
+        for(let k = 0; k < 9; k++){
+          const a = -Math.PI * (.08 + .84 * k / 8), d = 40 + Math.random() * 26;
+          const sp = K.add(fx, "i", "cf-spark", "left:" + px(r.x + r.w / 2 - 8) + ";top:" + px(r.y + r.h * .35 - 8));
+          sp.animate([{ translate: "0 0", scale: .2, opacity: 0 }, { opacity: 1, offset: .25 },
+                      { translate: (Math.cos(a) * (r.w / 2 + d)) + "px " + (Math.sin(a) * (r.h / 2 + d)) + "px", scale: 1, opacity: 0, rotate: "120deg" }],
+                     { duration: 760, delay: 60 * k, easing: "cubic-bezier(.2,.8,.4,1)", fill: "both" });
+        }
+        setTimeout(()=> fx.remove(), 1400);
+      }
       /* ---- the classroom: its spaces, their block strips, floor markers and size labels ---- */
-      const room = K.add(scene, "div", "cf-room", "left:" + px(RX) + ";top:0;width:" + px(RW) + ";height:" + px(RH));
-      const bg = K.add(room, "img", "cf-room-bg"); bg.src = "assets/scene_classroom.svg"; bg.alt = "";
+      const room = K.add(scene, "div", "cf-room" + (FULL ? " full" : ""), "left:" + px(RX) + ";top:0;width:" + px(RW) + ";height:" + px(RH) + (Z !== 1 ? ";transform-origin:0 0;scale:" + Z : ""));
+      if(!FULL){ const bg = K.add(room, "img", "cf-room-bg"); bg.src = "assets/scene_classroom.svg"; bg.alt = ""; }
       /* the room's HD pictures (review 2026-10-01: "use these hd images and replace the assets in last game screen"):
          data.room.decor - the window, the door, the clock, each {src, x, y, w} (its height its own); data.room.bunting -
          its rope (two quadratic curves: rope = [p0, c1, p1, c2, p2]) and the supplied flags hung along it every step px
@@ -3463,30 +3006,67 @@ const SlideModules = {
         it._hit = it.axis === "y" ? { x: s.x - SC - 18, y: s.y - 14, w: w + SC + 32, h: h + 28 } : { x: s.x - 14, y: s.y - SC - 18, w: w + 28, h: h + SC + 32 };
         it._sp = K.add(room, "div", "cf-space", "left:" + px(s.x) + ";top:" + px(s.y) + ";width:" + px(w) + ";height:" + px(h));
         it._anchor = K.add(room, "div", "md-anchor", "left:" + px(s.x + w / 2 - 1) + ";top:" + px(s.y + h / 2 - 10));   // the hint hand's target
+        /* data.dims (review 2026-10-07, the reviewer's sketch: a plain space with "<- 8 blocks ->" along its side): no strip
+           of ghost blocks - a double-headed arrow the measured side long (above a length, left of a height), its label on
+           it (a length) or beside it, stacked (a height); both turn green when the object is in */
+        if(d.dims){
+          // (review 2026-10-07 "the 8 blocks label shouldn't collide with the dotted box": a length's arrow stands clear of its
+          //  space by more than half its label's height - 28 in the full room, where the labels are bigger)
+          const DG = 16, DGH = FULL ? 30 : 16;
+          it._strip = it.axis === "y" ? K.add(room, "div", "cf-dim v", "left:" + px(s.x - DG) + ";top:" + px(s.y) + ";height:" + px(h))
+                                      : K.add(room, "div", "cf-dim h", "left:" + px(s.x) + ";top:" + px(s.y - DGH) + ";width:" + px(w));
+          it._lb = it.axis === "y" ? K.add(room, "div", "cf-label dim narrow", "left:" + px(s.x - DG - 8) + ";top:" + px(s.y + h / 2))
+                                   : K.add(room, "div", "cf-label dim", "left:" + px(s.x + w / 2) + ";top:" + px(s.y - DGH));
+          it._lb.innerHTML = it.axis === "y" ? "<b></b><i></i>" : "<b></b>";
+          if(it.axis === "y"){ it._lb.querySelector("b").textContent = devNumeral(it.n); it._lb.querySelector("i").textContent = it.n === 1 ? "ब्लॉक" : unit; }
+          else it._lb.querySelector("b").textContent = devNumeral(it.n) + " " + (it.n === 1 ? "ब्लॉक" : unit);
+          return;
+        }
         it._strip = K.add(room, "div", "cf-strip");
         for(let k = 0; k < it.n; k++){
           const p = it.axis === "y" ? { x: s.x - SC - 4, y: s.y + h - (k + 1) * SC } : { x: s.x + k * SC, y: s.y - SC - 4 };
           K.add(it._strip, "div", "cf-sb", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(SC) + ";height:" + px(SC));
         }
         if(s.markers) [s.x - 6, s.x + w - 2].forEach(x => K.add(room, "div", "cf-marker", "left:" + px(x) + ";top:" + px(s.y + h * .3) + ";height:" + px(h * .7 + 6)));
-        it._lb = K.add(room, "div", "cf-label", "left:" + px(s.label[0]) + ";top:" + px(s.label[1]));
-        it._lb.innerHTML = "<b></b><span></span>";
-        it._lb.querySelector("b").textContent = devNumeral(it.n) + " " + unit;
-        it._lb.querySelector("span").textContent = it.axis === "y" ? "(ऊँचाई)" : "(लंबाई)";
+        /* data.label_in (review 2026-10-07 "label inside each space": "8 ब्लॉक्स" stood by the door, "6" by the clock - whose
+           was which?): the label sits in the middle of its own space; a narrow (upright) space gets the stacked one -
+           the number, then the unit - and it fades once the object is in (the strip turns green instead) */
+        const narrow = d.label_in && w < 100;
+        it._lb = d.label_in ? K.add(room, "div", "cf-label in" + (narrow ? " narrow" : ""), "left:" + px(s.x + w / 2) + ";top:" + px(s.y + h / 2))
+                            : K.add(room, "div", "cf-label", "left:" + px(s.label[0]) + ";top:" + px(s.label[1]));
+        // (review 2026-10-07 "remove lambai and uchai words": the label is the measure only - no "(लंबाई)" / "(ऊँचाई)" line)
+        it._lb.innerHTML = narrow ? "<b></b><i></i>" : d.label_in ? "<b></b>" : "<b></b><span></span>";
+        if(narrow){ it._lb.querySelector("b").textContent = devNumeral(it.n); it._lb.querySelector("i").textContent = it.n === 1 ? "ब्लॉक" : unit; }
+        else it._lb.querySelector("b").textContent = devNumeral(it.n) + " " + unit;
+        if(!d.label_in) it._lb.querySelector("span").textContent = it.axis === "y" ? "(ऊँचाई)" : "(लंबाई)";
       });
       /* ---- the tray ---- */
-      const tray = K.add(scene, "div", "cf-tray", "left:" + px(RX) + ";top:" + px(TY) + ";width:" + px(RW) + ";height:" + px(TH));
-      const TW = (RW - 40 - 3 * 18) / 4;
+      // [room full] while an object is measured the picture recedes under a soft veil (the room's own fade can't reach it)
+      if(FULL) K.add(scene, "div", "cf-veil");
+      const TX = FULL ? RX + 18 * Z : RX, TWD = FULL ? RWz - 36 * Z : RWz;
+      /* [shelf] data.room.full: the tray is the wooden shelf (assets/cls_shelf.webp, 1600 x 399 - its carved ends 185 px
+         wide, kept; its plain middle stretched), the objects standing on its floor (58% down), their names on its lip */
+      // (review 2026-10-07 "remove this big chair and have an option box only": the shelf is off unless data.shelf - the
+      //  four objects are white option boxes again, standing straight on the room)
+      const SH = FULL && !!d.shelf, SHELF = { end: 185 / 399 * TH, floor: .58 };
+      const tray = K.add(scene, "div", "cf-tray" + (SH ? " shelf" : FULL ? " boxes" : ""), "left:" + px(TX) + ";top:" + px(TY) + ";width:" + px(TWD) + ";height:" + px(TH) + (SH ? ";--end:" + px(SHELF.end) : ""));
+      const IX = SH ? SHELF.end : 20, TG = 18, TW = (TWD - 2 * IX - 3 * TG) / 4;
       items.forEach((it, i)=>{
-        const t = K.add(tray, "button", "cf-item", "left:" + px(20 + i * (TW + 18)) + ";top:8px;width:" + px(TW) + ";height:" + px(TH - 18));
-        t.type = "button"; t.innerHTML = '<img alt=""><span></span>'; t.querySelector("img").src = it.src; t.querySelector("span").textContent = it.name_hi;
+        const t = K.add(tray, "button", "cf-item", "left:" + px(IX + i * (TW + TG)) + ";top:" + (SH ? "0" : "8px") + ";width:" + px(TW) + ";height:" + px(SH ? TH : TH - 18));
+        t.type = "button"; t.style.setProperty("--i", i); t.innerHTML = '<img alt=""><span></span>'; t.querySelector("img").src = it.src; t.querySelector("span").textContent = it.name_hi;   // [juice] --i: its turn to drop in
         t.addEventListener("click", ()=> pick(it)); it._t = t;
       });
+      /* (review 2026-10-07 "after it is placed the disabled option should get removed and the other options should come to
+         the bottom centre"): a placed object's box leaves the tray; the ones left close up, centred, at the same size */
+      function layoutTray(){
+        const left = items.filter(o => !o._done), x0 = (TWD - (left.length * TW + (left.length - 1) * TG)) / 2;
+        left.forEach((o, k)=>{ o._t.style.left = px(x0 + k * (TW + TG)); });
+      }
       /* ---- the game ---- */
       let phase = "pick", first = true, cur = null, run = null, wrongs = 0, placedN = 0, idleT = 0, pending = null, anyRev = false;
       const voFor = it => first && it && it.id === d.vo_object;
       function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
-        const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, 8000); }
+        const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, IDLE_MS); }
       function toPick(idle){
         phase = "pick"; cur = null; setHead(slide.prompt_hi || ""); scene.classList.remove("cf-measuring", "cf-placing");
         items.forEach(it =>{ it._t.disabled = !!it._done; }); if(idle) armIdle();
@@ -3506,7 +3086,7 @@ const SlideModules = {
       /* the measuring view: the object big in the centre (a row on top of a long one, a column left of a tall one),
          dashed lines at its ends, the blocks waiting in the tray */
       function measureView(it){
-        const N = it.n, M = N + 2, TOP = RH - 10, layer = K.add(scene, "div", "cf-mv");
+        const N = it.n, M = N + 2, TOP = FULL ? TY - 10 : RHz - 10, layer = K.add(scene, "div", "cf-mv");
         let S, slotXY, ox, oy, ow, oh;
         if(it.axis === "y"){
           S = Math.min(K.CUBE, (TOP - 40) / N, (W - 80) / (M + (M - 1) * .16));   // the game's cube, as far as it fits
@@ -3518,17 +3098,28 @@ const SlideModules = {
         } else {
           S = Math.min(K.CUBE, (W - 120) / N, (TOP - 40) / (1 + N * it.ar), (W - 80) / (M + (M - 1) * .16));
           ow = N * S; oh = ow * it.ar; ox = (W - ow) / 2; oy = (TOP - (S + oh)) / 2 + S + 10;
-          slotXY = k => ({ x: ox + k * S, y: oy - S });
+          /* it.sit (review 2026-10-07 "can the cubes get placed in the front of the table, not at the back?"): how far down
+             the picture its top's front edge is (the bench's seat: .235) - the row rests there, in front, not on its back edge */
+          const sy = (it.sit || 0) * oh;
+          slotXY = k => ({ x: ox + k * S, y: oy - S + sy });
           const gh = S + 12 + Math.min(oh * .4, 50);
-          K.add(layer, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S - 12) + ";height:" + px(gh));
-          K.add(layer, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S - 12) + ";height:" + px(gh));
+          K.add(layer, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
+          K.add(layer, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
         }
         const img = K.add(layer, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh)); img.src = it.src; img.alt = "";
+        // [juice] it lifts off its tray tile and flies here, growing (its tile's picture is where it starts)
+        const ti = it._t.querySelector("img");
+        if(ti && !reduce){ const f = rectIn(ti), k0 = Math.min(f.w / ow, f.h / oh), fx0 = f.x + (f.w - ow * k0) / 2, fy0 = f.y + (f.h - oh * k0) / 2;
+          img.classList.add("cf-fly"); img.style.transformOrigin = "0 0";
+          img.animate([{ translate: (fx0 - ox) + "px " + (fy0 - oy) + "px", scale: k0 }, { translate: ((fx0 - ox) * .45) + "px " + ((fy0 - oy) * .45 - 40) + "px", scale: (k0 + 1) / 2, offset: .55 },
+                       { translate: "0 0", scale: 1 }], { duration: 560, easing: "cubic-bezier(.4,.1,.3,1)" }); }
         const slots = []; for(let k = 0; k < N; k++){ const p = slotXY(k); slots.push(K.add(layer, "div", "md-slot", "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(S) + ";height:" + px(S))); }
-        const gap = Math.round(S * .16), bx = (W - (M * S + (M - 1) * gap)) / 2, by = TY + (TH - S) / 2;
+        const gap = Math.round(S * .16), bx = (W - (M * S + (M - 1) * gap)) / 2, by = SH ? TY + TH * SHELF.floor - S
+                 : FULL ? Math.min(TY + (TH - S) / 2, Math.max(oy + oh + 28, TY - S * .4))   // (review 2026-10-07 "the cubes are really below - shift them up": nearer the object, never on it)
+                 : TY + (TH - S) / 2;
         const blocks = []; for(let j = 0; j < M; j++){ const b = K.cube(layer, j, bx + j * (S + gap), by, S); b._z = 3; b.style.zIndex = 3; blocks.push(b); }
         run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: K.hand(layer, S),
-          idleMs: 0, showTiles: false, hints: { say: a => say(a === 1 ? "block_try" : "block_hint") },
+          idleMs: 0, showTiles: false, hints: { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },
           onAll: ()=> setTimeout(()=> measured(it, layer), 650) });
         run.start();
       }
@@ -3540,42 +3131,66 @@ const SlideModules = {
         layer.querySelectorAll(".md-block:not(.placed)").forEach(b => b.classList.add("cf-spare"));
         /* the blocks stay on it a moment; then the classroom comes back and the object, still measured, moves to the tray */
         setTimeout(()=>{ if(!alive() || cur !== it) return;
+          // [juice] the object with its blocks on it flies down onto the tray as one (the card starts where they stand)
+          const parts = [...layer.querySelectorAll(".md-obj, .md-block.placed")].map(rectIn);
+          const from = parts.length ? parts.reduce((a, r)=>{ const x = Math.min(a.x, r.x), y = Math.min(a.y, r.y);
+            return { x, y, w: Math.max(a.x + a.w, r.x + r.w) - x, h: Math.max(a.y + a.h, r.y + r.h) - y }; }) : null;
+          if(from && !reduce) layer.querySelectorAll(".md-obj, .md-block.placed").forEach(x => x.style.visibility = "hidden");
           layer.classList.add("out"); setTimeout(()=> layer.remove(), 450);
           scene.classList.remove("cf-measuring"); scene.classList.add("cf-placing");
-          makeCard(it);
+          makeCard(it, from);
         }, 1100);
       }
       /* the measured object in the tray: its picture with its blocks, dragged as one */
-      function makeCard(it){
-        const N = it.n, avH = TH - 22, avW = 460;
+      function makeCard(it, from){
+        const N = it.n, avH = SH ? TH * .95 : TH - 22, avW = 460 * Z;
         let s2, cw, ch, bl = [], ob;
         if(it.axis === "y"){ s2 = Math.min(avH / N, avW / (1 + N / it.ar)); const oh = N * s2, ow = oh / it.ar; cw = s2 + 6 + ow; ch = oh;
           for(let k = 0; k < N; k++) bl.push({ x: 0, y: oh - (k + 1) * s2 }); ob = { x: s2 + 6, y: 0, w: ow, h: oh }; }
-        else { s2 = Math.min(avW / N, avH / (1 + N * it.ar)); const ow = N * s2, oh = ow * it.ar; cw = ow; ch = s2 + oh;
-          for(let k = 0; k < N; k++) bl.push({ x: k * s2, y: 0 }); ob = { x: 0, y: s2, w: ow, h: oh }; }
-        const home = { x: (W - cw) / 2, y: TY + (TH - ch) / 2 };
+        else { const st = it.sit || 0; s2 = Math.min(avW / N, avH / (1 + N * it.ar * (1 - st))); const ow = N * s2, oh = ow * it.ar; cw = ow; ch = s2 + oh * (1 - st);
+          for(let k = 0; k < N; k++) bl.push({ x: k * s2, y: 0 }); ob = { x: 0, y: s2 - st * oh, w: ow, h: oh }; }   // (it.sit: the row on its front edge)
+        const home = { x: (W - cw) / 2, y: SH ? TY + TH * SHELF.floor - ch : TY + (TH - ch) / 2 };   // [shelf] on its floor
         const c = K.add(scene, "div", "cf-card", "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(cw) + ";height:" + px(ch));
         const img = K.add(c, "img", "md-obj", "left:" + px(ob.x) + ";top:" + px(ob.y) + ";width:" + px(ob.w) + ";height:" + px(ob.h)); img.src = it.src; img.alt = "";
         bl.forEach((p, k)=>{ const b = K.cube(c, k, p.x, p.y, s2); b.classList.add("placed"); });
         c.setAttribute("role", "button");
+        if(from && !reduce){ const k0 = from.w / cw; c.classList.add("cf-fly"); c.style.transformOrigin = "0 0";
+          c.animate([{ translate: (from.x - home.x) + "px " + (from.y - home.y) + "px", scale: k0 }, { translate: "0 0", scale: 1 }],
+                    { duration: 620, easing: "cubic-bezier(.45,.05,.3,1.15)" }); }
+        /* (review 2026-10-07 "there should be some pop-up effect on the table so the user understands he should pick it up
+           and place it" - then "use the pop effect of the first screen's button"): once it has landed in the tray it
+           pulses like the landing's play button; then "no pulsating wave out of any element; first the object pulses, then
+           all the boxes pulse once or twice, and no pulse after that"): once it has landed, it pops twice (no halo), then
+           every open space pops twice, then all is still - once per object, never again after a wrong drop) */
+        const cueT = [];
+        const invite = on =>{ if(reduce) return;
+          if(!on){ cueT.forEach(clearTimeout); c.classList.remove("cf-invite"); scene.classList.remove("cf-cue"); return; }
+          c.style.transformOrigin = "50% 50%"; c.classList.add("cf-invite");
+          cueT.push(setTimeout(()=>{ c.classList.remove("cf-invite"); if(alive() && phase === "place" && !drag) scene.classList.add("cf-cue"); }, 2300));
+          cueT.push(setTimeout(()=> scene.classList.remove("cf-cue"), 4600)); };
+        setTimeout(()=>{ if(alive() && phase === "place") invite(true); }, from ? 700 : 300);
         let drag = null, busy = false;
-        const spaceAt = p =>{ const x = p.x - RX, y = p.y; return items.find(o => !o._done && x >= o._hit.x && x <= o._hit.x + o._hit.w && y >= o._hit.y && y <= o._hit.y + o._hit.h) || null; };
+        const spaceAt = p =>{ const x = (p.x - RX) / Z, y = p.y / Z; return items.find(o => !o._done && x >= o._hit.x && x <= o._hit.x + o._hit.w && y >= o._hit.y && y <= o._hit.y + o._hit.h) || null; };
         const hover = sp => items.forEach(o => o._sp.classList.toggle("hover", o === sp));
-        const back = ()=>{ busy = true; return K.glide(c, home, reduce ? 0 : 420, true).then(()=>{ busy = false; }); };
+        const back = ()=>{ busy = true; return K.glide(c, home, reduce ? 0 : 480, true).then(()=>{ busy = false;   // [juice] a settle on landing
+          if(!reduce) c.animate([{ rotate: "-5deg" }, { rotate: "4deg" }, { rotate: "-2deg" }, { rotate: "0deg" }], { duration: 380, easing: "ease-out" });
+        }); };
         c.addEventListener("pointerdown", ev =>{
           if(phase !== "place" || busy || drag || !alive()) return;
           ev.preventDefault(); stopNudge();
-          const p = K.local(scene, ev), cp = K.pos(c); drag = { id: ev.pointerId, ox: p.x - cp.x, oy: p.y - cp.y };
+          const p = K.local(scene, ev), cp = K.pos(c); drag = { id: ev.pointerId, ox: p.x - cp.x, oy: p.y - cp.y, lx: p.x, tilt: 0 };
           try{ c.setPointerCapture(ev.pointerId); }catch(e){}
-          c.classList.add("lift"); sfxTap();
+          c.classList.add("lift"); invite(false); sfxTap();
         });
         c.addEventListener("pointermove", ev =>{
           if(!drag || ev.pointerId !== drag.id) return;
           const p = K.local(scene, ev); K.setPos(c, { x: p.x - drag.ox, y: p.y - drag.oy }); hover(spaceAt(p));
+          // [juice] it leans the way it is carried (a little, eased), upright again when it stops
+          drag.tilt = drag.tilt * .7 + Math.max(-9, Math.min(9, (p.x - drag.lx) * .9)) * .3; drag.lx = p.x; if(!reduce) c.style.rotate = drag.tilt.toFixed(2) + "deg";
         });
         const up = ev =>{
           if(!drag || ev.pointerId !== drag.id) return;
-          drag = null; c.classList.remove("lift"); hover(null);
+          drag = null; c.classList.remove("lift"); hover(null); c.style.rotate = "";
           const sp = spaceAt(K.local(scene, ev));
           if(!sp){ back(); return; }
           if(sp === it){ busy = true; fit(it, c, false); return; }
@@ -3601,10 +3216,18 @@ const SlideModules = {
         // placed"); not when one of them was shown
         if(placedN >= items.length && !anyRev){ try{ confettiCannon(); }catch(e){} }
         c.classList.add("gone"); setTimeout(()=> c.remove(), 320);
-        const r = it._r, o = K.add(room, "img", "cf-placed", "left:" + px(r.x) + ";top:" + px(r.y) + ";width:" + px(r.w) + ";height:" + px(r.h));
+        /* (review 2026-10-07 "the objects don't look part of the scene - no shadow; the chair doesn't look placed on the
+           floor"): what stands on the floor gets a soft contact shadow at its feet, nudged right (the light is the window,
+           left); the blackboard on the wall casts its shadow down-right onto the wall */
+        const r = it._r, wall = it.id === "board";
+        if(!wall) K.add(room, "div", "cf-shadow", "left:" + px(r.x - r.w * .06 + r.w * .04) + ";top:" + px(r.y + r.h - Math.max(11, r.w * .08)) +
+                                                  ";width:" + px(r.w * 1.12) + ";height:" + px(Math.max(22, r.w * .16)));
+        const o = K.add(room, "img", "cf-placed" + (wall ? " wall" : " floor") + (it.id === "almirah" ? " back" : ""), "left:" + px(r.x) + ";top:" + px(r.y) + ";width:" + px(r.w) + ";height:" + px(r.h));
         o.src = it.src; o.alt = "";
+        burst(r, it.id === "board");                                         // [juice] dust (chalk dust on the wall) + sparks
         it._sp.classList.add("filled"); it._strip.classList.add("ok"); it._lb.classList.add("ok");
-        it._t.classList.add("done"); it._t.disabled = true;
+        it._t.classList.add("done", "leaving"); it._t.disabled = true;
+        setTimeout(()=>{ if(!alive()) return; it._t.style.display = "none"; layoutTray(); }, reduce ? 0 : 320);
         GameBus.emit("classroom_placed", { slide_id: slide.id, phase: slide.phase, object: it.id, value: it.n, attempts: (it._wrong || 0) + 1 });
         scene.classList.remove("cf-placing");
         setTimeout(()=>{ if(!alive()) return; if(placedN >= items.length) finish(); else { setSwMood("point"); toPick(false); } }, revealed ? 900 : 2300);
@@ -3616,7 +3239,24 @@ const SlideModules = {
         const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "classroom_done";
         GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrongs === 0, wrong_drops: wrongs, latency_ms: Date.now() - state.slideStart });
         setSwMood("happy");                                                    // (the last right fit threw the confetti)
-        setTimeout(()=>{ if(alive()) completeSlide(true); }, 1200);
+        finale().then(()=> setTimeout(()=>{ if(alive()) completeSlide(true); }, 500));
+      }
+      /* [juice] the finale: the room is done - the measuring marks fade, sunlight slants in through the window, the clock
+         rings, and the finished room holds a moment (Swiftie's hop onto the bench was removed, review 2026-10-07) */
+      function finale(){
+        if(!d.no_head) return Promise.resolve();
+        scene.classList.add("cf-done");
+        const deco = name => [...room.querySelectorAll(".cf-deco")].find(e => (e.getAttribute("src") || "").indexOf(name) >= 0);
+        const win = deco("room_window"), clock = deco("room_clock");
+        // the doorway he comes out of: data.room.door [x, y, w, h] on the full picture, else the door picture
+        const RD = (d.room || {}).door, dEl = deco("room_door");
+        const door = RD ? { x: RD[0], y: RD[1], w: RD[2] } : dEl ? { x: parseFloat(dEl.style.left), y: parseFloat(dEl.style.top), w: parseFloat(dEl.style.width) } : null;
+        if(win){ const w = { x: parseFloat(win.style.left), y: parseFloat(win.style.top), w: parseFloat(win.style.width) };
+          K.add(room, "div", "cf-beams", "left:" + px(w.x + w.w * .3) + ";top:" + px(w.y + 10) + ";width:" + px(w.w * 3.2) + ";height:" + px(RH - w.y)); }
+        if(clock && !reduce) clock.animate([{ rotate: "0deg" }, { rotate: "-9deg" }, { rotate: "8deg" }, { rotate: "-6deg" }, { rotate: "4deg" }, { rotate: "0deg" }],
+                                           { duration: 700, delay: 350, easing: "ease-in-out" });
+        // (review 2026-10-07 "remove Swifty from here": no Swiftie hopping onto the bench - the finished room holds a moment)
+        return new Promise(r => setTimeout(r, 1800));
       }
       state.replayAudio = ()=>{ if(phase === "pick") say("intro"); else if(phase === "measure" && voFor(cur)) say("measure"); else if(phase === "place" && voFor(cur)) say("place"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
@@ -3625,712 +3265,28 @@ const SlideModules = {
     }
   },
 
-  MEET_NUMBER: {
-    mount(host, slide){
-      if(slide.data && slide.data.present === "crane"){ return btCraneMeet(host, slide); }   // Block Town teach
-      const wrap = document.createElement("div"); wrap.className = "meet-stage number-meet";
-      const n = slide.data.count;
-      // [16d] dual-code the numeral: hands for 1..5; for bigger numbers (teens) the Hindi number WORD.
-      // Never the numeral twice — fingerCount's out-of-range fallback IS the numeral, which rendered
-      // the "12 over 12" teach card the SME flagged on MTKGA01_L01_S04.
-      const word = (slide.data.numerals || [])[n-1] || "";
-      const second = (n>=1 && n<=5) ? fingerCount(n,'meet-hand') : (word ? `<span class="num-word">${word}</span>` : "");
-      wrap.innerHTML = `
-        <div class="meet-number-box"><span class="num-glyph">${n}</span>${second}</div>
-        <div class="meet-arrow">→</div>`;
-      // [16d] the teach set honors data.per_row (rows of 10 → a teen visibly reads as ten-and-ones)
-      const setEl = stimulusCountSet(n, slide.data.object, false, slide.data.per_row);
-      setEl.classList.add("meet-set");
-      wrap.appendChild(setEl);
-      host.appendChild(wrap);
-      state.gateNavUntilAudio = true; setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  COUNT_HOW_MANY: {
-    mount(host, slide){
-      const setEl = stimulusCountSet(slide.data.count, slide.data.object, slide.data.scatter, slide.data.per_row);
-      const measuring = mkIsMeasure(slide) && !slide.data.scatter;
-      if(measuring) setEl.classList.add("mk-rail");   // [kit] a finished measurement = units laid flush
-      mountTapOptions({
-        slide, host, signalName: "cardinality_first_try",
-        stimulus: setEl,
-        /* [kit] the distractors here are +/-1 - i.e. exactly what a child gets by
-           leaving a GAP (too few) or OVERLAPPING units (too many). A wrong tap
-           names which of the two it was, using the sheet's own figure; a right
-           tap lands on the result plate with the sparkle. */
-        onWrong: measuring ? (opt)=>{ mkFlashErr(setEl, mkErrFigure(opt.value, slide.data.count)); } : undefined,
-        onCorrect: measuring ? ()=>{ mkShowResult(setEl, slide.data.count); } : undefined,
-        nudgeTarget: null,   // nothing to re-tap here → no idle hand
-        options: slide.data.options,
-        columnsHint: Math.min(slide.data.options.length, 5),
-        isCorrect: (opt) => opt.value === slide.data.count,
-        // SME (S01 review deck): finger-hands are a TUTORIAL teaching aid only — in guided/
-        // independent/practice/mastery the options are the NUMBER ALONE, larger.
-        optionRenderer: (opt) => slide.phase === "tutorial" ? numFingerCell(opt.value) : bigNumCell(opt.value),
-        mastery: slide.phase === "mastery",
-        // HINT = count the set FOR the child (highlight + say एक/दो/तीन + numeral on top)
-        hintAction: (done) => demoCountSet(setEl, slide.data.count, slide.data.numerals, done)
-      });
-    }
-  },
 
-  PICK_SET_BY_NUMBER: {
-    // SME-designed REVERSE how-many (S01 review deck, new pages): a big NUMBER is the stimulus;
-    // the options are small OBJECT SETS — tap the set with that many. Speak-on-tap = each set's own
-    // count line ("इसमें तीन चीज़ें हैं।"), which doubles as the SME's wrong-tap hint; the ladder then
-    // runs try_again → hint → reveal-glow as everywhere. data:{target, options:[{count, object:{img,emoji},
-    // audio, correct}]}.
-    mount(host, slide){
-      const d = slide.data;
-      const stim = document.createElement("div"); stim.className = "psn-stimulus";
-      stim.innerHTML = `<span class="psn-num">${devNumeral(d.target)}</span>`;
-      mountTapOptions({
-        slide, host, signalName: "pick_set_first_try",
-        stimulus: stim,
-        nudgeTarget: null,
-        options: d.options,
-        columnsHint: Math.min(d.options.length, 3),
-        isCorrect: (opt) => opt.correct === true,
-        optionRenderer: (opt) => {
-          const c = document.createElement("div"); c.className = "psn-cell";
-          let inner = "";
-          for(let i=0;i<opt.count;i++) inner += `<span class="psn-obj">${imgOrEmoji(opt.object.img, opt.object.emoji, "psn-img", "psn-emoji")}</span>`;
-          c.innerHTML = `<div class="psn-set">${inner}</div>`;
-          return c;
-        },
-        mastery: slide.phase === "mastery"
-      });
-    }
-  },
 
-  MAKE_SET: {
-    mount(host, slide){
-      const N = slide.data.target, obj = slide.data.object;
-      const wrap = document.createElement("div"); wrap.className = "makeset-stage";
-      wrap.innerHTML = `
-        <div class="makeset-target"><span class="ms-label">डालो</span><span class="num-glyph">${devNumeral(slide.data.target)}</span>${imgOrEmoji(obj.img, obj.emoji, "ms-goal-obj", "ms-goal-emoji")}</div>
-        <div class="makeset-frame" id="msFrame"></div>
-        <button class="makeset-add" id="msAdd"><span class="ms-add-plus">＋</span>${imgOrEmoji(obj.img, obj.emoji, "ms-add-obj", "ms-add-emoji")}</button>`;
-      host.appendChild(wrap);
-      const frame = wrap.querySelector("#msFrame"), addBtn = wrap.querySelector("#msAdd");
-      const numerals = slide.data.numerals || [];
-      const measuring = mkIsMeasure(slide);
-      if(measuring) frame.classList.add("mk-rail");   // [kit] lay the units flush against each other
-      /* [kit] GHOST SLOT - the sheet's dashed block, parked after the last laid
-         unit, so "where does the next one go?" is answered before the child taps.
-         It is the anti-gap cue: the slot always sits hard against the last block. */
-      /* NB deliberately NOT .ms-item - the reveal/hint paths count and trim
-         .ms-item, and a counted ghost would corrupt the child's total. */
-      const ghost = document.createElement("div"); ghost.className = "mk-ghostslot";
-      ghost.innerHTML = '<img class="cobj-img" src="' + mkSrc(MK.ghost) + '" alt="" aria-hidden="true">';
-      const syncGhost = ()=>{
-        if(!measuring) return;
-        /* hide it once the row already measures N - a "next slot" cue at the
-           finished length would invite one unit too many. */
-        const done = state.locked || state.hintActive || c >= N;
-        if(done || c >= MAXITEMS){ ghost.remove(); return; }
-        frame.appendChild(ghost);                       // always last in the rail
-      };
-      /* Deck pages 5 and 7 ask for पलंग = 8 blocks and फ्रिज = 6, but this was
-         capped at 5 - both targets were literally unreachable, so the slide could
-         never be completed. Raised to 9, the top of the card's own number_set. */
-      const MAXITEMS = 9;
-      let c = 0; state.attempts = 0; state.locked = false; state.hintActive = false;
-      /* [QA 05] आगे = SUBMIT, live once at least one unit is laid. It used to light ONLY at exactly N,
-         which made every wrong-answer branch below unreachable - no re-listen, no hint, no reveal. */
-      const refreshNav = ()=>{ setNavActive(!state.locked && !state.hintActive && c > 0); syncGhost(); };  // आगे activates ONLY at exactly N — no premature/wrong submit; child self-corrects by adding more / removing (×). Nudge on the add-button guides an idle child.
-      function makeItem(){
-        const it = document.createElement("div"); it.className = "ms-item";
-        it.innerHTML = imgOrEmoji(obj.img, obj.emoji, "cobj-img", "cobj-emoji") + `<span class="ms-del" aria-label="हटाओ">×</span>`;
-        const remove = (e)=>{ if(e) e.stopPropagation(); if(state.locked || state.hintActive) return; it.remove(); c--; refreshNav(); };
-        // remove ONLY via the explicit × badge — tapping the object itself must NOT delete it
-        // (the count tutorial teaches "tap the object to count it"; a placed apple that vanishes on tap
-        //  would silently destroy the child's work)
-        it.querySelector(".ms-del").onclick = remove;
-        frame.insertBefore(it, ghost.parentNode === frame ? ghost : null);   // [kit] keep the ghost slot trailing
-        if(measuring){ mkSetBlockState(it, MK.placed); mkGlow(it); }         // [kit] it lands "placed", with the glow
-        return it;
-      }
-      addBtn.onclick = ()=>{
-        if(state.locked || state.hintActive) return;
-        if(c >= MAXITEMS){ addBtn.classList.add("shake"); setTimeout(()=> addBtn.classList.remove("shake"), 420);
-          /* [kit] laying more units than fit IS the overlap error - name it with the
-             sheet's figure instead of only buzzing the button. */
-          if(measuring) mkFlashErr(frame, MK.errOver);
-          return; }  // cap at MAXITEMS
-        c++; makeItem();
-        play("assets/voiceover/vo_num_" + c + "." + AUDIO_EXT);   // count up as you add
-        GameBus.emit("make_set_add", { slide_id: slide.id, count: c });
-        refreshNav();
-      };
-      // HINT = count what the child actually placed (highlight + say the number)
-      const runHint = (after)=>{
-        state.hintActive = true; refreshNav();
-        /* [kit] before re-counting for the child, SHOW what went wrong: too few
-           units means a gap was left, too many means they overlap. */
-        if(measuring && c !== N) mkFlashErr(frame, mkErrFigure(c, N));
-        demoCount([...frame.querySelectorAll(".ms-item")], numerals, ()=>{ state.hintActive = false; refreshNav(); if(after) after(); });
-      };
-      $("hintBtn").onclick = ()=>{ if(state.locked || state.hintActive) return;
-        GameBus.emit("hint_shown", { slide_id: slide.id, manual: true }); runHint(); };
-      // आगे = SUBMIT. correct → celebrate & advance. wrong → graduated scaffold, same as
-      // everywhere: 1st = try again, 2nd = count-demo hint, 3rd = REVEAL (auto-fix to N,
-      // count 1..N automatically, then move to the next slide).
-      $("navBtn").onclick = ()=>{
-        if(state.locked || state.hintActive || c === 0) return;
-        if(c === N){
-          state.locked = true; refreshNav();
-          try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase },
-               { is_correct:true, attempt: state.attempts + 1, score: state.attempts === 0 ? 1 : 0, response: c }); }catch(e){}
-          recordResult(slide, state.attempts === 0);
-          sfxCorrect(); setSwMood("happy");
-          GameBus.emit("make_set_correct", { slide_id: slide.id, phase: slide.phase,
-            value: true, target: N, attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-          syncGhost();
-          // [kit] the measurement, restated on the result plate. Anchored on the goal
-          // chip, not the frame: the frame spans the card, leaving no side gutter.
-          if(measuring) mkShowResult(wrap.querySelector(".makeset-target") || frame, N);
-          play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT, ()=>
-            celebrateThenAdvance(slide, false));   // standard: confetti + VO + auto-advance, no popup
-          return;
-        }
-        state.attempts++;
-        try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase },
-             { is_correct:false, attempt: state.attempts, score: 0, response: c }); }catch(e){}
-        sfxWrongSoft(); setSwMood("tryagain");
-        frame.classList.remove("shake"); void frame.offsetWidth; frame.classList.add("shake");
-        setTimeout(()=> frame.classList.remove("shake"), 450);
-        GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts, made: c, target: N });
-        const maxA = (CARD.scaffold_rules && CARD.scaffold_rules.max_attempts) || 3;
-        $("hintBtn").classList.add("show","hint-glow");
-        if(state.attempts >= maxA){
-          // 3rd wrong → reveal: correct the set to exactly N, count it 1..N, then advance
-          state.locked = true; state.scaffoldLevel = 3; refreshNav();
-          /* NB last-of-type, not :last-child - the kit parks a ghost slot after the
-             last real unit, so :last-child would match nothing and throw. */
-          for(let ex = frame.querySelectorAll(".ms-item"); ex.length > N; ex = frame.querySelectorAll(".ms-item")) ex[ex.length-1].remove();
-          while(frame.querySelectorAll(".ms-item").length < N) makeItem();
-          c = N;
-          recordResult(slide, false);
-          GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-          state.hintActive = true;
-          // count the (now-correct) set 1..N, then say the total "कुल N", then advance
-          demoCount([...frame.querySelectorAll(".ms-item")], numerals, ()=>{
-            state.hintActive = false;
-            play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT, ()=> setTimeout(()=> completeSlide(false), 500));
-          });
-        } else if(state.attempts === 2){
-          state.scaffoldLevel = Math.max(state.scaffoldLevel, 2);
-          GameBus.emit("hint_shown", { slide_id: slide.id, manual: false });
-          runHint();                                                   // 2nd wrong → count what they made
-        } else {
-          // 1st wrong → RE-LISTEN: the try-again line, then the question itself again
-          state.scaffoldLevel = Math.max(state.scaffoldLevel, 1);
-          showBox("", audioText(slide,"try_again") || "फिर से कोशिश करो।", "wrong", audioFor(slide,"try_again"),
-            ()=>{ if(!state.locked && !state.hintActive) play(audioFor(slide, "prompt") || null, ()=>{}); });
-        }
-      };
-      setNavActive(false);
-      if(slide.phase !== "practice") pointNudgeAt(addBtn);   // [QA 06] practice = the child alone, no hand by default
-    }
-  },
 
-  COMPARE_SETS: {
-    // Two visible groups, TWO picture options — the child taps the object that has MORE (or LESS).
-    // No बराबर chip (lead review): equality is taught in MEET_COMPARE + produced on the see-saw, so
-    // a judge question always has one clear answer between the two objects. Tap-to-answer: a wrong
-    // tap buzzes + crosses + locks that card; the right one confetti-cheers + advances.
-    mount(host, slide){
-      const d = slide.data;
-      const stage = stimulusCompareSets(d);
-      // JUDGE (test): hide the "मिलाओ" reveal button — its one-to-one reveal + leftover glow gives the
-      // answer away (and on a "less" question it glows the MORE set, pointing at the WRONG option).
-      // The two rows stay visible so the child still compares by eye. (Reveal stays only on MEET_COMPARE.)
-      const mb = stage.querySelector(".cmp-match-btn"); if(mb) mb.style.display = "none";
-      const answer = (d.ask === "less") ? (d.a_count < d.b_count ? "a" : "b")
-                                        : (d.a_count > d.b_count ? "a" : "b");
-      const options = [ {kind:"a", obj:d.a_object}, {kind:"b", obj:d.b_object} ];
-      // (option shuffle is now centralized in mountTapOptions — no per-module reverse needed)
-      mountTapOptions({
-        slide, host, signalName: "compare_first_try",
-        stimulus: stage,
-        nudgeTarget: null,
-        options,
-        columnsHint: 2,
-        isCorrect: (opt)=> opt.kind === answer,
-        optionRenderer: (opt)=>{
-          const cell = document.createElement("div");
-          cell.innerHTML = imgOrEmoji(opt.obj.img, opt.obj.emoji, "pic-img", "cmp-chip-emoji")
-            + `<span class="cmp-chip-lbl">${opt.obj.word_hi || ""}</span>`;
-          return cell;
-        },
-        mastery: slide.phase === "mastery"
-      });
-    }
-  },
 
-  MEET_COMPARE: {
-    // TEACH BY DOING (lead review): the child COUNTS each group by tapping its objects one-by-one
-    // (running numeral + spoken एक/दो/तीन), the top group then the bottom. Then the one-to-one
-    // match reveals, the leftover glows, and Swiftie EXPLAINS the outcome by name — e.g.
-    // "एक सेब बच गया, सेब ज़्यादा हैं, केले कम" / "कुछ नहीं बचा, दोनों बराबर". आगे appears after.
-    mount(host, slide){
-      const d = slide.data;
-      const wrap = document.createElement("div"); wrap.className = "meet-compare";
-      const stage = stimulusCompareSets({a_object:d.a_object, a_count:d.a_count,
-                                          b_object:d.b_object, b_count:d.b_count, show_matches:false});
-      const mb = stage.querySelector(".cmp-match-btn"); if(mb) mb.style.display = "none";
-      const verdict = document.createElement("div");
-      verdict.className = "cmp-verdict " + (d.outcome || "more");
-      verdict.textContent = d.label_hi || "";
-      wrap.appendChild(stage); wrap.appendChild(verdict);
-      host.appendChild(wrap);
 
-      state.gateNavUntilAudio = false; state.locked = false; state.ownsAudio = true; setNavActive(false);
-      $("navBtn").onclick = ()=>{ if(state.locked) completeSlide(true); };
 
-      // 🔊 replay: re-hear the teach line (and, once revealed, the explanation). autoPlayChain skips
-      // count_intro/explain, so without this the header chip would be silent on teach slides.
-      let revealed = false;
-      state.replayAudio = ()=>{ const chain = [audioFor(slide, "count_intro")];
-        if(revealed) chain.push(audioFor(slide, "explain"));
-        playChain(chain.filter(Boolean), 0); };
 
-      const rowA = [...stage.querySelectorAll(".cmp-row.top .cobj")];
-      const rowB = [...stage.querySelectorAll(".cmp-row.bot .cobj")];
-
-      // make one row countable-by-tapping; cb fires once every item in it is counted
-      function countRow(items, cb){
-        const nudgeNext = ()=>{ const nx = items.find(o=>!o.classList.contains("counted"));
-          if(nx) pointNudgeAt(nx); else stopNudge(); };
-        let n = 0;
-        items.forEach(o=>{
-          o.classList.add("tappable");
-          o.onclick = ()=>{
-            if(state.locked || o.classList.contains("counted")) return;
-            o.classList.add("counted", "counting"); n++; sfxTap();
-            let cal = o.querySelector(".count-callout");
-            if(!cal){ cal = document.createElement("span"); cal.className = "count-callout"; o.appendChild(cal); }
-            cal.textContent = n;
-            play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, ()=>{});
-            if(items.every(x=>x.classList.contains("counted"))){ stopNudge(); setTimeout(cb, 550); }
-            else nudgeNext();
-          };
-        });
-        nudgeNext();
-        // [16h] Phase-1 autonomous mode (lead's 3-phase contract): the demo hand counts the row
-        // BY ITSELF — drives the same handlers a child would, so behavior is identical.
-        if(slide.data.auto){
-          items.forEach(o=> o.classList.remove("tappable"));
-          let ai = 0;
-          (function autoTap(){
-            if(CARD.slides[state.idx] !== slide || ai >= items.length) return;
-            const o = items[ai++]; pointNudgeAt(o); if(o.onclick) o.onclick();
-            setTimeout(autoTap, 950);
-          })();
-        }
-      }
-
-      // intro VO → count group A → count group B → reveal match + explain the outcome.
-      // NB: uses non-autochain role names (count_intro / explain) so mountSlide's autoPlayChain
-      // does NOT also fire the intro — this module owns its own audio sequence.
-      play(audioFor(slide, "count_intro") || null, ()=>{
-        countRow(rowA, ()=> countRow(rowB, ()=>{
-          stage._revealMatches(()=>{
-            verdict.classList.add("show"); setSwMood("point");
-            state.locked = true; revealed = true; setNavActive(true);
-            play(audioFor(slide, "explain") || null, ()=>{});
-          });
-        }));
-      });
-    }
-  },
-
-  MAKE_EQUAL: {
-    // PRODUCE mechanic (see-saw): the left pan holds a fixed group; the child taps + जोड़ो to
-    // add to the right pan (tap an added item to take it back). The beam tilts toward the heavier
-    // side in real time; at equal it levels, locks, celebrates. Overshoot is enacted (invite to
-    // remove), never a red ✗ — the KG "produce, don't pick" model.
-    mount(host, slide){
-      const d = slide.data, L = d.a_count, fixedObj = d.a_object, addObj = d.b_object;
-      const MAXR = d.max || Math.max(L + 2, 6);
-      const wrap = document.createElement("div"); wrap.className = "balance-stage";
-      wrap.innerHTML = `
-        <div class="balance">
-          <div class="beam-wrap" id="beamWrap"><div class="beam"></div>
-            <div class="pan pan-left"><div class="pan-grid" id="panL"></div></div>
-            <div class="pan pan-right"><div class="pan-grid" id="panR"></div></div></div>
-          <div class="fulcrum"></div>
-        </div>
-        <button class="balance-add" id="balAdd" type="button"></button>`;
-      host.appendChild(wrap);
-      const panL = wrap.querySelector("#panL"), panR = wrap.querySelector("#panR");
-      const beam = wrap.querySelector("#beamWrap"), addBtn = wrap.querySelector("#balAdd");
-      const balance = wrap.querySelector(".balance");
-      addBtn.innerHTML = imgOrEmoji(addObj.img, addObj.emoji, "cobj-img", "cobj-emoji") + `<span>+ जोड़ो</span>`;
-      for(let i=0;i<L;i++){ const c=document.createElement("span"); c.className="cobj";
-        c.innerHTML = imgOrEmoji(fixedObj.img, fixedObj.emoji, "cobj-img", "cobj-emoji"); panL.appendChild(c); }
-      let right = 0; state.locked = false; state.attempts = 0; let tipT = 0;
-      const TILT = 6, TMAX = 15;
-      const tilt = ()=>{ const diff = right - L; const deg = Math.max(-TMAX, Math.min(TMAX, diff*TILT));
-        beam.style.transform = `translateX(-50%) rotate(${deg}deg)`; balance.classList.toggle("level", diff===0 && right>0); };
-      const check = ()=>{ if(state.locked) return; const diff = right - L;
-        if(diff===0 && right>0){ state.locked = true; setNavActive(true);
-          GameBus.emit("make_equal_correct", { slide_id: slide.id, phase: slide.phase, value: true,
-            count: right, target: L, attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-          showBox("⚖️", audioText(slide,"balanced") || "बराबर! दोनों बराबर हैं।", "correct", audioFor(slide,"balanced") || null, ()=>{});
-        } else if(diff > 0){ state.attempts++;
-          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, made: right, target: L });
-          if(Date.now()-tipT > 1200){ tipT = Date.now();
-            showBox("", audioText(slide,"too_many") || "बहुत ज़्यादा! एक हटाओ।", "hint", audioFor(slide,"too_many"), ()=>{}); } }
-      };
-      const addItem = ()=>{ const c=document.createElement("span"); c.className="cobj added";
-        c.innerHTML = imgOrEmoji(addObj.img, addObj.emoji, "cobj-img", "cobj-emoji");
-        c.onclick = ()=>{ if(state.locked) return; c.remove(); right = Math.max(0, right-1); tilt(); check(); };
-        panR.appendChild(c); right++; };
-      addBtn.onclick = ()=>{ if(state.locked) return;
-        if(right >= MAXR){ addBtn.classList.add("shake"); setTimeout(()=> addBtn.classList.remove("shake"), 400); return; }
-        addItem(); tilt(); sfxTap();
-        // count EVERY added item aloud INCLUDING the final/target one (एक, दो, तीन) — then, on the
-        // last count, the "बराबर" VO follows (check runs in the count's onEnd so the number isn't cut).
-        if(right <= L) play("assets/voiceover/vo_num_" + right + "." + AUDIO_EXT, right === L ? ()=> check() : ()=>{});
-        else check();   // overshoot → "एक हटाओ" hint
-      };
-      setNavActive(false);
-      $("navBtn").onclick = ()=>{ if(state.locked) completeSlide(true); };
-      tilt();                 // START tilted toward the heavier (left) group — the see-saw is NOT level yet
-      pointNudgeAt(addBtn);
-    }
-  },
-
-  MEET_PATTERN: {
-    // TEACH: show a repeating pattern and pulse the repeating UNIT (first data.unit_len cells) a few
-    // times so the child sees "this part comes again". Nav gated on the VO, like MEET_NUMBER.
-    mount(host, slide){
-      const d = slide.data;
-      const wrap = document.createElement("div"); wrap.className = "pattern-stage";
-      const lbl = document.createElement("div"); lbl.className = "pat-unit-lbl"; lbl.textContent = "यह हिस्सा दोहराता है 🔁";
-      const row = document.createElement("div"); row.className = "pattern-row";
-      d.items.forEach(o=>{ const c = document.createElement("div"); c.className = "pat-cell";
-        c.innerHTML = imgOrEmoji(o.img, o.emoji, "cobj-img", "cobj-emoji"); row.appendChild(c); });
-      wrap.appendChild(lbl); wrap.appendChild(row); host.appendChild(wrap);
-      state.gateNavUntilAudio = true; setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-      const cells = [...row.children]; let rep = 0;
-      const glow = ()=>{ cells.forEach((c,i)=> { if(i < d.unit_len) c.classList.add("unit-glow"); });
-        setTimeout(()=> cells.forEach(c=> c.classList.remove("unit-glow")), 1100); };
-      glow(); const t = setInterval(()=>{ if(rep++ >= 2){ clearInterval(t); return; } glow(); }, 1700);
-    }
-  },
-
-  PATTERN_BUILD: {
-    // PRODUCE: a pattern with empty ghost slot(s) — at the END (extend) or in the MIDDLE (fill the
-    // gap). Tap a tray item to drop it into the active slot; the correct item = data.items[slot].
-    // Wrong taps bounce (enacted, no ✗). Fill every blank → complete. data:{items[],blanks[],tray[]}.
-    mount(host, slide){
-      const d = slide.data;
-      const wrap = document.createElement("div"); wrap.className = "pattern-stage";
-      const row = document.createElement("div"); row.className = "pattern-row";
-      const cells = d.items.map((o,i)=>{
-        const c = document.createElement("div");
-        if(d.blanks.includes(i)){ c.className = "pat-ghost"; c.innerHTML = `<span class="qmark">?</span>`; }
-        else { c.className = "pat-cell"; c.innerHTML = imgOrEmoji(o.img, o.emoji, "cobj-img", "cobj-emoji"); }
-        row.appendChild(c); return c;
-      });
-      const tray = document.createElement("div"); tray.className = "pattern-tray";
-      d.tray.forEach(o=>{ const t = document.createElement("div"); t.className = "pat-tray-item"; t._obj = o;
-        t.innerHTML = imgOrEmoji(o.img, o.emoji, "cobj-img", "cobj-emoji"); tray.appendChild(t); });
-      wrap.appendChild(row); wrap.appendChild(tray); host.appendChild(wrap);
-      const blanks = d.blanks.slice(); let bi = 0, wrongStreak = 0, revealedAny = false;
-      state.locked = false; state.attempts = 0;
-      const key = (o)=> o.img || o.emoji;
-      const activeGhost = ()=> cells[blanks[bi]];
-      const markActive = ()=>{ cells.forEach(c=> c.classList.remove("active"));
-        // idle nudge points at the ACTIVE BLANK ('?' slot = "put one here"), re-armed per blank —
-        // NEVER at a tray answer; startNudge is phase-aware so it's silent in practice/mastery.
-        if(bi < blanks.length){ activeGhost().classList.add("active"); startNudge(slide, activeGhost()); } else stopNudge(); };
-      const flashHint = ()=>{ const want = d.items[blanks[bi]], g = activeGhost(); const prev = g.innerHTML;
-        g.innerHTML = imgOrEmoji(want.img, want.emoji, "cobj-img", "cobj-emoji"); g.style.opacity = ".4";
-        setTimeout(()=>{ if(g.classList.contains("pat-ghost")){ g.innerHTML = prev; g.style.opacity = ""; } }, 950); };
-      const placeCorrect = ()=>{                      // one placement path (tap AND reveal)
-        const want = d.items[blanks[bi]], g = activeGhost();
-        g.className = "pat-cell"; g.innerHTML = imgOrEmoji(want.img, want.emoji, "cobj-img", "cobj-emoji");
-        g.classList.add("unit-glow"); setTimeout(()=> g.classList.remove("unit-glow"), 700); bi++;
-        if(bi >= blanks.length){
-          state.locked = true; stopNudge();
-          GameBus.emit("pattern_extend_correct", { slide_id: slide.id, phase: slide.phase, value: !revealedAny,
-            attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-          // engine standard: confetti + cheer + correct VO + AUTO-advance — no popup, no आगे gate.
-          celebrateThenAdvance(slide, revealedAny);
-        } else markActive();
-      };
-      markActive();
-      tray.querySelectorAll(".pat-tray-item").forEach(t=>{
-        t.onclick = ()=>{
-          if(state.locked || bi >= blanks.length) return;
-          stopNudge();
-          const want = d.items[blanks[bi]];
-          if(key(t._obj) === key(want)){
-            wrongStreak = 0;
-            placeCorrect();
-          } else {
-            state.attempts++;
-            t.classList.add("shake"); setTimeout(()=> t.classList.remove("shake"), 420);
-            activeGhost().classList.add("shake"); setTimeout(()=> activeGhost().classList.remove("shake"), 420);
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-            $("hintBtn").classList.add("show","hint-glow");
-            // layered ladder, standard-aligned: L1 spoken try-again (buzz + Swiftie, no popup) →
-            // L2 flash the answer ghost + spoken hint → L3 reveal ceiling: DEMONSTRATE the placement.
-            if(++wrongStreak >= (CARD.scaffold_rules.max_attempts||3)){
-              revealedAny = true; wrongStreak = 0;
-              activeGhost().classList.add("reveal-glow");
-              play(audioFor(slide,"reveal") || audioFor(slide,"hint") || null, ()=>{});
-              setTimeout(()=>{ placeCorrect(); }, 1000);
-            }
-            else if(state.attempts >= 2){ flashHint(); play(audioFor(slide,"hint") || null, ()=>{}); }
-            else dragWrong(slide);
-          }
-        };
-      });
-      setNavActive(false);
-      $("navBtn").onclick = ()=>{};   // completion is automatic now — आगे never gates a solved pattern
-      $("hintBtn").onclick = ()=>{ if(!state.locked && bi < blanks.length) flashHint(); };
-      // NB: the idle nudge is armed by markActive() → startNudge(activeGhost) above — it points at the
-      // BLANK, phase-aware. (Bug fix: was pointNudgeAt(first tray tile) = an immediate hand on the WRONG
-      // answer on most slides, and it showed even in mastery.)
-    }
-  },
 
   /* ===== NUMBER-SEQUENCE PATH (MTKGA01_L02_S04 — "completes a number sequence within 20") =====
      Three additive modules that share the .seq-* number-path skin. Numerals are crisp text glyphs
      (Baloo), only the tile chrome is rounded — content-true geometry (never round the number). */
 
-  MEET_SEQUENCE: {
-    // TEACH BY DOING: a number path; a token sits on the first cell. The child taps the glowing NEXT
-    // cell to hop the token forward, each number spoken (vo_num_N) with an ascending thunk — so the
-    // child ENACTS "numbers move forward one step at a time" (curriculum teach spec). Nav gates until
-    // the token reaches the end, then Swiftie's explain line plays. data:{path:[n…], token?}.
-    mount(host, slide){
-      const d = slide.data, nums = d.path;
-      state.ownsAudio = true; setNavActive(false); setSwMood("teach");
-      const stage = document.createElement("div"); stage.className = "seq-stage";
-      const path  = document.createElement("div"); path.className = "seq-path";
-      const cw = nums.length > 7 ? 74 : 90;
-      const cells = nums.map((n,i)=>{
-        if(i){ const con = document.createElement("div"); con.className = "seq-connector"; path.appendChild(con); }
-        const cell = document.createElement("div"); cell.className = "seq-cell";
-        cell.style.width = cell.style.height = cw+"px"; cell.style.fontSize = Math.round(cw*0.56)+"px";
-        cell.textContent = n; path.appendChild(cell); return cell;
-      });
-      stage.appendChild(path); host.appendChild(stage);
-      const token = document.createElement("span"); token.className = "seq-token"; token.textContent = d.token || "🐤";
-      let pos = 0;
-      const place = ()=>{ cells.forEach((c,i)=> c.classList.toggle("lit", i <= pos));
-        if(!cells[pos].contains(token)) cells[pos].appendChild(token); };
-      const glowNext = ()=>{ cells.forEach((c,i)=> c.classList.toggle("active", i === pos+1));
-        if(pos+1 < cells.length) startNudge(slide, cells[pos+1]); else stopNudge(); };
-      place(); btThunk(1); play("assets/voiceover/vo_num_" + nums[0] + "." + AUDIO_EXT, ()=>{}); glowNext();
-      const advance = ()=>{
-        if(pos >= cells.length-1) return;
-        pos++; cells[pos].classList.remove("active"); place(); btThunk(pos+1);
-        play("assets/voiceover/vo_num_" + nums[pos] + "." + AUDIO_EXT, ()=>{});
-        if(pos >= cells.length-1){ stopNudge();
-          GameBus.emit("meet_sequence_done", { slide_id: slide.id, phase: slide.phase });
-          setTimeout(()=> play(audioFor(slide, "explain") || null, ()=> setNavActive(true)), 500);
-        } else glowNext();
-      };
-      cells.forEach((c,i)=>{ c.onclick = ()=>{ if(i === pos+1) advance(); }; });
-      // 🔊 replay re-speaks the current number (module owns its audio; autoPlayChain is skipped)
-      state.replayAudio = ()=> play("assets/voiceover/vo_num_" + nums[pos] + "." + AUDIO_EXT, ()=>{});
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  SEQUENCE_COMPLETE: {
-    // PRODUCE test: a number path with blank(s); tap a tray numeral into the active blank. Correct =
-    // path[blankIdx]. Wrong = shake + soft buzz + spoken try_again; reveal (demonstrate) after
-    // max_attempts. Fills left→right. data:{path:[n… , with the blank positions still holding the true
-    // number], blanks:[idx…], tray:[n…] (numerals incl. misconception distractors)}.
-    mount(host, slide){
-      const d = slide.data;
-      const stage = document.createElement("div"); stage.className = "seq-stage";
-      const path  = document.createElement("div"); path.className = "seq-path";
-      const cw = d.path.length > 7 ? 74 : 90;
-      const cells = d.path.map((n,i)=>{
-        if(i){ const con = document.createElement("div"); con.className = "seq-connector"; path.appendChild(con); }
-        const cell = document.createElement("div");
-        cell.style.width = cell.style.height = cw+"px"; cell.style.fontSize = Math.round(cw*0.56)+"px";
-        if(d.blanks.includes(i)){ cell.className = "seq-cell seq-ghost"; cell.innerHTML = '<span class="seq-q">?</span>'; }
-        else { cell.className = "seq-cell filled"; cell.textContent = n; }
-        path.appendChild(cell); return cell;
-      });
-      const tray = document.createElement("div"); tray.className = "seq-tray";
-      d.tray.forEach(n=>{ const t = document.createElement("div"); t.className = "seq-tile"; t._num = n; t.textContent = n; tray.appendChild(t); });
-      stage.appendChild(path); stage.appendChild(tray); host.appendChild(stage);
 
-      const blanks = d.blanks.slice(); let bi = 0, wrongStreak = 0, revealedAny = false;
-      state.locked = false; state.attempts = 0;
-      const activeGhost = ()=> cells[blanks[bi]];
-      const markActive = ()=>{ cells.forEach(c=> c.classList.remove("active"));
-        if(bi < blanks.length){ activeGhost().classList.add("active"); startNudge(slide, activeGhost()); } else stopNudge(); };
-      const placeCorrect = ()=>{
-        const want = d.path[blanks[bi]], g = activeGhost();
-        g.className = "seq-cell filled unit-glow"; g.textContent = want; setTimeout(()=> g.classList.remove("unit-glow"), 700);
-        const tile = [...tray.children].find(x=> x._num === want && !x.classList.contains("used")); if(tile) tile.classList.add("used");
-        bi++;
-        if(bi >= blanks.length){
-          state.locked = true; stopNudge();
-          GameBus.emit("sequence_complete_correct", { slide_id: slide.id, phase: slide.phase, value: !revealedAny,
-            attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-          celebrateThenAdvance(slide, revealedAny);
-        } else markActive();
-      };
-      markActive();
-      tray.querySelectorAll(".seq-tile").forEach(t=>{
-        t.onclick = ()=>{
-          if(state.locked || bi >= blanks.length || t.classList.contains("used")) return;
-          stopNudge();
-          if(t._num === d.path[blanks[bi]]){ wrongStreak = 0; placeCorrect(); }
-          else {
-            state.attempts++;
-            t.classList.add("shake"); setTimeout(()=> t.classList.remove("shake"), 420);
-            activeGhost().classList.add("shake"); setTimeout(()=> activeGhost().classList.remove("shake"), 420);
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-            $("hintBtn").classList.add("show","hint-glow");
-            if(++wrongStreak >= (CARD.scaffold_rules.max_attempts || 3)){
-              revealedAny = true; wrongStreak = 0;
-              activeGhost().classList.add("reveal-glow");
-              play(audioFor(slide, "reveal") || audioFor(slide, "hint") || null, ()=>{});
-              setTimeout(()=> placeCorrect(), 1000);
-            } else dragWrong(slide);
-          }
-        };
-      });
-      setNavActive(false); $("navBtn").onclick = ()=>{};   // completion is automatic — never gate a solved path
-      $("hintBtn").onclick = ()=>{ if(!state.locked && bi < blanks.length){ const g = activeGhost();
-        g.classList.add("reveal-glow"); setTimeout(()=> g.classList.remove("reveal-glow"), 800); } };
-    }
-  },
-
-  SEQUENCE_NEXT: {
-    // PICK test (what comes next / before): a number path with ONE '?' cell (null in data.path) is the
-    // stimulus; the child taps the correct numeral option. Reuses mountTapOptions → full tap-to-answer
-    // contract (wrong=buzz+✗+lock+try_again, right=confetti+advance) + speak-the-number-on-tap +
-    // mastery scoring. data:{path:[n…,null,…], options:[{num, audio:"vo_num_N", correct}]}.
-    mount(host, slide){
-      const d = slide.data;
-      const stim = document.createElement("div"); stim.className = "seq-stage";
-      const path = document.createElement("div"); path.className = "seq-path";
-      const cw = d.path.length > 7 ? 74 : 90;
-      d.path.forEach((n,i)=>{
-        if(i){ const con = document.createElement("div"); con.className = "seq-connector"; path.appendChild(con); }
-        const cell = document.createElement("div");
-        cell.style.width = cell.style.height = cw+"px"; cell.style.fontSize = Math.round(cw*0.56)+"px";
-        if(n === null){ cell.className = "seq-cell seq-ghost active"; cell.innerHTML = '<span class="seq-q">?</span>'; }
-        else { cell.className = "seq-cell filled"; cell.textContent = n; }
-        path.appendChild(cell);
-      });
-      stim.appendChild(path);
-      mountTapOptions({
-        slide, host, signalName: "sequence_next_correct", stimulus: stim,
-        options: d.options,
-        optionRenderer: (o)=>{ const cell = document.createElement("div"); const s = document.createElement("span");
-          s.className = "seq-optnum"; s.textContent = o.num; cell.appendChild(s); return cell; },
-        isCorrect: (o)=> o.correct === true,
-        mastery: slide.phase === "mastery",
-        columnsHint: d.options.length,
-        nudgeTarget: null
-      });
-    }
-  },
 
   /* ===== ORDERING / SERIATION (MTKGA02_L02_S02 — "orders three objects by size, length, or weight") =====
      Additive modules sharing the .ord-* skin. Objects render at true magnitude (size scale / bar length);
      weight is assessed by 'pick the heaviest' (weight is not visual) — targeting the bigger=heavier
      misconception with a big-but-light distractor. */
 
-  MEET_ORDER: {
-    // TEACH BY DOING: the 3 objects are shown already in order (small→big / short→long / light→heavy);
-    // the child taps each left→right to hear its rank name (सबसे छोटा / बीच का / सबसे बड़ा etc.), then an
-    // explain line plays and नav unlocks. data:{by, items:[{mag,img/emoji/color}] (ascending), rank_audio:[id…],
-    // arrow_lo, arrow_hi, hint_icon?}.
-    mount(host, slide){
-      const d = slide.data; state.ownsAudio = true; setNavActive(false); setSwMood("teach");
-      const stage = document.createElement("div"); stage.className = "ord-stage ord-" + d.by;
-      const arrow = document.createElement("div"); arrow.className = "ord-arrow";
-      arrow.innerHTML = `<span>${d.arrow_lo||""}</span><span class="ord-arrowline"></span><span>${d.arrow_hi||""}</span>`;
-      const row = document.createElement("div"); row.className = "ord-tray";
-      const cells = d.items.map((o,i)=>{ const el = document.createElement("div"); el.className = "ord-item";
-        el.style.opacity = ".5"; el.innerHTML = renderOrdObj(o, d.by); row.appendChild(el); return el; });
-      if(d.hint_icon){ const hi = document.createElement("div"); hi.className = "ord-hint-icon"; hi.textContent = d.hint_icon; stage.appendChild(hi); }
-      stage.appendChild(arrow); stage.appendChild(row); host.appendChild(stage);
-      let tapped = 0;
-      const nudgeNext = ()=>{ cells.forEach((c,i)=> c.classList.toggle("active", i === tapped));
-        if(tapped < cells.length) startNudge(slide, cells[tapped]); else stopNudge(); };
-      nudgeNext();
-      cells.forEach((c,i)=>{ c.onclick = ()=>{ if(i !== tapped) return; stopNudge();
-        c.classList.remove("active"); c.style.opacity = "1"; c.classList.add("reveal-glow");
-        setTimeout(()=> c.classList.remove("reveal-glow"), 600);
-        play("assets/voiceover/" + (d.rank_audio[i]) + "." + AUDIO_EXT, ()=>{}); tapped++;
-        if(tapped >= cells.length){ stopNudge();
-          GameBus.emit("meet_order_done", { slide_id: slide.id, phase: slide.phase });
-          setTimeout(()=> play(audioFor(slide, "explain") || null, ()=> setNavActive(true)), 450);
-        } else nudgeNext();
-      }; });
-      state.replayAudio = ()=> play(audioFor(slide, "explain") || null, ()=>{});
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  ORDER_BY_ATTR: {
-    // PRODUCE test: 3 scrambled objects + a left→right strip (arrow छोटा→बड़ा). Tap the smallest-remaining
-    // → it fills the next slot. Wrong (not the current smallest) = shake + soft buzz + spoken try_again;
-    // demonstrate after max_attempts. data:{by, items:[{mag,img/emoji/color}], arrow_lo, arrow_hi}.
-    mount(host, slide){
-      const d = slide.data;
-      const stage = document.createElement("div"); stage.className = "ord-stage ord-" + d.by;
-      const arrow = document.createElement("div"); arrow.className = "ord-arrow";
-      arrow.innerHTML = `<span>${d.arrow_lo||""}</span><span class="ord-arrowline"></span><span>${d.arrow_hi||""}</span>`;
-      const strip = document.createElement("div"); strip.className = "ord-strip";
-      const n = d.items.length; const slots = [];
-      for(let i=0;i<n;i++){ const sl = document.createElement("div"); sl.className = "ord-slot"; strip.appendChild(sl); slots.push(sl); }
-      const tray = document.createElement("div"); tray.className = "ord-tray";
-      const disp = d.items.slice(); for(let i=disp.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [disp[i],disp[j]]=[disp[j],disp[i]]; }
-      const sortedMags = d.items.map(o=>o.mag).slice().sort((a,b)=>a-b);
-      const tiles = disp.map(o=>{ const el = document.createElement("div"); el.className = "ord-item"; el._mag = o.mag;
-        el.innerHTML = renderOrdObj(o, d.by); tray.appendChild(el); return el; });
-      stage.appendChild(arrow); stage.appendChild(strip); stage.appendChild(tray); host.appendChild(stage);
-      let placed = 0, wrongStreak = 0, revealed = false; state.locked = false; state.attempts = 0;
-      const wantMag = ()=> sortedMags[placed];
-      const nextTile = ()=> tiles.find(x=> !x.classList.contains("used") && x._mag === wantMag());
-      const markActive = ()=>{ slots.forEach((s,i)=> s.classList.toggle("active", i === placed));
-        if(placed < n) startNudge(slide, nextTile()); else stopNudge(); };
-      const placeInto = (tile)=>{ const slot = slots[placed]; slot.classList.remove("active"); slot.classList.add("filled");
-        slot.innerHTML = tile.innerHTML; tile.classList.add("used"); placed++;
-        if(placed >= n){ state.locked = true; stopNudge();
-          GameBus.emit("order_by_attr_correct", { slide_id: slide.id, phase: slide.phase, value: !revealed,
-            attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-          celebrateThenAdvance(slide, revealed);
-        } else markActive();
-      };
-      markActive();
-      tiles.forEach(t=>{ t.onclick = ()=>{ if(state.locked || t.classList.contains("used")) return; stopNudge();
-        if(t._mag === wantMag()){ wrongStreak = 0; placeInto(t); }
-        else { state.attempts++; t.classList.add("shake"); setTimeout(()=> t.classList.remove("shake"), 420);
-          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-          $("hintBtn").classList.add("show","hint-glow");
-          if(++wrongStreak >= (CARD.scaffold_rules.max_attempts || 3)){ revealed = true; wrongStreak = 0;
-            const c = nextTile(); if(c){ c.classList.add("reveal-glow"); play(audioFor(slide,"reveal")||null, ()=>{});
-              setTimeout(()=>{ c.classList.remove("reveal-glow"); placeInto(c); }, 1000); }
-          } else dragWrong(slide);
-        }
-      }; });
-      setNavActive(false); $("navBtn").onclick = ()=>{};
-      $("hintBtn").onclick = ()=>{ if(!state.locked){ const t = nextTile(); if(t){ t.classList.add("reveal-glow"); setTimeout(()=> t.classList.remove("reveal-glow"), 800); } } };
-    }
-  },
 
   PICK_EXTREME: {
     // PICK test: tap the object that is the MOST (सबसे बड़ा / सबसे लंबा / सबसे भारी). For weight, options
@@ -4355,9 +3311,19 @@ const SlideModules = {
              [x, y] of the picture = where the hand taps it (T1: the long table's front leg), outside .pk-in so the pulse
              never moves it */
           const tap = o.tap ? `<i class="pk-tap" style="left:${o.tap[0] * 100}%;top:${o.tap[1] * 100}%"></i>` : "";
+          /* [T1 ground] o.feet = the picture's four feet [x centre, y bottom, width] as fractions of it, measured from its
+             alpha, in the order front-left, back-left, back-right, front-right. Given, the floor shadow is drawn from
+             them (CSS [T1 ground]): a dark contact shadow under each foot + the shade of the top over the floor between
+             them. It sits outside .pk-drop / .pk-in, so it stays on the floor while the table drops in, lifts or shakes. */
+          const ft = Array.isArray(o.feet) && o.feet.length === 4 ? o.feet : null;
+          const gnd = ft ? `<span class="pk-gnd" aria-hidden="true"><i class="pk-ao"><b style="clip-path:polygon(${
+              ft.map(f => `${f[0] * 100}% ${f[1] * 100}%`).join(",")})"></b></i>` +
+            ft.map(f => `<i class="pk-foot" style="left:${f[0] * 100}%;top:${f[1] * 100}%;width:${f[2] * 100}%"></i>`).join("") + `</span>` : "";
+          const inner = `<span class="pk-in"><img class="pk-img ol ol-alpha" src="${o.src}" alt="" style="width:${o.w || 240}px">` +
+              `<span class="pk-shine" style="-webkit-mask-image:url(${o.src});mask-image:url(${o.src})"></span></span>`;
           const pic = o.src
-            ? `<span class="pk-pic"><span class="pk-in"><img class="pk-img ol ol-alpha" src="${o.src}" alt="" style="width:${o.w || 240}px">` +
-              `<span class="pk-shine" style="-webkit-mask-image:url(${o.src});mask-image:url(${o.src})"></span></span>${tap}</span>`
+            ? (ft ? `<span class="pk-pic has-gnd">${gnd}<span class="pk-drop">${inner}</span>${tap}</span>`
+                  : `<span class="pk-pic">${inner}${tap}</span>`)
             : renderOrdObj(o, d.by);
           cell.innerHTML = pic + (o.label ? `<span class="lbl">${o.label}</span>` : ""); return cell; },
         isCorrect: (o)=> o.correct === true,
@@ -4378,840 +3344,52 @@ const SlideModules = {
     }
   },
 
-  ORDER_BY_WEIGHT: {
-    // PRODUCE test — WEIGHT seriation via A-vs-B COMPARISON (weight is not visual). Two pans: tap a tray
-    // object → it loads the next empty pan; with BOTH loaded the beam tilts toward the heavier (it DROPS)
-    // + thunk, and the lighter one RISES + pulses. Tap the lighter (risen) object to send it to the next
-    // हल्का→भारी slot — accepted only if it is the lightest still unplaced; else it is the lighter of a
-    // heavy pair (an even lighter one exists) → soft buzz + try_again, both return. The last object
-    // auto-places (it is forced). Objects render at sizes that DON'T match weight (a big balloon can be
-    // light) so the SCALE is the only cue. data:{items:[{wmag,dmag,img,emoji}], arrow_lo, arrow_hi}.
-    mount(host, slide){
-      const d = slide.data;
-      const stage = document.createElement("div"); stage.className = "ord-stage ord-weight";
-      const arrow = document.createElement("div"); arrow.className = "ord-arrow";
-      arrow.innerHTML = `<span>${d.arrow_lo||"हल्का"}</span><span class="ord-arrowline"></span><span>${d.arrow_hi||"भारी"}</span>`;
-      const scale = document.createElement("div"); scale.className = "owt-scale";
-      scale.innerHTML = `<div class="owt-foot"></div><div class="owt-post"></div>` +
-        `<div class="owt-beamwrap"><div class="owt-beam"></div><div class="owt-cap"></div>` +
-        `<div class="owt-arm l"></div><div class="owt-arm r"></div>` +
-        `<div class="owt-pan l"><div class="owt-load"></div></div><div class="owt-pan r"><div class="owt-load"></div></div></div>`;
-      const beamwrap = scale.querySelector(".owt-beamwrap");
-      const panEl = { l: scale.querySelector(".owt-pan.l"), r: scale.querySelector(".owt-pan.r") };
-      const loadEl = { l: panEl.l.querySelector(".owt-load"), r: panEl.r.querySelector(".owt-load") };
-      const strip = document.createElement("div"); strip.className = "ord-strip";
-      const n = d.items.length; const slots = [];
-      for(let i=0;i<n;i++){ const sl = document.createElement("div"); sl.className = "ord-slot"; strip.appendChild(sl); slots.push(sl); }
-      const tray = document.createElement("div"); tray.className = "ord-tray";
-      const disp = d.items.slice(); for(let i=disp.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [disp[i],disp[j]]=[disp[j],disp[i]]; }
-      const sortedW = d.items.map(o=>o.wmag).slice().sort((a,b)=>a-b);
-      const tiles = disp.map(o=>{ const el = document.createElement("div"); el.className = "ord-item"; el._o = o; el._w = o.wmag; el._onpan = false;
-        el.innerHTML = renderOrdObj({ mag: o.dmag, img: o.img, emoji: o.emoji }, "size"); tray.appendChild(el); return el; });
-      stage.appendChild(arrow); stage.appendChild(scale); stage.appendChild(strip); stage.appendChild(tray);
-      host.appendChild(stage);
 
-      let placed = 0, wrongStreak = 0, revealed = false, busy = false; state.locked = false; state.attempts = 0;
-      const pans = { l: null, r: null };
-      const wantW = ()=> sortedW[placed];
-      const nextTile = ()=> tiles.find(x=> !x.classList.contains("used") && x._w === wantW());
-      const remaining = ()=> tiles.filter(x=> !x.classList.contains("used"));
-      const markActive = ()=>{ slots.forEach((s,i)=> s.classList.toggle("active", i === placed));
-        if(placed < n && !pans.l && !pans.r){ const t = nextTile(); if(t && !t._onpan) startNudge(slide, t); } else stopNudge(); };
-      const resetPans = ()=>{ ["l","r"].forEach(k=>{ const t = pans[k]; if(t){ t._onpan = false; t.style.visibility = ""; }
-        loadEl[k].innerHTML = ""; loadEl[k].classList.remove("lighter"); pans[k] = null; }); beamwrap.style.transform = "rotate(0deg)"; };
-      const loadPan = (k, t)=>{ pans[k] = t; t._onpan = true; t.style.visibility = "hidden"; loadEl[k].innerHTML = imgOrEmojiSized(t._o.img, t._o.emoji, 56); };
-      const compare = ()=>{ beamwrap.style.transform = `rotate(${(pans.r._w - pans.l._w) * 7}deg)`;   // heavier side drops
-        btThunk(Math.max(pans.l._w, pans.r._w)); const lightK = pans.l._w < pans.r._w ? "l" : "r";
-        loadEl[lightK].classList.add("lighter"); loadEl[lightK === "l" ? "r" : "l"].classList.remove("lighter"); };
-      const placeToSlot = (t, cb)=>{ const slot = slots[placed]; slot.classList.remove("active"); slot.classList.add("filled");
-        slot.innerHTML = renderOrdObj({ mag: t._o.dmag, img: t._o.img, emoji: t._o.emoji }, "size"); t.classList.add("used"); t._onpan = false; placed++;
-        if(placed >= n){ state.locked = true; stopNudge();
-          GameBus.emit("order_by_weight_correct", { slide_id: slide.id, phase: slide.phase, value: !revealed,
-            attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-          celebrateThenAdvance(slide, revealed);
-        } else markActive();
-        if(cb) cb();
-      };
-      // when only one object remains it is forced — weigh it alone briefly, then place it.
-      const autoLast = ()=>{ if(state.locked) return; const rem = remaining(); if(rem.length !== 1){ markActive(); return; }
-        busy = true; const t = rem[0]; loadPan("l", t); beamwrap.style.transform = "rotate(-9deg)"; btThunk(t._w);
-        setTimeout(()=>{ loadEl.l.innerHTML = ""; beamwrap.style.transform = "rotate(0deg)"; placeToSlot(t, ()=>{ busy = false; }); }, 850); };
-      // tray tap → load the next empty pan (compare once both are full)
-      tiles.forEach(t=>{ t.onclick = ()=>{ if(state.locked || busy || t.classList.contains("used") || t._onpan) return; stopNudge();
-        if(!pans.l){ loadPan("l", t); }
-        else if(!pans.r){ loadPan("r", t); compare(); }
-      }; });
-      // pan tap → try to place that pan's object (must be the LIGHTER of the two AND the lightest unplaced)
-      ["l","r"].forEach(k=>{ panEl[k].onclick = ()=>{ if(state.locked || busy || !pans.l || !pans.r) return;
-        const t = pans[k], other = pans[k === "l" ? "r" : "l"];
-        if(t._w > other._w){ const lk = pans.l._w < pans.r._w ? "l" : "r";   // tapped the heavier one → re-pulse the lighter (hint), no penalty
-          loadEl[lk].classList.remove("lighter"); void loadEl[lk].offsetWidth; loadEl[lk].classList.add("lighter"); return; }
-        if(t._w === wantW()){ busy = true; wrongStreak = 0;   // correct: lighter AND globally lightest
-          other._onpan = false; other.style.visibility = "";
-          loadEl.l.innerHTML = ""; loadEl.r.innerHTML = ""; loadEl.l.classList.remove("lighter"); loadEl.r.classList.remove("lighter");
-          pans.l = null; pans.r = null; beamwrap.style.transform = "rotate(0deg)";
-          placeToSlot(t, ()=> setTimeout(()=>{ busy = false; autoLast(); }, 250));
-        } else {   // lighter of the pair, but an even lighter one is still unplaced
-          state.attempts++; GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts }); $("hintBtn").classList.add("show","hint-glow");
-          if(++wrongStreak >= (CARD.scaffold_rules.max_attempts || 3)){ revealed = true; wrongStreak = 0; resetPans();
-            const c = nextTile(); if(c){ c.classList.add("reveal-glow"); play(audioFor(slide, "reveal") || null, ()=>{});
-              setTimeout(()=>{ c.classList.remove("reveal-glow"); busy = true; placeToSlot(c, ()=> setTimeout(()=>{ busy = false; autoLast(); }, 250)); }, 900); } }
-          else { dragWrong(slide); resetPans(); }
-        }
-      }; });
-      markActive();
-      setNavActive(false); $("navBtn").onclick = ()=>{};
-      $("hintBtn").onclick = ()=>{ if(!state.locked && !busy){ const t = nextTile(); if(t && !t._onpan){ t.classList.add("reveal-glow"); setTimeout(()=> t.classList.remove("reveal-glow"), 800); } } };
-    }
-  },
 
-  BUILD_TO_NUMBER: {
-    // Signature produce module. data: {target, mode:'guided'|'independent', topper, friend, goal_hi,
-    // skyline_done, skyline_total}. Guided = dashed blueprint, auto-completes on fill. Independent =
-    // free stack + "बन गया!" serve with world-enacted feedback (short/teeter, never a ✗). Ascending-
-    // pitch thunk + spoken एक/दो/… per block. Geometry via offsets (throttle-safe).
-    mount(host, slide){
-      const d = slide.data, N = d.target, mode = d.mode || "independent";
-      const stage = document.createElement("div"); stage.className = "bt-stage";
-      const board = document.createElement("div"); board.className = "bt-board";
-      board.innerHTML = `<span class="bt-numeral">${N}</span>` +
-        (d.topper ? `<img class="bt-goalpic" src="assets/${d.topper}.png" alt="">` : "") +
-        (d.goal_hi ? `<span class="bt-goallbl">${d.goal_hi}</span>` : "");
-      const track = document.createElement("div"); track.className = "bt-track"; const cells = [];
-      for(let i=1;i<=N;i++){ const c = document.createElement("div"); c.className = "bt-nt"; track.appendChild(c); cells.push(c); }
-      const yard = document.createElement("div"); yard.className = "bt-yard";
-      const crane = document.createElement("div"); crane.className = "bt-crane"; crane.innerHTML = `<img src="assets/obj_crane.png" alt="">`;
-      const pile = document.createElement("div"); pile.className = "bt-pile";
-      pile.innerHTML = `<div class="bt-pile-blocks"></div><span class="bt-pile-lbl">＋ ब्लॉक</span>`;
-      const pb = pile.querySelector(".bt-pile-blocks");
-      for(let i=0;i<3;i++){ const b = btBlock(i+1); b.style.left = (i*12) + "px"; b.style.bottom = (i*18) + "px"; pb.appendChild(b); }
-      const plotwrap = document.createElement("div"); plotwrap.className = "bt-plotwrap";
-      const plot = document.createElement("div"); plot.className = "bt-plot ground " + mode;
-      plot.style.setProperty("--bh", Math.max(20, Math.min(46, Math.floor(230/N) - 2)) + "px");   // tall towers auto-shrink to fit
-      plotwrap.appendChild(plot);
-      const friend = document.createElement("div"); friend.className = "bt-friend";
-      if(d.friend) friend.innerHTML = `<img src="assets/${d.friend}.png" alt="">`;
-      yard.appendChild(crane); yard.appendChild(pile); yard.appendChild(plotwrap); if(d.friend) yard.appendChild(friend);
-      stage.appendChild(board); stage.appendChild(track); stage.appendChild(yard);
-      if(d.skyline_total) stage.appendChild(btSkyline(d.skyline_done || 0, d.skyline_total));
-      let serveBtn = null;
-      if(mode === "independent"){ serveBtn = document.createElement("button"); serveBtn.type = "button"; serveBtn.className = "bt-serve"; serveBtn.textContent = "बन गया!"; stage.appendChild(serveBtn); }
-      host.appendChild(stage);
 
-      let count = 0; state.locked = false; state.attempts = 0;
-      const lit = ()=> cells.forEach((c,i)=>{ const on = i < count; c.classList.toggle("lit", on); c.textContent = on ? (i+1) : ""; });
-      const addSound = ()=>{ btThunk(count); btDust(plot); play("assets/voiceover/vo_num_" + count + "." + AUDIO_EXT); };
 
-      function success(){
-        state.locked = true; if(serveBtn) serveBtn.disabled = true;
-        if(d.topper){ const t = document.createElement("div"); t.className = "bt-topper snap"; t.innerHTML = `<img src="assets/${d.topper}.png" alt="">`; plot.appendChild(t);
-          if(d.topper === "top_rocket") setTimeout(()=> t.classList.add("rocket-go"), 750); }
-        if(d.friend) friend.classList.add("hop");
-        sfxCorrect(); burstStars();
-        const lots = [...stage.querySelectorAll(".bt-bldg")]; const nextLot = lots[d.skyline_done || 0];
-        if(nextLot) setTimeout(()=> nextLot.classList.add("done"), 380);
-        GameBus.emit("build_to_number_correct", { slide_id: slide.id, phase: slide.phase, value: true, target: N, attempts: state.attempts + 1, latency_ms: Date.now()-state.slideStart });
-        play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT); setNavActive(true);
-      }
 
-      if(mode === "guided"){
-        const ghosts = [];
-        for(let i=0;i<N;i++){ const g = document.createElement("div"); g.className = "bp-slot"; plot.appendChild(g); ghosts.push(g); }
-        ghosts[0].classList.add("next");
-        pile.onclick = ()=>{ if(state.locked) return;
-          const g = ghosts.find(x=> x.classList.contains("bp-slot"));
-          if(!g){ showBox("", "बस इतने ही चाहिए!", "hint", null, ()=>{}); return; }
-          g.className = "blk drop"; g.style.background = BT_COLORS[count % 5];
-          count++; lit(); addSound();
-          const nx = ghosts.find(x=> x.classList.contains("bp-slot")); if(nx) nx.classList.add("next");
-          if(count === N) setTimeout(success, 280);
-        };
-      } else {
-        pile.onclick = ()=>{ if(state.locked) return;
-          const b = btBlock(count); b.classList.add("drop");
-          b.onclick = (e)=>{ e.stopPropagation(); if(state.locked) return; b.remove(); count--; lit(); };
-          plot.appendChild(b); count++; lit(); addSound(); };
-        serveBtn.onclick = ()=>{ if(state.locked) return;
-          if(count === N){ success(); return; }
-          state.attempts++;
-          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts, made: count, target: N });
-          if(count < N){ if(d.friend) friend.classList.add("peer");
-            showBox("", "थोड़े और चाहिए!", "hint", null, ()=>{ if(d.friend) friend.classList.remove("peer"); }); }
-          else { const bs = [...plot.querySelectorAll(".blk")]; const top = bs[bs.length-1];
-            if(top){ top.classList.add("wobble"); setTimeout(()=> top.classList.remove("wobble"), 520); }
-            showBox("", "अरे! एक ब्लॉक हटाओ।", "hint", null, ()=>{}); } };
-      }
-      setNavActive(false);
-      $("navBtn").onclick = ()=>{ if(state.locked) completeSlide(true); };
-      pointNudgeAt(pile);
-    }
-  },
 
-  MAKE_NUMBER: {
-    // produce-the-numeral dial (grafted from Firefly Valley). A set of N built blocks; ＋/− dials a
-    // 1–10 numeral; wrong is inert (build dim), exact match ignites the build + snaps its topper.
-    mount(host, slide){
-      const d = slide.data, N = d.count;
-      const stage = document.createElement("div"); stage.className = "bt-stage";
-      if(d.prompt2_hi){ const lbl = document.createElement("div"); lbl.className = "pat-unit-lbl"; lbl.textContent = d.prompt2_hi; stage.appendChild(lbl); }
-      const yard = document.createElement("div"); yard.className = "bt-yard";
-      const plotwrap = document.createElement("div"); plotwrap.className = "bt-plotwrap";
-      const plot = document.createElement("div"); plot.className = "bt-plot ground"; plot.style.filter = "grayscale(.35) brightness(.95)";
-      plot.style.setProperty("--bh", Math.max(20, Math.min(46, Math.floor(230/N) - 2)) + "px");
-      for(let i=0;i<N;i++){ plot.appendChild(btBlock(i)); }
-      plotwrap.appendChild(plot); yard.appendChild(plotwrap);
-      const dial = document.createElement("div"); dial.className = "bt-dial";
-      dial.innerHTML = `<button class="bt-dial-btn" data-d="-1" type="button">−</button><div class="bt-dial-val">1</div><button class="bt-dial-btn" data-d="1" type="button">＋</button>`;
-      stage.appendChild(yard); stage.appendChild(dial); host.appendChild(stage);
-      let val = 1; state.locked = false; const valEl = dial.querySelector(".bt-dial-val");
-      const check = ()=>{ if(val === N && !state.locked){ state.locked = true; valEl.classList.add("match"); plot.style.filter = "";
-        if(d.topper){ const t = document.createElement("div"); t.className = "bt-topper snap"; t.innerHTML = `<img src="assets/${d.topper}.png" alt="">`; plot.appendChild(t); }
-        sfxCorrect(); burstStars(); play("assets/voiceover/vo_total_" + N + "." + AUDIO_EXT);
-        GameBus.emit("make_number_correct", { slide_id: slide.id, phase: slide.phase, value: true, count: N, latency_ms: Date.now()-state.slideStart });
-        setNavActive(true); } };
-      dial.querySelectorAll(".bt-dial-btn").forEach(btn=> btn.onclick = ()=>{ if(state.locked) return;
-        val = Math.max(1, Math.min(10, val + parseInt(btn.dataset.d, 10))); valEl.textContent = val; sfxTap(); check(); });
-      setNavActive(false); $("navBtn").onclick = ()=>{ if(state.locked) completeSlide(true); };
-    }
-  },
 
-  TAP_LETTER_BY_NAME: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "letter_name_first_try",
-        stimulus: null,
-        options: slide.data.options,
-        isCorrect: (opt) => opt.letter === slide.data.target,
-        optionRenderer: (opt) => letterCell(opt.letter)
-      });
-    }
-  },
 
-  TAP_LETTER_BY_SOUND: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "letter_sound_first_try",
-        stimulus: (()=> {
-          const el = document.createElement("div"); el.className = "stimulus-pic";
-          el.innerHTML = `<span class="emoji">🔊</span><span class="lbl">ध्वनि सुनो</span>`;
-          el.style.cursor = "pointer";
-          el.onclick = ()=>{ state.audioReplays++; play(audioFor(slide,"phoneme") || null); };
-          return el;
-        })(),
-        options: slide.data.options,
-        isCorrect: (opt) => opt.letter === slide.data.target,
-        optionRenderer: (opt) => letterCell(opt.letter)
-      });
-    }
-  },
 
-  TAP_PICTURE_BY_LETTER: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "letter_image_match_first_try",
-        stimulus: stimulusLetter(slide.data.target_letter),
-        options: slide.data.options,
-        isCorrect: (opt) => opt.correct === true,
-        optionRenderer: (opt) => pictureCell(opt.picture, opt.emoji, opt.img)
-      });
-    }
-  },
 
-  TAP_LETTER_BY_PICTURE: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "image_letter_match_first_try",
-        stimulus: stimulusPic(slide.data.picture, slide.data.emoji, slide.data.img),
-        options: slide.data.options,
-        isCorrect: (opt) => opt.letter === slide.data.target,
-        optionRenderer: (opt) => letterCell(opt.letter)
-      });
-    }
-  },
 
-  ODD_ONE_OUT: {
-    mount(host, slide){
-      const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "letter_recognise_first_try";
-      const useShape = slide.data.options.some(o => o.shape);
-      const usePic = slide.data.options.some(o => o.picture || o.word_hi || o.img);
-      mountTapOptions({
-        slide, host, signalName: sig,
-        stimulus: null,
-        options: slide.data.options,
-        columnsHint: 4,
-        isCorrect: (opt) => opt.is_odd === true,
-        optionRenderer: (opt) => useShape
-          ? shapeCell(opt)
-          : usePic
-            ? pictureCell(opt.word_hi || opt.picture, opt.emoji, opt.img)
-            : letterCell(opt.letter),
-        mastery: slide.phase === "mastery"
-      });
-    }
-  },
 
-  TAP_GENDER: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "gender_match_first_try",
-        stimulus: stimulusPic(slide.data.noun.word_hi, slide.data.noun.emoji, slide.data.noun.img),
-        options: slide.data.options,
-        columnsHint: 2,
-        isCorrect: (opt) => opt.gender === slide.data.target_gender,
-        optionRenderer: (opt) => genderLabelCell(opt.label, opt.gender),
-        mastery: slide.phase === "mastery"
-      });
-    }
-  },
 
-  TAP_PICTURE_BY_GENDER: {
-    mount(host, slide){
-      mountTapOptions({
-        slide, host, signalName: "gender_match_first_try",
-        stimulus: stimulusGender(slide.data.label, slide.data.target_gender),
-        options: slide.data.options,
-        // tap-to-answer needs ONE unambiguous key — author marks the single intended picture
-        // with correct:true (matches every other TAP_* module). The old `|| gender===target`
-        // fallback silently accepted any same-gender distractor, defeating buzz+✗+lock.
-        isCorrect: (opt) => opt.correct === true,
-        optionRenderer: (opt) => pictureCell(opt.word_hi, opt.emoji, opt.img),
-        mastery: slide.phase === "mastery"
-      });
-    }
-  },
 
-  GENDER_INTRO: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "gender-cats";
-      const cats = slide.data.categories;
-      const tapped = new Set();
-      cats.forEach(cat => {
-        const card = document.createElement("div");
-        card.className = "gender-cat " + (cat.gender === "F" ? "fem" : "masc");
-        card.innerHTML =
-          `<div class="cat-title">${cat.label}</div>` +
-          imgOrEmoji(cat.anchor.img, cat.anchor.emoji, "cat-pic", "cat-emoji") +
-          `<div class="cat-word">${cat.anchor.word_hi}</div>`;
-        card.onclick = ()=>{
-          card.classList.add("played");
-          playChain(["assets/voiceover/" + cat.label_audio + "." + AUDIO_EXT, "assets/voiceover/" + cat.name_audio + "." + AUDIO_EXT], 0);
-          tapped.add(cat.gender);
-          GameBus.emit("gender_intro_tap", { slide_id: slide.id, gender: cat.gender });
-          if(tapped.size >= cats.length){ stopNudge(); setNavActive(true); }
-        };
-        wrap.appendChild(card);
-      });
-      host.appendChild(wrap);
-      state.gateNavUntilAudio = true;   // nav unlocks after the concept VO
-      setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  MEET_GENDER: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "meet-gender";
-      const n = slide.data.noun;
-      wrap.innerHTML =
-        `<div class="meet-pic-box">${imgOrEmoji(n.img, n.emoji, "pic-img", "pic-emoji")}<span class="pic-label">${n.word_hi}</span></div>` +
-        `<div class="meet-arrow">→</div>` +
-        `<div class="gender-badge${slide.data.gender === "F" ? " fem" : ""}">${slide.data.label}</div>`;
-      host.appendChild(wrap);
-      state.gateNavUntilAudio = true;   // nav unlocks after the model VO
-      setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-    }
-  },
 
-  SORT_GENDER: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "sort-stage";
-      const binsRow = document.createElement("div"); binsRow.className = "sort-bins";
-      slide.data.bins.forEach(b => {
-        const bin = document.createElement("div");
-        bin.className = "sort-bin dd-zone" + (b.gender === "F" ? " fem" : "");   // dd-zone → drop detection
-        bin.dataset.gender = b.gender;
-        bin.innerHTML = `<div class="bin-title">${b.label}</div><div class="bin-items"></div>`;
-        binsRow.appendChild(bin);
-      });
-      const tray = document.createElement("div"); tray.className = "sort-tray";
-      const items = slide.data.items.slice().sort(()=> Math.random() - 0.5);
-      items.forEach(it => {
-        const t = document.createElement("div"); t.className = "sort-item";
-        t.dataset.gender = it.gender;
-        t.innerHTML = imgOrEmoji(it.img, it.emoji, "img", "emoji") + `<span class="lbl">${it.word_hi}</span>`;
-        tray.appendChild(t);
-      });
-      wrap.appendChild(binsRow); wrap.appendChild(tray);
-      host.appendChild(wrap);
 
-      state.attempts = 0; state.locked = false;
-      let placed = 0; const need = slide.data.items.length;
-      [...tray.children].forEach(tile => {
-        makeDraggable(tile, (zone, t) => {
-          const bin = zone.closest(".sort-bin"); if(!bin) return;
-          state.attempts++;
-          if(bin.dataset.gender === t.dataset.gender){
-            t.classList.add("snapped");
-            bin.querySelector(".bin-items").appendChild(t);
-            placed++;
-            GameBus.emit("gender_sort_item", { slide_id: slide.id, gender: t.dataset.gender, attempts: state.attempts });
-            if(placed === need){
-              state.locked = true;
-              GameBus.emit("gender_sort_correct", {
-                slide_id: slide.id, phase: slide.phase, value: true,
-                attempts: state.attempts, latency_ms: Date.now() - state.slideStart
-              });
-              setTimeout(()=> celebrateThenAdvance(slide, false), 250);   // standard: confetti + VO + auto-advance, no popup
-            }
-          } else {
-            bin.classList.add("hover"); bin.style.borderColor = "var(--wrong)";
-            setTimeout(()=>{ bin.classList.remove("hover"); bin.style.borderColor = ""; }, 500);
-            dragWrong(slide);   // buzz + Swiftie + spoken try_again (pre-readers need the spoken recovery)
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-          }
-        });
-      });
-    }
-  },
 
-  MATCH_GENDER_PAIRS: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "dd-stage";
-      const zoneRow = document.createElement("div"); zoneRow.className = "dd-row";
-      const zones = slide.data.pairs.slice().sort(()=> Math.random() - 0.5);
-      zones.forEach(p => {
-        const z = document.createElement("div"); z.className = "dd-zone"; z.dataset.accept = p.id;
-        z.innerHTML = imgOrEmoji(p.f.img, p.f.emoji, "zone-img", "zone-emoji") + `<span class="zone-lbl">${p.f.word_hi}</span>`;
-        zoneRow.appendChild(z);
-      });
-      const tileRow = document.createElement("div"); tileRow.className = "dd-row"; tileRow.style.marginTop = "34px";
-      const tiles = slide.data.pairs.slice().sort(()=> Math.random() - 0.5);
-      tiles.forEach(p => {
-        const t = document.createElement("div"); t.className = "dd-tile pic-tile"; t.dataset.pairId = p.id;
-        t.innerHTML = imgOrEmoji(p.m.img, p.m.emoji, "zone-img", "zone-emoji") + `<span class="zone-lbl">${p.m.word_hi}</span>`;
-        tileRow.appendChild(t);
-      });
-      wrap.appendChild(zoneRow); wrap.appendChild(tileRow);
-      host.appendChild(wrap);
 
-      state.attempts = 0; state.locked = false;
-      let filled = 0, wrongStreak = 0, revealed = false; const need = slide.data.pairs.length;
-      const settle = (zone, t)=>{                       // the one correct-placement path (drop AND reveal)
-        zone.classList.add("filled","correct");
-        // grey the matched masculine tile in place (pictures don't badge well)
-        t.classList.add("matched"); t.style.transform = "";
-        filled++;
-        if(filled === need){ state.locked = true; setTimeout(()=> celebrateThenAdvance(slide, revealed), 250); }
-      };
-      // A8 reveal ceiling: after max consecutive misses, DEMONSTRATE one pair (pulse + auto-settle) so
-      // the child is guided forward instead of dead-ending; run counts success=false via `revealed`.
-      const revealOne = ()=>{
-        const zone = [...zoneRow.children].find(z=> !z.classList.contains("filled")); if(!zone) return;
-        const t = [...tileRow.children].find(x=> !x.classList.contains("matched") && x.dataset.pairId === zone.dataset.accept); if(!t) return;
-        revealed = true; wrongStreak = 0;
-        zone.classList.add("reveal-glow"); t.classList.add("reveal-glow");
-        play(audioFor(slide,"reveal") || null, ()=>{});
-        setTimeout(()=>{ zone.classList.remove("reveal-glow"); t.classList.remove("reveal-glow"); settle(zone, t); }, 1000);
-      };
-      [...tileRow.children].forEach(tile => {
-        makeDraggable(tile, (zone, t) => {
-          if(state.locked || zone.classList.contains("filled")) return;
-          state.attempts++;
-          if(zone.dataset.accept === t.dataset.pairId){
-            wrongStreak = 0;
-            GameBus.emit("gender_pair_match", {
-              slide_id: slide.id, phase: slide.phase, value: true,
-              pair: t.dataset.pairId, attempts: state.attempts
-            });
-            settle(zone, t);
-          } else {
-            zone.classList.add("filled","wrong");
-            setTimeout(()=> zone.classList.remove("filled","wrong"), 600);
-            dragWrong(slide);
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-            if(++wrongStreak >= (CARD.scaffold_rules.max_attempts||3)) revealOne();
-          }
-        });
-      });
-    }
-  },
 
-  MATCH_DRAG_1: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "dd-stage";
-      // zone (target picture)
-      const zoneRow = document.createElement("div"); zoneRow.className = "dd-row";
-      const zone = document.createElement("div"); zone.className = "dd-zone";
-      zone.innerHTML = imgOrEmoji(slide.data.target.img, slide.data.target.emoji, "zone-img", "zone-emoji") + `<span class="zone-lbl">${slide.data.target.picture||""}</span>`;
-      zone.dataset.accept = slide.data.letter.letter;
-      zoneRow.appendChild(zone);
-      // tile
-      const tileRow = document.createElement("div"); tileRow.className = "dd-row"; tileRow.style.marginTop = "30px";
-      const tile = document.createElement("div"); tile.className = "dd-tile"; tile.innerHTML = `<span class="ink-glyph">${slide.data.letter.letter}</span>`;
-      tileRow.appendChild(tile);
-      wrap.appendChild(zoneRow); wrap.appendChild(tileRow);
-      host.appendChild(wrap);
 
-      state.attempts = 0; state.locked = false;
-      makeDraggable(tile, (zone, t) => {
-        state.attempts++;
-        const ok = (zone.dataset.accept === t.textContent.trim());
-        if(ok){
-          zone.classList.add("filled","correct");
-          // snap tile into zone (badge is small — drop the ink-centering transform)
-          t.classList.add("snapped");
-          t.querySelector(".ink-glyph")?.style.removeProperty("transform");
-          zone.appendChild(t);
-          state.locked = true;
-          GameBus.emit("letter_image_match_first_try", {
-            slide_id: slide.id, phase: slide.phase, value: true,
-            first_try: state.attempts === 1, attempts: state.attempts,
-            latency_ms: Date.now()-state.slideStart
-          });
-          celebrateThenAdvance(slide, false);
-        } else {
-          zone.classList.add("filled","wrong");
-          setTimeout(()=> zone.classList.remove("filled","wrong"), 600);
-          dragWrong(slide);
-          GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-          if(state.attempts >= (CARD.scaffold_rules.max_attempts||3)){
-            state.locked = true;
-            // reveal = DEMONSTRATE, don't just tell: snap the letter into its picture (dimmed pulse)
-            // with the spoken reveal line, then move on as success=false.
-            showBox("", audioText(slide,"reveal") || "कोई बात नहीं! इसे यहाँ रखो।", "reveal", audioFor(slide,"reveal"), ()=>{});
-            setTimeout(()=>{
-              zone.classList.add("filled","correct","reveal-glow");
-              t.classList.add("snapped");
-              t.querySelector(".ink-glyph")?.style.removeProperty("transform");
-              zone.appendChild(t);
-              setTimeout(()=> completeSlide(false), 1300);
-            }, 900);
-          }
-        }
-      });
-    }
-  },
-
-  MATCH_DRAG_N: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "dd-stage";
-      const zoneRow = document.createElement("div"); zoneRow.className = "dd-row";
-      // shuffle zones so order ≠ tile order
-      const zones = slide.data.pairs.slice().sort(()=> Math.random()-0.5);
-      zones.forEach(p => {
-        const z = document.createElement("div"); z.className = "dd-zone";
-        z.innerHTML = imgOrEmoji(p.img, p.emoji, "zone-img", "zone-emoji") + `<span class="zone-lbl">${p.picture||""}</span>`;
-        z.dataset.accept = p.letter;
-        zoneRow.appendChild(z);
-      });
-      const tileRow = document.createElement("div"); tileRow.className = "dd-row"; tileRow.style.marginTop = "30px";
-      const tiles = slide.data.pairs.slice().sort(()=> Math.random()-0.5);
-      tiles.forEach(p => {
-        const t = document.createElement("div"); t.className = "dd-tile"; t.innerHTML = `<span class="ink-glyph">${p.letter}</span>`;
-        tileRow.appendChild(t);
-      });
-      wrap.appendChild(zoneRow); wrap.appendChild(tileRow);
-      host.appendChild(wrap);
-
-      state.attempts = 0; state.locked = false;
-      let filled = 0, wrongStreak = 0, revealed = false; const need = slide.data.pairs.length;
-      const settle = (zone, t)=>{                       // one correct-placement path (drop AND reveal)
-        zone.classList.add("filled","correct");
-        t.classList.add("snapped"); t.querySelector(".ink-glyph")?.style.removeProperty("transform"); zone.appendChild(t);
-        filled++;
-        if(filled === need){ state.locked = true; setTimeout(()=> celebrateThenAdvance(slide, revealed), 250); }
-      };
-      // A8 reveal ceiling: after max consecutive misses, demonstrate one letter→picture match.
-      const revealOne = ()=>{
-        const zone = [...zoneRow.children].find(z=> !z.classList.contains("filled")); if(!zone) return;
-        const t = [...tileRow.children].find(x=> !x.classList.contains("snapped") && x.textContent.trim() === zone.dataset.accept); if(!t) return;
-        revealed = true; wrongStreak = 0;
-        zone.classList.add("reveal-glow"); t.classList.add("reveal-glow");
-        play(audioFor(slide,"reveal") || null, ()=>{});
-        setTimeout(()=>{ zone.classList.remove("reveal-glow"); t.classList.remove("reveal-glow"); settle(zone, t); }, 1000);
-      };
-      [...tileRow.children].forEach(tile => {
-        makeDraggable(tile, (zone, t) => {
-          if(state.locked || zone.classList.contains("filled")) return;
-          state.attempts++;
-          const ok = (zone.dataset.accept === t.textContent.trim());
-          if(ok){
-            wrongStreak = 0;
-            GameBus.emit("letter_image_match_first_try", {
-              slide_id: slide.id, phase: slide.phase, value: true,
-              letter: t.textContent, attempts: state.attempts
-            });
-            settle(zone, t);
-          } else {
-            zone.classList.add("filled","wrong");
-            dragWrong(slide);
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-            setTimeout(()=> zone.classList.remove("filled","wrong"), 600);
-            if(++wrongStreak >= (CARD.scaffold_rules.max_attempts||3)) revealOne();
-          }
-        });
-      });
-    }
-  },
-
-  SEQUENCE_DRAG: {
-    mount(host, slide){
-      const wrap = document.createElement("div"); wrap.className = "dd-stage";
-      // slots row
-      const slots = document.createElement("div"); slots.className = "seq-slots";
-      slide.data.correct_order.forEach((L,i) => {
-        const sl = document.createElement("div"); sl.className = "seq-slot";
-        sl.dataset.accept = L; sl.dataset.idx = String(i);
-        sl.classList.add("dd-zone");      // reuse drop logic
-        sl.innerHTML = `<span class="ordinal">${i+1}</span>`;
-        slots.appendChild(sl);
-      });
-      const tileRow = document.createElement("div"); tileRow.className = "dd-row"; tileRow.style.marginTop = "40px";
-      slide.data.tiles.forEach(t => {
-        const tl = document.createElement("div"); tl.className = "dd-tile"; tl.innerHTML = `<span class="ink-glyph">${t.letter}</span>`;
-        tileRow.appendChild(tl);
-      });
-      wrap.appendChild(slots); wrap.appendChild(tileRow);
-      host.appendChild(wrap);
-
-      let placed = 0, wrongStreak = 0, revealed = false; const need = slide.data.correct_order.length;
-      state.attempts = 0; state.locked = false;
-      const settle = (zone, t)=>{                       // one correct-placement path (drop AND reveal)
-        zone.classList.remove("dd-zone");
-        zone.classList.add("filled","correct");
-        zone.innerHTML = `<span class="ordinal">${parseInt(zone.dataset.idx,10)+1}</span><span class="ink-glyph">${t.textContent.trim()}</span>`;
-        centerInkGlyph(zone.querySelector(".ink-glyph"));
-        t.remove();
-        placed++;
-        if(placed === need){
-          state.locked = true;
-          GameBus.emit("letter_sequence_correct", {
-            slide_id: slide.id, phase: slide.phase, value: !revealed,
-            attempts: state.attempts, latency_ms: Date.now()-state.slideStart
-          });
-          setTimeout(()=> celebrateThenAdvance(slide, revealed), 250);
-        }
-      };
-      // A8 reveal ceiling: after max consecutive misses, demonstrate the NEXT slot in the order.
-      const revealOne = ()=>{
-        const zone = [...slots.children].find(z=> !z.classList.contains("filled")); if(!zone) return;
-        const t = [...tileRow.children].find(x=> x.textContent.trim() === zone.dataset.accept); if(!t) return;
-        revealed = true; wrongStreak = 0;
-        zone.classList.add("reveal-glow"); t.classList.add("reveal-glow");
-        play(audioFor(slide,"reveal") || null, ()=>{});
-        setTimeout(()=>{ zone.classList.remove("reveal-glow"); settle(zone, t); }, 1000);
-      };
-      [...tileRow.children].forEach(tile => {
-        makeDraggable(tile, (zone, t) => {
-          if(state.locked || zone.classList.contains("filled")) return;
-          state.attempts++;
-          const ok = (zone.dataset.accept === t.textContent.trim());
-          if(ok){
-            wrongStreak = 0;
-            settle(zone, t);
-          } else {
-            zone.classList.add("wrong");
-            setTimeout(()=> zone.classList.remove("wrong"), 600);
-            dragWrong(slide);
-            GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: state.attempts });
-            if(++wrongStreak >= (CARD.scaffold_rules.max_attempts||3)) revealOne();
-          }
-        });
-      });
-    }
-  },
-
-  MASTERY_SILENT_PICK: {
-    mount(host, slide){
-      const mode = slide.data.mode;
-      let stimulus = null, options = null, isCorrect = null, optionRenderer = null;
-      if(mode === "sound_to_letter"){
-        stimulus = (()=> {
-          const el = document.createElement("div"); el.className = "stimulus-pic"; el.style.cursor="pointer";
-          el.innerHTML = `<span class="emoji">🔊</span><span class="lbl">ध्वनि सुनो</span>`;
-          el.onclick = ()=>{ state.audioReplays++; play(audioFor(slide,"phoneme") || null); };
-          return el;
-        })();
-        options = slide.data.options;
-        isCorrect = (opt) => opt.letter === slide.data.target;
-        optionRenderer = (opt) => letterCell(opt.letter);
-      } else if(mode === "picture_to_letter"){
-        stimulus = stimulusPic(slide.data.picture, slide.data.emoji, slide.data.img);
-        options = slide.data.options;
-        isCorrect = (opt) => opt.letter === slide.data.target;
-        optionRenderer = (opt) => letterCell(opt.letter);
-      } else if(mode === "name_to_shape"){
-        stimulus = (()=> {
-          const el = document.createElement("div"); el.className = "stimulus-pic"; el.style.cursor="pointer";
-          el.innerHTML = `<span class="emoji">🔊</span><span class="lbl">${slide.data.name || "नाम सुनो"}</span>`;
-          el.onclick = ()=>{ state.audioReplays++; play(audioFor(slide,"shape_name") || null); };
-          return el;
-        })();
-        options = slide.data.options;
-        isCorrect = (opt) => opt.shape === slide.data.target;
-        optionRenderer = (opt) => shapeCell(opt);
-      } else if(mode === "object_to_shape"){
-        stimulus = stimulusPic(slide.data.object_hi, slide.data.object_emoji, slide.data.object_img);
-        options = slide.data.options;
-        isCorrect = (opt) => opt.shape === slide.data.target;
-        optionRenderer = (opt) => shapeCell(opt);
-      } else if(mode === "shape_to_object"){
-        stimulus = stimulusShape({shape: slide.data.shape, color: slide.data.color, rotate: slide.data.rotate});
-        options = slide.data.options;
-        isCorrect = (opt) => opt.correct === true;
-        optionRenderer = (opt) => pictureCell(opt.object_hi, opt.object_emoji, opt.object_img);
-      } else { // letter_to_picture
-        stimulus = stimulusLetter(slide.data.letter);
-        options = slide.data.options;
-        isCorrect = (opt) => opt.correct === true;
-        optionRenderer = (opt) => pictureCell(opt.picture, opt.emoji, opt.img);
-      }
-      // SAME scaffold as the rest of the lesson — hint button after 1st wrong,
-      // correct/incorrect feedback popups, reveal-on-3rd-wrong. Not silent.
-      // `mastery:true` keeps the mastery_score tracking (first-try = hit).
-      mountTapOptions({
-        slide, host, signalName: "mastery_item",
-        stimulus, options, isCorrect, optionRenderer, mastery: true
-      });
-    }
-  },
-
-  STORY_SCENE: {
-    // TEACH: one picture-story beat. Scene image fills the frame; narration VO plays on mount;
-    // slow Ken-Burns pan keeps it alive for a pre-reader. Chain several in order for the story.
-    mount(host, slide){
-      const d = slide.data || {};
-      const wrap = document.createElement("div"); wrap.className = "story-scene";
-      const fb = String(d.emoji || "📖").replace(/'/g,"");
-      wrap.innerHTML =
-        '<div class="story-frame">' +
-          '<img class="story-img" src="assets/' + d.image_id + '.' + IMG_EXT + '" alt="' + (d.alt_hi||'') + '" ' +
-            'onerror="var s=document.createElement(\'span\');s.className=\'story-fallback\';s.textContent=\'' + fb + '\';this.replaceWith(s);"/>' +
-        '</div>' +
-        (d.caption_hi ? '<div class="story-caption">' + d.caption_hi + '</div>' : '');
-      host.appendChild(wrap);
-      state.ownsAudio = true; setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-      state.replayAudio = ()=>{ play(audioFor(slide, "narration") || null, ()=>{}); };
-      setSwMood("talk");
-      let _armed = false;
-      const _armNav = ()=>{ if(_armed) return; _armed = true; setNavActive(true); setSwMood("point"); };
-      play(audioFor(slide, "narration") || null, _armNav);
-      setTimeout(_armNav, 30000);   // watchdog: nav always eventually opens if VO buffers slowly
-    }
-  },
-
-  STORY_QUESTION: {
-    // TEST: a comprehension question after story beats. A recall thumb (visual anchor) + 🔊 chip
-    // form the stimulus; options are 2–3 picture chips. Tap-to-answer feedback is inherited from
-    // mountTapOptions. Recall thumb is a CUE, hidden at mastery / when data.hide_recall so the
-    // answer isn't leaked by thumb-reading.
-    mount(host, slide){
-      const d = slide.data || {};
-      const stim = document.createElement("div"); stim.className = "story-q-stim"; stim.style.cursor = "pointer";
-      const hideRecall = slide.phase === "mastery" || d.hide_recall === true;
-      const thumb = (!hideRecall && d.recall_image_id)
-        ? '<img class="story-q-thumb" src="assets/' + d.recall_image_id + '.' + IMG_EXT + '" alt="" ' +
-          'onerror="this.style.display=\'none\';"/>'
-        : '';
-      stim.innerHTML = thumb +
-        '<span class="story-q-listen"><span class="emoji">🔊</span>' +
-        '<span class="lbl">' + (d.stim_hi || 'प्रश्न सुनो') + '</span></span>';
-      stim.onclick = ()=>{ state.audioReplays++; play(audioFor(slide, "prompt") || null); };
-      mountTapOptions({
-        slide, host,
-        signalName: d.signal_name || "story_question_first_try",
-        stimulus: stim,
-        options: d.options,
-        isCorrect: (opt) => opt.correct === true,
-        optionRenderer: (opt) => {
-          const cell = document.createElement("div");
-          cell.innerHTML =
-            imgOrEmoji(opt.img, opt.emoji, "story-q-opt-img", "story-q-opt-emoji") +
-            (opt.label_hi ? '<span class="story-q-opt-label">' + opt.label_hi + '</span>' : '');
-          return cell;
-        },
-        mastery: d.mastery === true,
-        columnsHint: (d.options && d.options.length) <= 2 ? 2 : 3
-      });
-    }
-  },
-
-  TAP_IN_SCENE: {
-    // "Tap the thing in the picture" — a PRODUCE-style comprehension mechanic (NOT an MCQ). A story
-    // scene fills the frame; the child taps the target region(s) (e.g. the monkeys who took the caps).
-    // A correct hotspot → confetti + advance; a miss → soft buzz + try_again VO; after a few idle
-    // seconds the target gently pulses (hint). Data: {image_id, alt_hi, prompt, hotspots:[{x,y,w,h,
-    // correct}] (as % of the frame), audio:{prompt,correct,try_again}}. Reusable for any "find X".
-    mount(host, slide){
-      const d = slide.data || {};
-      const wrap = document.createElement("div"); wrap.className = "tis-scene";
-      const frame = document.createElement("div"); frame.className = "tis-frame";
-      const img = document.createElement("img"); img.className = "tis-img";
-      img.src = "assets/" + d.image_id + "." + IMG_EXT; img.alt = d.alt_hi || "";
-      frame.appendChild(img);
-      let done = false;
-      const miss = ()=>{ if(done) return; sfxWrongSoft(); setSwMood("tryagain"); play(audioFor(slide,"try_again")||null,()=>{}); };
-      (d.hotspots || []).forEach(h => {
-        const hs = document.createElement("button"); hs.className = "tis-hot" + (h.correct ? " correct-hot" : "");
-        hs.style.left=h.x+"%"; hs.style.top=h.y+"%"; hs.style.width=h.w+"%"; hs.style.height=h.h+"%";
-        hs.onclick = (e)=>{ e.stopPropagation(); if(done) return;
-          if(h.correct){ done=true; hs.classList.add("hit"); sfxCorrect(); confettiCannon(); setSwMood("happy");
-            GameBus.emit(d.signal_name || "scene_tap_first_try", {slide_id:slide.id, phase:slide.phase, correct:true});
-            play(audioFor(slide,"correct")||null, ()=> setTimeout(()=>completeSlide(true), 900)); }
-          else { hs.classList.add("shake"); miss(); } };
-        frame.appendChild(hs);
-      });
-      frame.onclick = miss;   // tapping empty scene = gentle try_again
-      wrap.appendChild(frame); host.appendChild(wrap);
-      $("navBtn").style.display = "none";   // advance on the correct tap — no आगे on a pick
-      state.replayAudio = ()=> play(audioFor(slide,"prompt")||null, ()=>{});
-      setSwMood("point");
-      play(audioFor(slide,"prompt")||null, ()=>{});
-      setTimeout(()=>{ if(!done) frame.querySelectorAll(".tis-hot.correct-hot").forEach(el=>el.classList.add("pulse")); }, 6000);
-    }
-  },
-
-  PHASE_TRANSITION: {
-    // Additive "learning journey" beat between arc phases (the MoM "no sense of progression" fix).
-    // Full-screen friendly panel: badge + "अब हम ___ करेंगे" headline + a 5-dot journey map with the
-    // current step lit. The header Swiftie presents it (ONE-Swiftie rule — no second mascot). Learner-
-    // paced: no auto-advance timer; आगे unlocks when the beat's VO ends (immediately if silent).
-    // data:{ headline_hi, icon?, step (1-based), total_steps?, to_phase? }. Build scripts weave one of
-    // these before each phase change; older cards without it are untouched (purely additive).
-    mount(host, slide){
-      const d = slide.data || {};
-      const panel = document.createElement("div"); panel.className = "phase-transition";
-      const total = d.total_steps || 5, step = Math.min(d.step || 1, total);
-      let map = '<div class="pt-map">';
-      for(let i = 1; i <= total; i++){
-        map += `<span class="pt-step ${i < step ? 'done' : i === step ? 'current' : ''}"></span>`;
-        if(i < total) map += '<span class="pt-connector"></span>';
-      }
-      map += '</div>';
-      panel.innerHTML =
-        `<div class="pt-badge">${d.icon || '🎯'}</div>` +
-        `<div class="pt-headline">${d.headline_hi || slide.prompt_hi || ''}</div>` + map;
-      host.appendChild(panel);
-      setSwMood("teach");
-      GameBus.emit("phase_transition_shown", { slide_id: slide.id, to_phase: d.to_phase || slide.phase, step });
-      state.ownsAudio = true; state.locked = false; setNavActive(false);
-      $("navBtn").onclick = ()=> completeSlide(true);
-      const vo = audioFor(slide, "prompt");
-      if(vo) play(vo, ()=> setNavActive(true)); else setNavActive(true);
-    }
-  },
 
   CELEBRATION: {
     mount(host, slide){
-      // celebration SFX — own Audio element so it overlaps the spoken VO chain
-      playSfx(slide.audio && slide.audio.sfx ? slide.audio.sfx : "sfx_celebrate");
-      // show end screen overlay + a big Hindi headline (== the VO) so the finale feels like a reward
-      const et = $("endTitle"); if(et) et.textContent = slide.prompt_hi || "";
-      const st = $("endSubtitle"); if(st) st.textContent = (slide.data && slide.data.end_subtitle) || "";
+      /* [end swifty] review 2026-10-07 "use the end screen Swifty animation from hindi-game-gender-identify, as it is"
+         - ported from that game's CELEBRATION ([34v] [H11-161] [H11-177]): ONE SOUND, THEN ONE LINE - the jingle, and
+         on its end (or after 1800 ms, whichever lands first, never twice) the praise. Until the line starts Swiftie
+         stands still (assets/last_swifty_still.webp, the clip's first frame); with it he jumps and talks
+         (assets/last_swifty_end.webp, 3.28 s, plays once from frame 0 - a fresh blob: URL) and then holds its last
+         frame - nothing loops. आगे बढ़ें comes when the line ends. */
+      state.ownsAudio = true;
+      const et = $("endTitle"); if(et) et.textContent = "";
+      const st = $("endSubtitle"); if(st) st.textContent = "";
       const es = $("endScreen"); es.classList.add("show");
       document.body.classList.add("is-end");   // r4: immersive sunburst backdrop (end_screen.webp)
+      const em = es.querySelector(".end-mascot");
+      const setSw = u =>{ try{ if(!em) return; em.removeAttribute("data-src"); em.removeAttribute("src"); void em.offsetWidth; em.setAttribute("src", u); }catch(e){} };
+      setSw(Assets.url("assets/last_swifty_still.webp"));
+      let spoke = false;
+      const speak = ()=>{
+        if(spoke || !$("endScreen").classList.contains("show")) return; spoke = true;
+        setSw(Assets.fresh("assets/last_swifty_end.webp"));
+        play(audioFor(slide, "prompt") || null, ()=>{ if(state.endBtnPending){ $("endBtn").classList.add("show"); state.endBtnPending = false; } });
+      };
+      setTimeout(speak, 1800);
+      playSfx(slide.audio && slide.audio.sfx ? slide.audio.sfx : "sfx_celebrate", speak);
       const c = $("confetti"); c.innerHTML = "";
       starBurst();   // r4: gold star burst from centre (replaces flat falling confetti)
       const masteryScore = state.masteryAttempts ? (state.masteryHits/state.masteryAttempts) : 0;
@@ -5254,12 +3432,6 @@ const SlideModules = {
    "gender" field (e.g. "S"/"P"), the two labels, and (for pairs) f=singular / m=plural; it then
    inherits immediate tap-to-answer feedback, speak-word-on-tap, layered hints, and the engine
    guard for free. Named *_VACHAN (not *_NUMBER) to avoid colliding with MEET_NUMBER = counting. */
-SlideModules.VACHAN_INTRO          = SlideModules.GENDER_INTRO;
-SlideModules.MEET_VACHAN           = SlideModules.MEET_GENDER;
-SlideModules.TAP_VACHAN            = SlideModules.TAP_GENDER;
-SlideModules.TAP_PICTURE_BY_VACHAN = SlideModules.TAP_PICTURE_BY_GENDER;
-SlideModules.SORT_VACHAN           = SlideModules.SORT_GENDER;
-SlideModules.MATCH_VACHAN_PAIRS    = SlideModules.MATCH_GENDER_PAIRS;
 
 /* ---------- 13. CONTROLLER ---------- */
 /* ===== FLN ANIMATION KIT: star-burst (call site) BEGIN =====
@@ -5270,62 +3442,6 @@ SlideModules.MATCH_VACHAN_PAIRS    = SlideModules.MATCH_GENDER_PAIRS;
    fills the same area - only the density and pace change.
    The original is kept as _starBurstOld, unreferenced, to make this reversible. */
 function starBurst(){ FLNMotion.starBurst.fire({ host: "#confetti" }); }
-/* ===== FLN ANIMATION KIT: star-burst (call site) END ===== */
-/* r4: gold star burst for the celebration finale (adopted from Shruti's build) */
-function _starBurstOld(){
-  if(document.documentElement.classList.contains("no-anim")) return;
-  const host = $("confetti"); if(!host) return;
-  const cv = document.createElement("canvas");
-  cv.width = 1333; cv.height = 750;
-  cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
-  host.appendChild(cv);
-  const ctx = cv.getContext("2d");
-  const COLORS = ["#FFE400","#FFBD00","#E89400","#FFCA6C","#FDFFB8"];
-  const TICKS = 100, DECAY = 0.96, START_V = 22;
-  const parts = [];
-  function starPath(r){
-    ctx.beginPath();
-    for(let i=0;i<10;i++){
-      const rad = (i % 2 === 0) ? r : r/2;
-      const a = Math.PI/5*i - Math.PI/2;
-      ctx[i === 0 ? "moveTo" : "lineTo"](Math.cos(a)*rad, Math.sin(a)*rad);
-    }
-    ctx.closePath();
-  }
-  function shoot(){
-    const add = (n, scalar, shape) => {
-      for(let i=0;i<n;i++){
-        const a = Math.random()*Math.PI*2;
-        parts.push({ x:cv.width/2, y:cv.height/2, ax:Math.cos(a), ay:Math.sin(a),
-          vel:START_V*(0.5 + Math.random()), tick:0, scalar, shape,
-          color:COLORS[Math.floor(Math.random()*COLORS.length)],
-          rot:Math.random()*Math.PI*2, spin:(Math.random()-.5)*0.3 });
-      }
-    };
-    add(80, 1.8, "star");
-    add(20, 1.0, "circle");
-  }
-  shoot(); setTimeout(shoot, 150); setTimeout(shoot, 300);
-  let frames = 0;
-  (function frame(){
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    let alive = false;
-    for(const p of parts){
-      if(p.tick >= TICKS) continue;
-      alive = true;
-      p.x += p.ax*p.vel; p.y += p.ay*p.vel; p.vel *= DECAY; p.rot += p.spin; p.tick++;
-      ctx.globalAlpha = 1 - p.tick/TICKS;
-      ctx.fillStyle = p.color;
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-      if(p.shape === "star"){ starPath(8*p.scalar); ctx.fill(); }
-      else { ctx.beginPath(); ctx.arc(0, 0, 6*p.scalar, 0, Math.PI*2); ctx.fill(); }
-      ctx.restore();
-    }
-    frames++;
-    if(alive || frames < 30) requestAnimationFrame(frame);
-    else setTimeout(()=> cv.remove(), 300);
-  })();
-}
 function clearHost(){
   document.body.classList.remove("is-end");   // r4: clear immersive end state when leaving celebration
   $("slideHost").innerHTML = "";
@@ -5336,7 +3452,11 @@ function clearHost(){
   stopAudio();
 }
 
-function mountSlide(idx){
+/* [loading] a slide mounts once its own files are in (Assets.whenSlide: at once, same tick, when they already are).
+   The token keeps the LAST request: two quick jumps never mount the older slide on top of the newer. */
+let _mountTok = 0;
+function mountSlide(idx){ const t = ++_mountTok; Assets.whenSlide(idx, ()=>{ if(t === _mountTok) mountSlideNow(idx); }); }
+function mountSlideNow(idx){
   state.idx = idx;
   state.slideStart = Date.now();
   state.attempts = 0; state.selectedKey = null; state.locked = false;
@@ -5347,6 +3467,7 @@ function mountSlide(idx){
   state.ownsAudio = false;    // a module that drives its OWN audio sequence sets this → skip autoPlayChain
                               // (else the auto prompt-chain stomps/truncates the module's timed VO)
   const slide = CARD.slides[idx];
+  bgmFor(slide.phase);        // QA checklist 2026-10-05: the practice game gets its own music (when shipped)
   /* [14] question_started - only on slides that actually ask something */
   try{ if(XAPI_ANSWERABLE.indexOf(slide.type) >= 0)
          XAPI.send("question_started", { slide_id: slide.id, type: slide.type, phase: slide.phase }); }catch(e){}
@@ -5360,6 +3481,7 @@ function mountSlide(idx){
   $("hintBtn").classList.remove("show");
   $("hintBtn").style.display = "";
   $("navBtn").style.display = "";        // restored by default; tap-to-answer slides hide it themselves
+  $("navBtn").style.left = "";           // (T3 sets its own place for it: beside the door - every other slide, bottom centre)
   // [16i] DEFAULT nav wiring — a module that enables आगे without overriding onclick still advances.
   // (DEMO_COUNT shipped an enabled-but-dead button; auto-INTRO inherited an unfulfillable tap guard.)
   $("navBtn").onclick = ()=> completeSlide(true);
@@ -5382,6 +3504,8 @@ function mountSlide(idx){
   // module renders into the card. Non-tutorial slides mount bare into slideHost as before.
   const isTut = (slide.phase === "tutorial" && slide.type !== "PHASE_TRANSITION" && slide.type !== "CELEBRATION");
   $("stage").classList.toggle("tut", isTut);
+  // data.no_head: no header band / Swiftie on this slide - its instruction is its VO only (P4, review 2026-10-07)
+  $("stage").classList.toggle("no-head", !!(slide.data && slide.data.no_head));
   document.body.classList.toggle("tut-page", isTut);
   // a slide's own backdrop (data.bg, CSS .stage[data-bg]) - only while that slide is up; its module sets --horizon
   $("stage").dataset.bg = (slide.data && slide.data.bg) || ""; $("stage").style.removeProperty("--horizon");
@@ -5463,18 +3587,21 @@ function afterConfetti(fn){
   /* ===== FLN ANIMATION KIT: confetti (advance gate) END ===== */
 }
 /* onscreen headline per gate (display only; distinct from any narration). Eligibility = phase IN this map. */
-const PHASE_GATE_TITLE = { tutorial:"चलिए, शुरू करें!", guided:"चलिए, साथ में करें!", practice:"अब आपकी बारी!" };   // [16h] the lead’s official transition lines (VO = full sentences in the card manifest; NOTE aap-register — flagged)
+const PHASE_GATE_TITLE = { tutorial:"चलिए, शुरू करते हैं!", guided:"चलिए, साथ में करें!", practice:"अब आपकी बारी!" };   // QA checklist 2026-10-05: the headlines are exactly the lines Swiftie speaks (each VO is now that line alone), so the text appears only as she says it
 const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", practice:"vo_pt_practice" };
 /* [peek-2] The clip's own length, and the CSS duck-down that follows it. Both are contracts
    with assets/gif/peeking.webp and @keyframes pgDuck — if either is re-cut, change it here too. */
-const ANIM_ASSETS = ["loader.gif", "new_landing_swiftee_anim.webp", "peeking.webp", "sw_anim_talk.gif", "sw_anim_teach.gif", "sw_anim_tryagain.gif", "sw_head_celebrate_anim.webp", "sw_head_hint_anim.webp", "sw_head_tryagain_anim.webp", "sw_lg_celebrating_anim.webp"];
-const PG_CLIP_MS = 9720;  // peeking.webp: hands arrive, peek, blink, come out, talk with blinks, duck back; 9.72s, plays once.
+const ANIM_ASSETS = ["loader.webp", "new_landing_swiftee_anim.webp", "peeking.webp", "sw_head_celebrate_anim.webp", "sw_head_hint_anim.webp", "sw_head_tryagain_anim.webp", "sw_lg_celebrating_anim.webp"];
+const PG_CLIP_MS = 8304;  // peeking.webp: hands arrive, peek, blink, come out, talk with blinks, duck back; 8.30s, plays once (9.72s before 2026-10-05).
 const PG_EXIT_MS = 520;    // .phase-gate.leaving / @keyframes pgDuck - a FALLBACK bound only; animationend is what actually closes the gate
 /* [peek-5] review 2026-09-30: the headline and VO came up the instant the gate opened, while
    Swiftie was still peeking over the ledge - she "spoke" 4s before her mouth moved. They now
    wait for her: PG_TALK_MS is peeking.webp's first open-mouth frame (frame 58 of 84, measured
    from the clip's ANMF frame durations). Until then the gate is Swiftie alone. */
-const PG_TALK_MS = 4140;
+/* review 2026-10-05: "fasten the gif a little before it starts speaking" - the clip's own frame timings were re-timed
+   (frames 1-58 only: its still holds halved, its motion frames 40 -> 32ms; every frame kept, nothing re-encoded), so she
+   reaches her first open-mouth frame at 2.72s instead of 4.14s. The talking part is untouched. */
+const PG_TALK_MS = 2724;
 const PG_TAIL_MS = 450;    // a VO that ends while her clip is still talking: hold this long after it, then duck
 const PG_LOAD_CAP_MS = 2500;   // never wait longer than this for the clip to decode
 /* [peek-6] review 2026-09-30: "Swifty is glitching very much in the transition screen". Three causes:
@@ -5488,26 +3615,70 @@ const PG_LOAD_CAP_MS = 2500;   // never wait longer than this for the clip to de
       before her hands appeared, seconds long on a school connection. The clip is now fetched ONCE and
       each gate gets a new blob: URL of it; a new URL is a new image, so she starts from frame 0 with
       no network. Where fetch() can't read the file (file:// hosts) the cache-bust remains the fallback. */
-let _peekBlob = null, _peekUrl = "";
-/* after window load: the gate's own <img src> has pulled the file by then, so this is a cache read, not a second download */
-window.addEventListener("load", ()=>{
-  try{ fetch("assets/gif/peeking.webp").then(r => r.ok ? r.blob() : null)
-         .then(b => { if(b) _peekBlob = new Blob([b], { type:"image/webp" }); }).catch(()=>{}); }catch(e){}
-});
+let _peekUrl = "";
+/* [loading] the clip is the loader's GATE file (Assets): fetched once as a Blob, right after the landing's own files -
+   the gate's <img> no longer pulls it with the page, ahead of them. Each gate: a fresh blob: URL of it. */
 function restartPeek(img){
-  if(!_peekBlob){ img.src = "assets/gif/peeking.webp?r=" + Date.now(); return; }
   const old = _peekUrl;
-  img.src = _peekUrl = URL.createObjectURL(_peekBlob);
-  if(old) URL.revokeObjectURL(old);
+  img.src = _peekUrl = Assets.fresh("assets/gif/peeking.webp");
+  if(old && old.indexOf("blob:") === 0) URL.revokeObjectURL(old);
 }
+/* [peek-7] review 2026-10-05: "swifty gif in the transition screen is glitching a lot". The clip itself is clean
+   (84 frames, a smooth rise, no jumps between frames); the glitch is the browser playing a big animated <img> with
+   alpha under the gate's full-screen backdrop blur - frame steps stall and, as measured on the landing (see
+   [landing mascot player]), Chrome sometimes paints nothing for a frame or two. Same cure as the landing: decode the
+   clip ourselves (WebCodecs ImageDecoder, the next frame always decoded ahead) and draw it on a canvas at its
+   displayed size - a canvas keeps its last picture until the next is drawn. play() resolves true once frame 0 is
+   on screen (the gate's clip clock starts there), false = no ImageDecoder / no bytes / an error: use the <img>. */
+const PeekPlayer = (()=>{
+  const SRC = "assets/gif/peeking.webp", TYPE = "image/webp";
+  let run = 0;
+  function stop(){ run++; }
+  function play(cv, img){
+    const my = ++run, blob = Assets.blob(SRC);
+    if(!cv || !blob || typeof ImageDecoder === "undefined") return Promise.resolve(false);
+    if(img) img.style.display = "none";
+    cv.style.display = "";
+    cv.width = cv.height = 900;                  // the clip's 1:1 shape, so the CSS height + width:auto lays it out
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const W = Math.max(1, Math.round(r.width * dpr)), H = Math.max(1, Math.round(r.height * dpr));
+    cv.width = W; cv.height = H;                 // (this also wipes the last gate's parked smile)
+    const ctx = cv.getContext("2d"); ctx.imageSmoothingQuality = "high";
+    const draw = f =>{ ctx.clearRect(0, 0, W, H); ctx.drawImage(f, 0, 0, W, H); };
+    return (async ()=>{
+      if(ImageDecoder.isTypeSupported && !(await ImageDecoder.isTypeSupported(TYPE))) return false;
+      const dec = new ImageDecoder({ data: await blob.arrayBuffer(), type: TYPE });
+      await dec.tracks.ready;
+      const count = dec.tracks.selectedTrack.frameCount;
+      const first = count > 0 ? (await dec.decode({ frameIndex: 0 })).image : null;
+      if(!first || my !== run){ if(first) first.close(); dec.close(); return false; }
+      draw(first);
+      let i = 0, cur = first, due = performance.now() + (cur.duration || 90000) / 1000;   // VideoFrame.duration: us
+      let next = count > 1 ? dec.decode({ frameIndex: 1 }) : null;
+      (async ()=>{
+        while(next){
+          let n; try { n = (await next).image; } catch(e){ break; }   // a failed decode: the frame on show stays
+          const wait = due - performance.now();
+          if(wait > 1) await new Promise(res => setTimeout(res, wait));
+          if(my !== run){ n.close(); break; }                        // a newer gate, or this one closed
+          draw(n); cur.close(); cur = n; i++;
+          due = Math.max(due, performance.now() - 30) + (n.duration || 90000) / 1000;
+          next = i + 1 < count ? dec.decode({ frameIndex: i + 1 }) : null;   // decoded while this one is on show
+        }
+        cur.close(); dec.close();                                    // plays once: the last frame stays drawn
+      })();
+      return true;
+    })().catch(()=> false);
+  }
+  return { play, stop };
+})();
 const _gatedPhases = new Set();   // each phase gate plays ONCE (Start→tutorial, →guided, →practice)
 let _gateToken = 0;
 function phaseBlurTransition(cb, toPhase){
   const tok = ++_gateToken;
   stopNudge(); stopAudio();
-  const gate = $("phaseGate"), img = $("phaseGateImg");
+  const gate = $("phaseGate"), img = $("phaseGateImg"), cv = $("phaseGateCv");
   gate.classList.remove("talking");   // headline stays hidden until she talks
-  if(img) restartPeek(img);           // from frame 0, every gate
   const title = $("phaseGateTitle"); if(title) title.textContent = PHASE_GATE_TITLE[toPhase] || "";
   $("stage").classList.add("blurred", "gating");
   document.body.classList.add("gating");
@@ -5527,7 +3698,16 @@ function phaseBlurTransition(cb, toPhase){
     clipAt = Date.now();
     setTimeout(talk, PG_TALK_MS);
   };
-  if(img && img.decode) img.decode().then(startClock, startClock); else startClock();
+  /* [peek-7] the canvas player first (it needs the gate shown, to measure her); the <img> only if it can't */
+  const useImg = ()=>{
+    if(tok !== _gateToken) return;
+    if(cv) cv.style.display = "none";
+    if(!img){ startClock(); return; }
+    img.style.display = "";
+    restartPeek(img);                 // from frame 0, every gate
+    if(img.decode) img.decode().then(startClock, startClock); else startClock();
+  };
+  PeekPlayer.play(cv, img).then(ok =>{ if(tok !== _gateToken) return; if(ok) startClock(); else useImg(); }, useImg);
   setTimeout(startClock, PG_LOAD_CAP_MS);   // a stalled download never strands the gate
   function talk(){
     if(tok !== _gateToken) return;          // a newer gate superseded us
@@ -5544,6 +3724,7 @@ function phaseBlurTransition(cb, toPhase){
     const clipLeft = Math.max(0, PG_CLIP_MS - (Date.now() - clipAt));
     const hold = voSrc ? Math.min(clipLeft, PG_TAIL_MS) : clipLeft;
     const finish = ()=>{
+      PeekPlayer.stop();
       gate.classList.remove("show", "leaving", "talking");
       $("stage").classList.remove("blurred");
       if(cb) cb();                              // mounts the next slide
@@ -5562,10 +3743,12 @@ function phaseBlurTransition(cb, toPhase){
         if(done) return; done = true;
         clearTimeout(fallback);
         if(img) img.removeEventListener("animationend", once);
+        if(cv) cv.removeEventListener("animationend", once);
         if(tok !== _gateToken){ closeGate(); return; }
         finish();
       };
-      if(img) img.addEventListener("animationend", once);
+      if(img) img.addEventListener("animationend", once);   // only the one on show runs the duck
+      if(cv) cv.addEventListener("animationend", once);
       gate.classList.add("leaving");
       // reduced-motion, a missing clip, a backgrounded tab: nothing to end, so close anyway
       fallback = setTimeout(once, PG_EXIT_MS + 500);
@@ -5591,7 +3774,8 @@ function completeSlide(success){
   if(next && next.phase !== slide.phase && next.type !== "CELEBRATION" && next.type !== "PHASE_TRANSITION"
      && PHASE_GATE_TITLE[next.phase] && !_gatedPhases.has(next.phase)){
     _gatedPhases.add(next.phase);
-    afterConfetti(()=>{ if(state.idx === fromIdx) phaseBlurTransition(()=> mountSlide(nextIdx), next.phase); });
+    afterConfetti(()=>{ if(state.idx === fromIdx) Assets.whenSlide(nextIdx, ()=>{                   // [loading] the gate + that slide's files
+      if(state.idx === fromIdx) phaseBlurTransition(()=> mountSlide(nextIdx), next.phase); }, next.phase); });
     return;
   }
   afterConfetti(()=>{ if(state.idx === fromIdx) mountSlide(nextIdx); });
@@ -5654,6 +3838,425 @@ function conceptTileHTML(c){
   }
 }
 
+/* ---------- 14b. ASSETS: THE LANDING FIRST, THEN EVERY FILE OF THE LESSON ----------
+   The white boot loader holds only until the LANDING's own files are in (tag CRIT: its art, the title font, the play
+   button, the greeting + Swiftee's wave) - so the first screen comes up fast. Then every other file in ASSET_SIZES (all
+   shipped files, generated from disk) streams in behind the landing while the greeting plays, so nothing loads
+   mid-lesson. (A loading bar in the play button's place was tried on 2026-10-06 and taken out at review: "remove this
+   loader". The play tap needs no gate of its own - slide 0 mounts through whenSlide, below, which waits for its files.)
+     - queue: the landing's files first (nothing else starts until they are in), then SMALLEST FIRST - pictures,
+       backdrops and clips land in the first seconds and never wait behind the big animated WebPs. 5 at a time.
+     - a fetched file is kept as a Blob: an <img> / <audio> that is later given that file's path gets a blob: URL of it
+       instead (the MutationObserver below; play() for the voice element), so "loaded" really means local. A blob: URL
+       that fails falls back, once, to the file's own URL. CSS url() backgrounds read the same bytes from the HTTP
+       cache the fetch just filled.
+     - NEVER BLOCKS: a failed, stalled (STALL_MS without a byte) or over-long (CAP_MS) transfer is aborted and counts as
+       done - the element keeps its original src and loads it the normal way. file:// (fetch blocked) is done at once.
+   Assets.whenSlide(i, fn): fn runs once slide i's own files are in (same tick when they already are - almost always, as
+   the files arrive while the greeting plays); a spinner shows after 300ms and after 8s fn runs anyway. Animations that must restart from frame 0
+   (the peeking gate, the cheers) get a fresh blob: URL per restart (Assets.fresh) - no ?r= re-downloads.
+   ?noprefetch (QA only) turns the queue off, so a slide's own requests can be watched.
+   Formats (2026-10-06): images WebP, audio Ogg/Opus, fonts WOFF2 - Chrome / Edge / Firefox, and Safari 17+ (Ogg Opus
+   from Safari 18.4). */
+/* @asset-sizes:begin (generated by tools/gen_asset_sizes.js - do not edit by hand) */
+const ASSET_SIZES = {
+  "assets/background_1st_screen.webp": 53190,
+  "assets/badge_result.webp": 29754,
+  "assets/badge_star.svg": 1444,
+  "assets/basket_back.webp": 40634,
+  "assets/basket_front.webp": 21510,
+  "assets/bg_bedroom.webp": 8108,
+  "assets/bg_classroom_v2.webp": 105796,
+  "assets/bg_corkboard.webp": 31498,
+  "assets/bg_dusk.webp": 9130,
+  "assets/bg_fridge.webp": 6058,
+  "assets/bg_kitchen.webp": 12864,
+  "assets/bg_room.webp": 5646,
+  "assets/bg_terrace.webp": 13032,
+  "assets/bg_veranda.webp": 8920,
+  "assets/bgdeco_spark.svg": 220,
+  "assets/bgdeco_star.svg": 391,
+  "assets/bgdeco_star_o.svg": 448,
+  "assets/btn-play-round-waiting.svg": 2655,
+  "assets/btn-play-round.svg": 2645,
+  "assets/cls_shelf.webp": 41810,
+  "assets/cubes_blue_row.webp": 44710,
+  "assets/end_screen.webp": 33634,
+  "assets/floor_planks.svg": 1405,
+  "assets/fonts/baloo2-600.woff2": 87020,
+  "assets/fonts/baloo2-700.woff2": 86108,
+  "assets/fonts/baloo2-800.woff2": 74512,
+  "assets/gif/loader.webp": 137428,
+  "assets/gif/new_landing_swiftee_anim.webp": 641710,
+  "assets/gif/peeking.webp": 1252974,
+  "assets/gif/sw_head_celebrate_anim.webp": 293618,
+  "assets/gif/sw_head_hint_anim.webp": 316076,
+  "assets/gif/sw_head_tryagain_anim.webp": 313414,
+  "assets/gif/sw_lg_celebrating_anim.webp": 322604,
+  "assets/holder_cloudtub_back.webp": 32490,
+  "assets/holder_cloudtub_front.webp": 27176,
+  "assets/holder_laundry_back.webp": 47884,
+  "assets/holder_laundry_front.webp": 35856,
+  "assets/holder_wicker_back.webp": 155016,
+  "assets/holder_wicker_front.webp": 108610,
+  "assets/last_swifty_end.webp": 1779506,
+  "assets/last_swifty_still.webp": 26456,
+  "assets/mascot.webp": 8006,
+  "assets/nudge_fx_ring_inner.svg": 786,
+  "assets/nudge_fx_ring_outer.svg": 769,
+  "assets/nudge_fx_sparks.svg": 2476,
+  "assets/nudge_hand_head.svg": 9718,
+  "assets/nudge_hand_new.svg": 6860,
+  "assets/nudge_slide_right_v1.svg": 12310,
+  "assets/obj_almirah.webp": 44002,
+  "assets/obj_almirah_sock.webp": 16842,
+  "assets/obj_bed.webp": 61714,
+  "assets/obj_bench.webp": 27022,
+  "assets/obj_bench_p2.webp": 27244,
+  "assets/obj_blackboard.webp": 32152,
+  "assets/obj_blackboard_p2.webp": 24796,
+  "assets/obj_chair.webp": 71148,
+  "assets/obj_chair_short.webp": 86918,
+  "assets/obj_chair_tall.webp": 89764,
+  "assets/obj_charpai.webp": 86194,
+  "assets/obj_door.webp": 27900,
+  "assets/obj_fridge.webp": 42888,
+  "assets/obj_mat_1.webp": 165508,
+  "assets/obj_mat_2.webp": 145580,
+  "assets/obj_pillow.webp": 90784,
+  "assets/obj_stool.webp": 45510,
+  "assets/obj_table_long.webp": 31502,
+  "assets/obj_table_measure.webp": 45156,
+  "assets/obj_table_short.webp": 21208,
+  "assets/obj_tv.webp": 52550,
+  "assets/obj_watercan.webp": 93936,
+  "assets/obj_window.webp": 55550,
+  "assets/painting_answer.webp": 47420,
+  "assets/painting_answer_order.webp": 4014,
+  "assets/painting_blank.webp": 35620,
+  "assets/painting_carrier.webp": 123524,
+  "assets/painting_cubes.webp": 68334,
+  "assets/painting_layers.webp": 59066,
+  "assets/painting_upright.webp": 105140,
+  "assets/pencil_face_rig.webp": 11068,
+  "assets/pencil_purple.webp": 63574,
+  "assets/prop_cat.webp": 26404,
+  "assets/robot_body.webp": 47744,
+  "assets/robot_face_happy.webp": 13272,
+  "assets/robot_face_look.webp": 14988,
+  "assets/robot_face_sad.webp": 12836,
+  "assets/robot_screen.webp": 10534,
+  "assets/robot_side.webp": 26946,
+  "assets/room_clock.webp": 12296,
+  "assets/room_door.webp": 19620,
+  "assets/room_flags.webp": 21862,
+  "assets/room_window.webp": 33842,
+  "assets/scene_classroom.svg": 1740,
+  "assets/sfx/bgm.ogg": 1443997,
+  "assets/sfx/sfx_confetti.ogg": 11582,
+  "assets/sfx/sfx_correct.ogg": 10099,
+  "assets/sfx/sfx_next.ogg": 1538,
+  "assets/sfx/sfx_nudge.ogg": 3537,
+  "assets/sfx/sfx_play.ogg": 3094,
+  "assets/sfx/sfx_wrong.ogg": 6095,
+  "assets/start_card.webp": 1024,
+  "assets/start_mascot.webp": 18020,
+  "assets/startnew_bg_plain.webp": 24446,
+  "assets/sw_head_celebrate.webp": 41998,
+  "assets/sw_head_hint.webp": 36812,
+  "assets/sw_head_neutral.webp": 31940,
+  "assets/sw_head_talking.webp": 37384,
+  "assets/sw_head_tryagain.webp": 48836,
+  "assets/toybox_back.webp": 46950,
+  "assets/toybox_front.webp": 23106,
+  "assets/voiceover/sfx_celebrate.ogg": 8344,
+  "assets/voiceover/vo_demo_start.ogg": 7652,
+  "assets/voiceover/vo_hint_compare.ogg": 25407,
+  "assets/voiceover/vo_hint_count.ogg": 24948,
+  "assets/voiceover/vo_hint_dd_1.ogg": 17585,
+  "assets/voiceover/vo_hint_dd_2.ogg": 15071,
+  "assets/voiceover/vo_hint_drag.ogg": 13012,
+  "assets/voiceover/vo_hint_mcq2_1.ogg": 16331,
+  "assets/voiceover/vo_hint_mcq2_2.ogg": 12399,
+  "assets/voiceover/vo_hint_mcq3_1.ogg": 14337,
+  "assets/voiceover/vo_hint_tap.ogg": 17997,
+  "assets/voiceover/vo_landing.ogg": 32354,
+  "assets/voiceover/vo_match_instr.ogg": 11850,
+  "assets/voiceover/vo_match_ok.ogg": 18568,
+  "assets/voiceover/vo_num_1.ogg": 2617,
+  "assets/voiceover/vo_num_2.ogg": 2795,
+  "assets/voiceover/vo_num_3.ogg": 2880,
+  "assets/voiceover/vo_num_4.ogg": 3047,
+  "assets/voiceover/vo_num_5.ogg": 2612,
+  "assets/voiceover/vo_num_6.ogg": 2621,
+  "assets/voiceover/vo_num_7.ogg": 3108,
+  "assets/voiceover/vo_num_8.ogg": 3086,
+  "assets/voiceover/vo_num_9.ogg": 2775,
+  "assets/voiceover/vo_ok_dd.ogg": 10303,
+  "assets/voiceover/vo_ok_mcq2.ogg": 9707,
+  "assets/voiceover/vo_p13_intro.ogg": 32060,
+  "assets/voiceover/vo_p13_measure.ogg": 8800,
+  "assets/voiceover/vo_p13_place.ogg": 10765,
+  "assets/voiceover/vo_p2_ask.ogg": 17889,
+  "assets/voiceover/vo_p2_fb.ogg": 8670,
+  "assets/voiceover/vo_p3_child.ogg": 18404,
+  "assets/voiceover/vo_p3_done.ogg": 13699,
+  "assets/voiceover/vo_p3_explain_a.ogg": 15992,
+  "assets/voiceover/vo_p3_explain_b.ogg": 14732,
+  "assets/voiceover/vo_p3_head.ogg": 21299,
+  "assets/voiceover/vo_p4_child.ogg": 21277,
+  "assets/voiceover/vo_p4_done.ogg": 15122,
+  "assets/voiceover/vo_p4_explain_a.ogg": 17725,
+  "assets/voiceover/vo_p4_explain_b.ogg": 6652,
+  "assets/voiceover/vo_p4_head.ogg": 27364,
+  "assets/voiceover/vo_p5_ask.ogg": 12413,
+  "assets/voiceover/vo_p5_instr.ogg": 10976,
+  "assets/voiceover/vo_p5_ok.ogg": 13477,
+  "assets/voiceover/vo_p6_ask.ogg": 13954,
+  "assets/voiceover/vo_p6_instr.ogg": 11475,
+  "assets/voiceover/vo_p6_ok.ogg": 14560,
+  "assets/voiceover/vo_p6b_ask.ogg": 12300,
+  "assets/voiceover/vo_p6b_instr.ogg": 9893,
+  "assets/voiceover/vo_p6b_ok.ogg": 13117,
+  "assets/voiceover/vo_p7_ask.ogg": 13102,
+  "assets/voiceover/vo_p7_instr.ogg": 9760,
+  "assets/voiceover/vo_p7_ok.ogg": 13914,
+  "assets/voiceover/vo_p8_ask.ogg": 14441,
+  "assets/voiceover/vo_p8_ok.ogg": 12448,
+  "assets/voiceover/vo_p9_ask.ogg": 14593,
+  "assets/voiceover/vo_p9_ok.ogg": 12280,
+  "assets/voiceover/vo_pt_guided.ogg": 7736,
+  "assets/voiceover/vo_pt_practice.ogg": 7611,
+  "assets/voiceover/vo_pt_tutorial.ogg": 7759,
+  "assets/voiceover/vo_rule_a.ogg": 22761,
+  "assets/voiceover/vo_rule_b.ogg": 8243,
+  "assets/voiceover/vo_rule_c.ogg": 10176,
+  "assets/voiceover/vo_well_done.ogg": 15199
+};
+/* @asset-sizes:end */
+const Assets = (function(){
+  const CRIT = -3, GATE = -2, UI = -1, REST = 999;
+  const CONCURRENCY = 5, STALL_MS = 15000, CAP_MS = 90000, CRIT_CAP_MS = 20000;
+  let q; try{ q = new URLSearchParams(location.search); }catch(e){ q = { has: ()=> false }; }
+  const OFF = q.has("noprefetch");
+  const HTTP = /^https?:$/.test(location.protocol);           // file:// can't fetch(): every element loads its own file there
+  const items = new Map(), perSlide = [], blobs = new Map(), urls = new Map();
+  let seq = 0, active = 0, started = false, hold = false;
+  const A = (CARD.assets || {});
+  const known = src => Object.prototype.hasOwnProperty.call(ASSET_SIZES, src);
+  const vo = id => (A.audio && typeof A.audio[id] === "string" && A.audio[id].indexOf("assets/") === 0) ? A.audio[id]
+                                                                                                      : "assets/voiceover/" + id + "." + AUDIO_EXT;
+  const art = f => "assets/" + (ANIM_ASSETS.indexOf(f) >= 0 ? "gif/" : "") + f;
+  const TYPES = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", svg: "image/svg+xml", ogg: "audio/ogg", woff2: "font/woff2" };
+  const typeOf = src => TYPES[(src.split("?")[0].split(".").pop() || "").toLowerCase()] || "";
+  /* a font file is "in" once the face is ready to draw too (fetched bytes + document.fonts.load: no swap later) */
+  const faceOf = src =>{ const m = /baloo2-(\d+)\.woff2$/.exec(src); return m ? m[1] + " 1em 'Baloo 2'" : null; };
+  function add(src, tag){
+    if(!src || !known(src)) return null;                       // not shipped: never requested (no 404s)
+    let it = items.get(src);
+    if(it){ if(tag < it.tag) it.tag = tag; return it; }
+    it = { src: src, tag: tag, n: seq++, st: 0, size: ASSET_SIZES[src] || 1, cbs: [] };   // st: 0 queued, 1 loading, 2 in
+    items.set(src, it); return it;
+  }
+  function ready(){ if(OFF) return true; if(!items.size) return false; for(const it of items.values()) if(it.st !== 2) return false; return true; }
+  function finish(it){
+    if(it.st === 2) return;
+    if(it.st === 1) active--;
+    it.st = 2;
+    /* an <img data-src> in index.html that only needs its picture later gets it now (it used to start downloading
+       with the page, ahead of the landing's own files) */
+    document.querySelectorAll('img[data-src="' + it.src + '"]').forEach(im =>{ im.src = it.src; im.removeAttribute("data-src"); });
+    it.cbs.splice(0).forEach(f =>{ try{ f(); }catch(e){} });
+    pump();
+  }
+  function load(it){
+    it.st = 1; active++;
+    if(!HTTP){ finish(it); return; }
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    let stallT = 0, capT = 0, over = false;
+    const end = blob =>{
+      if(over) return; over = true; clearTimeout(stallT); clearTimeout(capT);
+      if(blob) blobs.set(it.src, blob);
+      const face = faceOf(it.src);
+      if(!face || !document.fonts || !document.fonts.load) return finish(it);
+      const t = setTimeout(()=> finish(it), 3000);
+      document.fonts.load(face).then(()=>{ clearTimeout(t); finish(it); }, ()=>{ clearTimeout(t); finish(it); });
+    };
+    const abort = ()=>{ try{ if(ctl) ctl.abort(); }catch(e){} end(null); };   // stalled / too long: counts as done
+    const arm = ()=>{ clearTimeout(stallT); stallT = setTimeout(abort, STALL_MS); };
+    capT = setTimeout(abort, it.tag <= CRIT ? CRIT_CAP_MS : CAP_MS); arm();
+    fetch(it.src, ctl ? { signal: ctl.signal } : undefined).then(r =>{
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      const len = +r.headers.get("content-length");
+      if(len > 0 && !r.headers.get("content-encoding")) it.size = len;
+      const type = typeOf(it.src) || r.headers.get("content-type") || "";
+      if(!r.body || !r.body.getReader) return r.blob().then(b => new Blob([b], { type: type }));
+      const rd = r.body.getReader(), parts = [];
+      const next = ()=> rd.read().then(c =>{
+        if(c.done) return new Blob(parts, { type: type });
+        parts.push(c.value); arm();
+        return next();
+      });
+      return next();
+    }).then(end, ()=> end(null));
+  }
+  function pump(){
+    if(OFF || !started) return;
+    let crit = false;
+    for(const it of items.values()) if(it.tag <= CRIT && it.st !== 2){ crit = true; break; }
+    /* the landing's files (CRIT) and anything a waiting slide asked for (GATE) by tag; the rest smallest first */
+    const rank = it => it.tag <= GATE ? it.tag : 0;
+    while(active < CONCURRENCY){
+      let best = null;
+      for(const it of items.values())
+        if(it.st === 0 && (!best || rank(it) < rank(best) || (rank(it) === rank(best) && (it.size < best.size || (it.size === best.size && it.n < best.n))))) best = it;
+      if(!best || ((crit || hold) && best.tag > CRIT)) return;   // the landing's own files have the line to themselves
+      load(best);
+    }
+  }
+  function whenDone(srcs, cb){
+    const pend = srcs.map(s => items.get(s)).filter(it => it && it.st !== 2);
+    let left = pend.length;
+    if(!left){ cb(); return; }
+    pend.forEach(it => it.cbs.push(()=>{ if(--left === 0) cb(); }));
+  }
+  /* the engine art a slide's KIND draws, which its card data does not name (CSS backdrops, holders, MDK pieces) */
+  const HOLDER = { basket: ["basket_back", "basket_front"], laundry: ["holder_laundry_back", "holder_laundry_front"],
+    cloudtub: ["holder_cloudtub_back", "holder_cloudtub_front"], wicker: ["holder_wicker_back", "holder_wicker_front"],
+    painting: ["painting_carrier", "painting_layers", "painting_cubes", "painting_blank", "painting_answer", "painting_upright"] };
+  function slideArt(s){
+    const d = s.data || {}, out = [], img = f => out.push("assets/" + f + "." + IMG_EXT);
+    if(d.bg && d.bg !== "softboard") img("bg_" + d.bg);                            // #stage[data-bg] (style.css; the softboard is CSS only)
+    if((s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK") && !d.keep_holder) ["robot_body", "robot_screen", "robot_side"].forEach(img);   // [robot] MDK.robot
+    if(s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK" || s.type === "COMPARE_MEASURED"){
+      if(s.type === "COMPARE_MEASURED" || d.keep_holder) (HOLDER[d.holder] || ["toybox_back", "toybox_front"]).forEach(img);   // MDK.toybox / basket / holder / painting
+      img("badge_result"); out.push("assets/badge_star.svg");                       // MDK.plate
+    }
+    if(d.holder === "painting" && d.keep_holder) out.push("assets/painting_answer_order.webp");
+    if(d.floor === "wood") out.push("assets/floor_planks.svg");
+    if(s.type === "MEASURE_DEMO") out.push(art("sw_lg_celebrating_anim.webp"));     // MDK.pose("cheer")
+    if(s.type === "CLASSROOM_FIT" && A.image && A.image.scene_classroom) out.push(A.image.scene_classroom);
+    if(s.type === "CELEBRATION"){ img("end_screen"); out.push(art("sw_lg_celebrating_anim.webp"), vo("sfx_celebrate")); }
+    if(s.phase === "tutorial" && s.type !== "CELEBRATION") img("start_mascot");      // the tutorial card's Swiftie
+    return out;
+  }
+  const PEEK = art("peeking.webp");
+  const FONTS = ["assets/fonts/baloo2-800.woff2", "assets/fonts/baloo2-700.woff2", "assets/fonts/baloo2-600.woff2"];
+  function gateFiles(phase){ return [PEEK, vo(PHASE_GATE_VO[phase])].filter(Boolean); }
+  function init(){
+    if(items.size) return;
+    /* CRIT: the landing - what the boot loader waits for */
+    ["startnew_bg_plain.webp", "start_card.webp", "background_1st_screen.webp", "pencil_purple.webp", "pencil_face_rig.webp",
+     "cubes_blue_row.webp", "btn-play-round-waiting.svg", "btn-play-round.svg", "bgdeco_star.svg", "bgdeco_star_o.svg",
+     "bgdeco_spark.svg"].forEach(f => add("assets/" + f, CRIT));
+    add(art("new_landing_swiftee_anim.webp"), CRIT);                                // Swiftee's wave (sgMascotPlayer reads its Blob)
+    add(FONTS[0], CRIT);                                                            // the title's weight; the others next
+    add(vo("vo_landing"), CRIT);
+    /* each slide, in lesson order: whenSlide's lists */
+    const ids = Object.keys(A.audio || {});
+    (CARD.slides || []).forEach((s, i)=>{
+      const t = JSON.stringify(s), list = FONTS.slice();                            // (every slide: no text in a fallback face)
+      (t.match(/assets\/[\w\/.\-]+\.(?:webp|png|svg|jpg|gif|ogg|mp3)/g) || []).forEach(src => list.push(src));
+      ids.forEach(k =>{ if(t.indexOf('"' + k + '"') >= 0) list.push(vo(k)); });
+      slideArt(s).forEach(src => list.push(src));
+      const prev = CARD.slides[i - 1];
+      if(PHASE_GATE_TITLE[s.phase] && (!prev || prev.phase !== s.phase)) gateFiles(s.phase).forEach(src => list.push(src));
+      perSlide[i] = [...new Set(list)].filter(known);
+      perSlide[i].forEach(src => add(src, i));
+    });
+    /* ...and EVERY other shipped file: the bar reaches 100% only when the whole lesson is local */
+    Object.keys(ASSET_SIZES).forEach(src => add(src, REST));
+  }
+  /* the spinner: a slide that is still waiting for its own files */
+  let waiting = 0;
+  function spin(on){
+    let el = document.getElementById("assetWait");
+    if(!el){ el = document.createElement("div"); el.id = "assetWait"; el.className = "asset-wait"; el.setAttribute("aria-hidden", "true"); document.body.appendChild(el); }
+    waiting = Math.max(0, waiting + (on ? 1 : -1));
+    el.classList.toggle("show", waiting > 0);
+  }
+  function whenSlide(i, cb, phase){
+    if(OFF || !perSlide[i]){ cb(); return; }
+    const srcs = perSlide[i].concat(phase ? gateFiles(phase) : []);
+    const pend = srcs.filter(s =>{ const it = items.get(s); return it && it.st !== 2; });
+    if(!pend.length){ cb(); return; }
+    pend.forEach(s =>{ const it = items.get(s); if(it.st === 0 && it.tag > GATE) it.tag = GATE; });   // jump the queue
+    start();
+    let fired = false, spun = false;
+    const t0 = setTimeout(()=>{ if(!fired){ spun = true; spin(true); } }, 300);
+    const go = ()=>{ if(fired) return; fired = true; clearTimeout(t0); clearTimeout(t1); if(spun) spin(false); cb(); };
+    const t1 = setTimeout(go, 8000);
+    whenDone(pend, go);
+  }
+  function start(){ if(!started){ started = true; init(); } pump(); }
+  /* critical(extra, cb): cb once the landing's own files are in, and the extra promise (Swiftee's wave) has settled */
+  function critical(extra, cb){
+    init(); hold = true; start();
+    const crit = [...items.values()].filter(it => it.tag <= CRIT).map(it => it.src);
+    let left = 2; const one = ()=>{ if(--left === 0) release(); };
+    const release = ()=>{ if(!hold) return; hold = false; pump(); cb(); };
+    whenDone(crit, one);
+    if(extra && extra.then) extra.then(one, one); else one();
+    setTimeout(release, 10000);                                  // (the boot loader's own watchdog lifts it then too)
+  }
+  /* blobOf(src): a promise of the file's Blob (null when it could not be fetched) - sgMascotPlayer's one download */
+  function blobOf(src){
+    return new Promise(res =>{
+      if(!HTTP || !known(src)) return res(null);
+      init(); const it = items.get(src);
+      const give = ()=> res(blobs.get(src) || null);
+      if(!it || it.st === 2) give(); else it.cbs.push(give);
+    });
+  }
+  /* url(src): one shared blob: URL of a fetched file, else the file's own path */
+  function url(src){
+    if(!blobs.has(src)) return src;
+    if(!urls.has(src)) urls.set(src, URL.createObjectURL(blobs.get(src)));
+    return urls.get(src);
+  }
+  /* a fresh blob: URL of a fetched animation (it plays from frame 0), else the file with a cache-bust (file://) */
+  function fresh(src){ const b = blobs.get(src); return b ? URL.createObjectURL(b) : src + "?r=" + Date.now(); }
+  /* ---- blob: swap: an <img>/<audio>/<video> given a fetched file's path shows the local copy instead. Only at the
+     moment it is given the path (never a picture already on screen: no flash), and not on the landing card, whose
+     pencil rules match its src. data-asset keeps the path (srcOf). A blob: URL that errors goes back, once, to the
+     file's own URL (and a playing clip resumes). */
+  function swap(el){
+    if(!el || el._noBlob || !el.getAttribute) return;
+    const s = el.getAttribute("src");
+    if(!s || !blobs.has(s) || (el.closest && el.closest("#startGate"))) return;
+    el.setAttribute("data-asset", s);
+    if(!el._blobFallback){
+      el._blobFallback = true;
+      el.addEventListener("error", function onErr(){
+        if(!/^blob:/.test(el.getAttribute("src") || "")) return;
+        el.removeEventListener("error", onErr); el._noBlob = true;
+        const playing = el.tagName !== "IMG" && el._wantPlay;
+        el.setAttribute("src", el.getAttribute("data-asset"));
+        if(playing && el.play) el.play().catch(()=>{});
+      });
+      if(el.tagName !== "IMG"){ el.addEventListener("play", ()=>{ el._wantPlay = true; }); el.addEventListener("pause", ()=>{ el._wantPlay = false; }); }
+    }
+    el.setAttribute("src", url(s));
+  }
+  const SWAP_SEL = "img[src],audio[src],video[src],source[src]";
+  if(HTTP && !OFF && typeof MutationObserver === "function"){
+    new MutationObserver(recs =>{
+      for(const r of recs){
+        if(r.type === "attributes"){ if(r.target.matches && r.target.matches(SWAP_SEL)) swap(r.target); continue; }
+        r.addedNodes.forEach(n =>{
+          if(n.nodeType !== 1) return;
+          if(n.matches(SWAP_SEL)) swap(n);
+          if(n.firstElementChild) n.querySelectorAll(SWAP_SEL).forEach(swap);
+        });
+      }
+    }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["src"] });
+  }
+  return { CRIT: CRIT, GATE: GATE, UI: UI, REST: REST, start: start, critical: critical, whenSlide: whenSlide,
+           ready: ready, blob: src => blobs.get(src) || null, blobOf: blobOf, url: url, fresh: fresh };
+})();
+/* srcOf(el): the file an element shows - its path, even while it plays a blob: URL of it (Assets) */
+function srcOf(el){ return el ? (el.getAttribute("data-asset") || el.getAttribute("src") || "") : ""; }
+
 /* ---------- 15. BOOT ---------- */
 function boot(){
   /* [14] activity_launched - once, at mount */
@@ -5708,13 +4311,15 @@ function boot(){
      watchdog releases the button even if the greeting never reports back at all.
      NB the waiting state is .sg-waiting + aria-disabled, NOT the disabled attribute - a disabled
      button swallows the tap that has to start a blocked greeting. */
-  let _greetingHeard = false, _startIdleT = 0, _startWatchT = 0;
+  let _greetingHeard = false, _startIdleT = 0, _startWatchT = 0, _starting = false;
   const onLandingNow = ()=> { const g = $("startGate"); return g && !g.classList.contains("hidden"); };
   const startWaiting = ()=>{ const b = $("sgBtn"); return !b || b.classList.contains("sg-waiting"); };
   const disarmStartPulse = ()=>{ clearTimeout(_startIdleT); _startIdleT = 0; const b = $("sgBtn"); if(b) b.classList.remove("idle-pulse"); };
   const armStartPulse = ()=>{
     disarmStartPulse();
-    _startIdleT = setTimeout(()=>{ const b = $("sgBtn"); if(b && !startWaiting() && onLandingNow()) b.classList.add("idle-pulse"); }, 5000);
+    /* QA checklist 2026-10-05: "the Play button pulsates immediately after the VO is complete" - it starts pulsing as
+       its one-shot pop settles (was: only after 5s untouched) */
+    _startIdleT = setTimeout(()=>{ const b = $("sgBtn"); if(b && !startWaiting() && onLandingNow()) b.classList.add("idle-pulse"); }, 600);
   };
   const setStartBtnReady = (ready)=>{
     const b = $("sgBtn"); if(!b) return;
@@ -5723,7 +4328,7 @@ function boot(){
     b.disabled = false;
     b.classList.toggle("sg-waiting", !ready);
     b.setAttribute("aria-disabled", ready ? "false" : "true");
-    if(img) img.src = ready ? "assets/btn-play-blob.svg" : "assets/btn-play-blob-waiting.svg";
+    if(img) img.src = ready ? "assets/btn-play-round.svg" : "assets/btn-play-round-waiting.svg";   // HI02H11_L01_S01's round play button (review 2026-10-06)
     if(!ready){ disarmStartPulse(); b.classList.remove("sg-pop"); return; }
     if(!was){ b.classList.remove("sg-pop"); void b.offsetWidth; b.classList.add("sg-pop");
       setTimeout(()=> b.classList.remove("sg-pop"), 900); }
@@ -5741,6 +4346,9 @@ function boot(){
     clearTimeout(_startWatchT); _startWatchT = setTimeout(()=> releaseStart(true), 15000);   // watchdog (forces it)
     /* released only when the greeting was really heard; a blocked/failed start leaves it grey for the
        child's first tap (or the watchdog) */
+    /* review 2026-10-05: "why is the sound box getting disabled - this should not happen anywhere in the game": the
+       speaker is never greyed out (the QA checklist's disabled-while-the-greeting-speaks state is gone). A tap while the
+       greeting is still playing is ignored, as on every speaker (replayTap), so it never restarts the line mid-way. */
     play(landSrc, ()=>{ if(voEl.ended){ _greetingHeard = true; releaseStart(); } });
   };
   // any tap on the landing restarts the 5s idle timer (only once the button is live)
@@ -5749,25 +4357,41 @@ function boot(){
     if(replayTap(null, "landing_chip")) playLanding(); };   // [QA 11] the landing chip reports audio_replayed too
   /* ---- [landing mascot player] (review 2026-09-29: "swifty is getting glitched ... at the starting only"). Measured
      on the landing with a frame-by-frame screen recording: in about half the loads Chrome paints NOTHING where Swifty
-     is for 1-2 frames, exactly when the <img>'s animated WebP (560x550, alpha) steps to its next frame while the landing
+     is for 1-2 frames, exactly when the <img>'s animated WebP (alpha) steps to its next frame while the landing
      is busy starting up - with the original HI01 file too. A canvas cannot blink like that: it keeps its last picture
      until the next one is drawn. So where the browser can decode the file itself (WebCodecs ImageDecoder), Swifty is
      drawn on a canvas at its displayed size, the next frame always decoded ahead. Anything missing or failing (no
-     ImageDecoder, file:// fetch, a decode error, not ready when the loader lifts) keeps the plain <img> and its restart
-     below, exactly as before. ---- */
+     ImageDecoder, a decode error, not ready when the loader lifts) keeps the plain <img> and its restart below.
+     [loading] ONE download (2026-10-01): the clip used to be fetched for the decoder AND pulled by the <img src> beside
+     it - 1.6MB twice on the landing's critical path, and once more by the ?r= restart. The <img> has only a data-src
+     now: the file is fetched once (index.html starts it with the page, on http(s)), the decoder reads those bytes,
+     and the <img> path shows them as a blob: URL. file:// can't fetch(): there the plain <img src>, as before.
+     `ready` settles once Swiftee can be shown - one of the things the boot loader waits for. ---- */
   const sgMascotPlayer = (()=>{
     const img = document.querySelector(".sg-mascot");
-    if(!img || typeof ImageDecoder === "undefined" || typeof fetch === "undefined") return null;
-    const url = (img.getAttribute("src") || "").split("?")[0], TYPE = "image/webp";
-    let dec = null, count = 0, first = null, ok = false, dead = false;
-    (async ()=>{                                                   // decode starts at once, under the loader
-      if(ImageDecoder.isTypeSupported && !(await ImageDecoder.isTypeSupported(TYPE))) return;
-      const res = await fetch(url); if(!res.ok) return;
-      dec = new ImageDecoder({ data: await res.arrayBuffer(), type: TYPE });
-      await dec.tracks.ready; count = dec.tracks.selectedTrack.frameCount;
-      first = (await dec.decode({ frameIndex: 0 })).image;
-      ok = count > 0 && !dead;
-    })().catch(()=>{ ok = false; });
+    if(!img) return null;
+    const url = img.getAttribute("data-src") || (img.getAttribute("src") || "").split("?")[0], TYPE = "image/webp";
+    let dec = null, count = 0, first = null, ok = false, dead = false, blob = null, blobUrl = "", pending = true;
+    const shown = ()=> new Promise(res =>{
+      if(img.complete && img.naturalWidth) return res();
+      img.onload = ()=> res(); img.onerror = ()=>{ img.style.display = "none"; res(); };
+    });
+    const show = src =>{ img.removeAttribute("data-src"); img.src = src; return shown(); };
+    const ready = (async ()=>{                                     // fetch + decode start at once, under the loader
+      let buf = null;
+      try{ const b = await Assets.blobOf(url); if(b){ blob = new Blob([b], { type: TYPE }); buf = await blob.arrayBuffer(); } }catch(e){}   // the loader's one download (Assets, CRIT)
+      if(!buf){ pending = false; return show(url); }
+      try{
+        if(typeof ImageDecoder !== "undefined" && !(ImageDecoder.isTypeSupported && !(await ImageDecoder.isTypeSupported(TYPE)))){
+          dec = new ImageDecoder({ data: buf, type: TYPE });
+          await dec.tracks.ready; count = dec.tracks.selectedTrack.frameCount;
+          first = (await dec.decode({ frameIndex: 0 })).image;
+          ok = count > 0 && !dead;
+        }
+      }catch(e){ ok = false; }
+      pending = false;
+      if(!ok) return show(blobUrl = URL.createObjectURL(blob));
+    })().catch(()=>{ ok = false; pending = false; });
     function start(){                                              // the loader lifting; false = keep the <img>
       if(!ok || !img.isConnected){ dead = true; return false; }
       try {
@@ -5794,98 +4418,39 @@ function boot(){
         return true;
       } catch(e){ dead = true; return false; }
     }
-    return { start };
+    /* the plain <img>: the wave from frame 0 again - a fresh blob: URL of the same bytes (file://: a cache-bust of the
+       local file). Still downloading (the watchdog lifted the loader first): it shows from frame 0 when it lands. */
+    function restart(){
+      if(!img.isConnected || pending) return;
+      const old = blobUrl;
+      if(blob){ img.src = blobUrl = URL.createObjectURL(blob); if(old) URL.revokeObjectURL(old); }
+      else img.src = url + "?r=" + Date.now();
+    }
+    return { start, restart, ready };
   })();
-  // ---- [engine JS] r4/P2 boot loader: loader.gif until assets warm, then it dismisses ITSELF into
-  // the landing (NO tap gate). DUAL auto-dismiss (window 'load' OR a 2.5s watchdog — never strand the
-  // child), deduped by .done. The same handler adds body.loaded (unblocks the concept-strip stagger)
-  // and fires the landing VO. play() absorbs an autoplay block; the pulsing 🔊 chip is the fallback. ----
+  // ---- [engine JS] r4/P2 boot loader: the loader until the LANDING's own files are in (Assets: CRIT + Swiftee's wave),
+  // then it dismisses ITSELF into the landing (NO tap gate) - the rest of the lesson keeps loading behind the landing.
+  // A 10s watchdog never strands the child; .done dedups the two. The same handler adds body.loaded (unblocks the
+  // concept-strip stagger) and fires the landing VO. play() absorbs an autoplay block; the pulsing 🔊 chip is the fallback.
+  // ===== QA CHECKLIST [02]: PRELOAD BEFORE THE START SCREEN - since 2026-10-01 only what the START SCREEN shows. It
+  // used to be every image and clip of the lesson ([loading], Assets); each slide now waits for its own files instead
+  // (mountSlide), so art and VO still never pop in mid-lesson. A FAILED ASSET COUNTS AS DONE: a 404 never strands. ----
   (function(){
-    const bl = $("bootLoader"); if(!bl){ document.body.classList.add("loaded"); playLanding(); return; }
+    const bl = $("bootLoader");
+    if(!bl){ document.body.classList.add("loaded"); playLanding(); Assets.start(); return; }
     const ready = ()=>{
-      if(bl.classList.contains("done")) return;   // load event + watchdog both land here → dedup
+      if(bl.classList.contains("done")) return;   // the files + the watchdog both land here → dedup
       bl.classList.add("done");
       document.body.classList.add("loaded");       // starts the .sg-acell pop chain
-      /* [QA 03] the landing wave plays ONCE (the .webp's loop count is 1). It decodes under the
-         loader, so without a restart the one wave would be spent before the child sees it -
-         re-point the src (cache-busted, same trick as peeking.webp) the moment the loader lifts. */
-      const sgm = document.querySelector(".sg-mascot");
-      if(sgm && !(sgMascotPlayer && sgMascotPlayer.start())){       // the canvas player (above) when it can; else as before:
-        const base = (sgm.getAttribute("src") || "").split("?")[0]; if(base) sgm.src = base + "?r=" + Date.now(); }
+      /* [QA 03] the landing wave plays ONCE (the .webp's loop count is 1). It decodes under the loader, so without a
+         restart the one wave would be spent before the child sees it: the moment the loader lifts it starts again
+         from frame 0 - on the canvas player, or a fresh blob: URL of the same bytes (no second download). */
+      if(sgMascotPlayer && !sgMascotPlayer.start()) sgMascotPlayer.restart();
       playLanding();
       setTimeout(()=> bl.remove(), 450);
     };
-    /* ===== QA CHECKLIST [02]: PRELOAD EVERYTHING BEFORE THE START SCREEN =====
-       `window.load` only waits for nodes already in the DOM. Every image this
-       game uses is either a CSS background or injected per-slide, and no audio
-       was warmed at all, so art and VO popped in mid-lesson. This walks the
-       real asset list - card images, card audio, and the UI art the stylesheet
-       and slides reference - and holds the branded loader until all of it has
-       resolved, plus document.fonts.ready so no glyph reflows after paint.
-       A FAILED ASSET COUNTS AS DONE, so a 404 can never strand the child. */
-    const PRELOAD = (function(){
-      const ext = (CARD.assets && CARD.assets.audio_ext) || AUDIO_EXT;
-      const imgs = [], auds = [];
-      const A = (CARD.assets || {});
-      Object.keys(A.image || {}).forEach(k => imgs.push(A.image[k]));
-      Object.keys(A.audio || {}).forEach(k => {
-        const v = A.audio[k];
-        auds.push(typeof v === "string" && v.indexOf("assets/") === 0 ? v : "assets/voiceover/" + k + "." + ext);
-      });
-      auds.push("assets/voiceover/sfx_celebrate." + ext);   /* [QA 02] the celebration sting (playSfx), not in the VO map */
-      [ "loader.gif","startnew_bg_plain.webp","start_card.webp","background_1st_screen.webp","pencil_purple.webp","pencil_face_rig.webp","cubes_blue_row.webp","new_landing_swiftee_anim.webp",
-        "end_screen.webp","peeking.webp","nudge_hand_new.svg","nudge_fx_ring_outer.svg","nudge_fx_ring_inner.svg","nudge_fx_sparks.svg","mascot.webp",
-        "bgdeco_star.svg","bgdeco_star_o.svg","bgdeco_spark.svg",
-        "sw_head_talking.webp","sw_head_celebrate.webp","sw_head_celebrate_anim.webp",
-        "sw_head_hint.webp","sw_head_hint_anim.webp","sw_head_neutral.webp",
-        "sw_head_tryagain.webp","sw_head_tryagain_anim.webp",
-        "sw_lg_celebrating_anim.webp",
-        /* [QA 02] used in play but missing from this list: the tutorial-card mascot (every tutorial
-           slide), the landing play button, and the feedback-card rest pose */
-        "start_mascot.webp","btn-play-blob.svg","btn-play-blob-waiting.svg","sw_anim_rest.png",
-        /* [QA 10] the real button assets (default + deactive) */
-        "btn-next-default.svg","btn-next-deactive.svg","btn-continue-default.svg","btn-continue-deactive.svg"
-      ].forEach(f => imgs.push("assets/" + (ANIM_ASSETS.indexOf(f) >= 0 ? "gif/" : "") + f));
-      /* the deck's object art (the tables, the door ... the classroom) is CARD.assets.image, pushed above [QA 02] */
-      /* [measure kit] the result badge + its star (the T2/T3 cheer pose is sw_lg_celebrating_anim, preloaded above - MDK.pose) */
-      ["badge_result",                                               /* [QA 01] only the ones a slide shows */
-       "toybox_back","toybox_front",                                 /* the toy box (MDK.toybox) */
-       "basket_back","basket_front",                                 /* G1's basket (MDK.basket) */
-       "bg_yard_top"                                                 /* G1's outdoor scene: the trees (CSS #stage[data-bg]) */
-      ].forEach(f => imgs.push("assets/" + f + "." + IMG_EXT));
-      imgs.push("assets/badge_star.svg", "assets/floor_planks.svg", "assets/painting_carrier.webp", "assets/painting_layers.webp", "assets/painting_cubes.webp",
-        "assets/painting_blank.webp", "assets/painting_answer.webp", "assets/painting_answer_order.png", "assets/painting_upright.webp",
-        "assets/bg_bedroom.webp", "assets/bg_dusk.webp", "assets/bg_kitchen.webp", "assets/bg_terrace.webp", "assets/bg_veranda.webp",   /* [rooms] */
-        "assets/holder_laundry_back.webp", "assets/holder_laundry_front.webp", "assets/holder_cloudtub_back.webp", "assets/holder_cloudtub_front.webp",
-        "assets/cal_base.webp", "assets/cal_page.webp", "assets/cal_head.webp", "assets/obj_window_night.webp",   /* [cal-wind] G2, [night-window] G2b */
-        "assets/holder_wicker_back.webp", "assets/holder_wicker_front.webp", "assets/prop_cat.webp", "assets/prop_turtle.webp",   /* + [rider] P1 */
-        "assets/bg_corkboard.webp", "assets/bg_fridge.webp", "assets/prop_pushpin.webp");   /* (P3's objects + fruit magnets, P4's room pictures: CARD.assets.image) */   /* [photos] */   /* + the curtain ending */   /* + T3's wooden floor (a CSS background) */
-      return { imgs: imgs, auds: auds, total: imgs.length + auds.length };
-    })();
-
-    let _left = PRELOAD.total + 1;                    // +1 for the font pass
-    const _tick = ()=>{ if(--_left <= 0) ready(); };  // a 404 still ticks - never strand
-    PRELOAD.imgs.forEach(src => { const i = new Image(); i.onload = i.onerror = _tick; i.src = src; });
-    PRELOAD.auds.forEach(src => {
-      const a = new Audio(); let fired = false;
-      /* once fetched, drop the element's source: the bytes stay in the HTTP cache for play(),
-         and the media player behind this element is released instead of held all session.
-         canplaythrough fires BEFORE a long clip is fully downloaded, so the release waits until
-         the whole clip is buffered (or 15s) - releasing early aborted the tail of a long clip (the old 24.8s T2 prompt). */
-      const release = ()=>{ a.onprogress = null; try{ a.removeAttribute("src"); a.load(); }catch(e){} };
-      const full = ()=>{ try{ return a.buffered.length && a.duration && a.buffered.end(a.buffered.length - 1) >= a.duration - 0.05; }catch(e){ return false; } };
-      const once = ()=>{ if(!fired){ fired = true; a.oncanplaythrough = a.onerror = a.onabort = null;
-        if(full()) release(); else { a.onprogress = ()=>{ if(full()) release(); }; setTimeout(release, 15000); }
-        _tick(); } };
-      a.oncanplaythrough = a.onerror = a.onabort = once;
-      a.preload = "auto"; a.src = src;
-      setTimeout(once, 6000);                          // a stalled clip must not hold the gate
-    });
-    if(document.fonts && document.fonts.ready) document.fonts.ready.then(_tick, _tick);
-    else _tick();
-
-    if(document.readyState !== "complete") window.addEventListener("load", ()=>{});
-    setTimeout(ready, 12000);   // hard watchdog: never strand the child on the loader
+    Assets.critical(sgMascotPlayer && sgMascotPlayer.ready, ready);
+    setTimeout(ready, 10000);   // hard watchdog: never strand the child on the loader
   })();
   // landing VO best-effort on first interaction too (some browsers block autoplay pre-gesture)
   /* ...but not when the greeting has already been heard or is playing now, and never on the play button
@@ -5900,16 +4465,25 @@ function boot(){
       if(!_greetingHeard && !isPlaying) playLanding();
       return;
     }
+    if(_starting) return;  // a second tap while slide 0's files finish loading
     disarmStartPulse(); clearTimeout(_startWatchT);
     stopAudio();          // silence the landing greeting BEFORE slide 0 speaks (no VO overlap)
+    sfxPlay();            // QA checklist 2026-10-05: the standard play button SFX
+    bgmStart();           // ...and the background music starts on this tap (never before it)
     _ac();                // unlock/resume WebAudio on the start gesture so the first clip never clips
+    Screen.fullscreen();  // [responsive] a phone/tablet browser: the whole screen, held in landscape (Android)
     // [engine JS] r4/P1: peek gate into the tutorial. The landing stays visible-and-BLURRED behind the
     // peeking Swiftie + "चलिए शुरू करें"; it hides once the tutorial mounts (in the callback).
-    _gatedPhases.add("tutorial");
-    phaseBlurTransition(()=>{
-      $("startGate").classList.add("hidden");
-      document.body.classList.remove("is-start");   // blue bg only on the title screen
-      mountSlide(0);
+    // [loading] the gate's Swiftie and slide 0 are almost always in long before this tap; if not, a spinner holds here.
+    _starting = true;
+    Assets.whenSlide(0, ()=>{
+      _gatedPhases.add("tutorial");
+      phaseBlurTransition(()=>{
+        _starting = false;
+        $("startGate").classList.add("hidden");
+        document.body.classList.remove("is-start");   // blue bg only on the title screen
+        mountSlide(0);
+      }, "tutorial");
     }, "tutorial");
   };
   /* ===== [landing title fx] लंबाई STRETCHES TO THE PENCIL NIB AND SPRINGS BACK; मापना BECOMES A RULER =====
@@ -5953,7 +4527,11 @@ function boot(){
     const titleEl = $("sgTitle");
     if(!titleEl || titleEl.textContent.trim() !== "लंबाई मापना") return;
     const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const T_WORD = 3.13;                                       // "आज" (आज हम सीखेंगे) starts, in vo_landing.ogg (seconds) - review 2026-09-29 (was "लंबाई", 5.46)
+    /* "दोस्तों" starts, in vo_landing.ogg (seconds). QA checklist 2026-10-05: the play button pulses the moment the greeting
+       ends and nothing else moves then - so the title fx (~4.4s) + the cube row (~3.3s) must be done before the 9.2s
+       greeting ends: it starts with the greeting itself (measured in Chrome: title fx 7.66s at SLOW 1.5 + cubes 3.32s at
+       STEP 400 ran 1.8s past the greeting - now ~6.1s + ~2.7s, done ~9.1s). Was "आज" (3.13s in the old 7.5s clip). */
+    const T_WORD = 0.3;
     const PULL = 0.6, HOLD = 0.15;                             // stretch, then a short hold at full stretch (tightened 2026-09-29: the
                                                                // whole first screen must stay short - 15 slides follow)
     const PAST_NIB = 5;                                        // stage px: ल's left edge is pulled this far PAST the pencil nib tip.
@@ -5965,7 +4543,7 @@ function boot(){
     const W0 = 2 * Math.PI * 0.9, RESTITUTION = 0.3, HALF_WAVES = 5;                         // spring + hard stop
     const CURL_C = 0.016, CURL_W = 2 * Math.PI * 1.6, CURL_G = 1.4, CURL_MAX = 7;           // line buckling at impact
     const SET_A = 0.04, SET_G = 5;                                                           // the wave it keeps: height / word length, settling rate
-    const SLOW = 1.5;                                                                        // one clock for the whole title animation: 1.5x slower, and it starts on "आज", 2.33s earlier -
+    const SLOW = 1.2;   // QA checklist 2026-10-05: was 1.5 - the whole intro must end with the greeting (see T_WORD)                                                                        // one clock for the whole title animation: 1.5x slower, and it starts on "आज", 2.33s earlier -
                                                                                              // so it still ENDS when it did (5.04s -> 7.5s, same end; review 2026-09-29: no rushed animation, first screen not longer)
     const W2_START = 1.0;                                                                    // मापना starts this long (s) into लंबाई's spring-back, not only once it is fully still
     const GAP_END = 14;                                                                      // word-spacing (px) the heading ENDS with: the words a little closer than at the start (28)
@@ -6317,13 +4895,13 @@ function boot(){
       now /= SLOW;                                                             // the animation's own clock: every duration below runs SLOW x longer
       const gate = $("startGate");
       if(!gate || gate.classList.contains("hidden")){ finishNow(); return; }  // left the landing: stop, at rest
-      const onLanding = (voEl.getAttribute("src") || "").indexOf("vo_landing") >= 0;
+      const onLanding = srcOf(voEl).indexOf("vo_landing") >= 0;
       const ct = onLanding ? voEl.currentTime : 0;
       if(onLanding && ct + 0.3 < lastCt && (phase === "pull" || phase === "recoil")){ restW1(); phase = "idle"; }   // greeting restarted
       if(onLanding) lastCt = ct;
       const speaking = onLanding && isPlaying;
       // लंबाई: on the word (again on a replay)
-      if(phase === "idle" && speaking && ct >= T_WORD - 0.03 && ct < T_WORD + 0.5){
+      if(phase === "idle" && speaking && ct >= T_WORD - 0.03 && ct < T_WORD + 2){   // (a 2s window: right at the clip's start the page may still be busy - a missed window left the button to its 15s watchdog)
         if(gapPending){ gapPending = false; commitGap(); }                    // (a replay right at the very end: settle first)
         fx = fx || build();
         const w = fx.w1; Wlen = w.barR - w.barL;
@@ -6389,8 +4967,8 @@ function boot(){
     new MutationObserver(kick).observe($("startGate"), { attributes: true, attributeFilter: ["class"] });
   })();
 
-  // tapping आगे clears any pending nav-nudge
-  $("navBtn").addEventListener("click", ()=>{ clearTimeout(state.navNudgeTimer); stopNudge(); });
+  // tapping आगे clears any pending nav-nudge, and sounds the standard next-button SFX
+  $("navBtn").addEventListener("click", ()=>{ clearTimeout(state.navNudgeTimer); stopNudge(); sfxNext(); });
   /* [12][14] QA CHECKLIST: "hint_used event fires on every bulb tap." Each slide
      module rebinds $("hintBtn").onclick with its own `if(state.locked ...) return`
      guard, and only two of those seven handlers ever emitted hint_shown - so most
@@ -7317,7 +5895,7 @@ boot();
      STEP (review 2026-09-30: "the cubes are getting placed very fast"): was 140ms - all 7 popped in within 0.84s, one
      sweep rather than blocks placed one by one. 400ms is a clear one-by-one pace: the 7th lands ~3.3s after the lines
      start (was ~1.7s). Their shadows, the pencil's eyes and the play button's release all follow STEP. */
-  const MARK_DUR = 350, CUBES_AFTER = 120, STEP = 400, CUBE_DUR = 420, WATCHDOG = 16000;   // ms; watchdog: never wait for the title fx forever
+  const MARK_DUR = 350, CUBES_AFTER = 120, STEP = 280, CUBE_DUR = 420, WATCHDOG = 16000;   // ms; watchdog: never wait for the title fx forever
   const FIRST = MARK_DUR + CUBES_AFTER;                                                    // the first cube, once the lines are in
   let built = false;
   function build(){
@@ -7353,9 +5931,10 @@ boot();
     box.appendChild(row);
     for(let i = 0; i < N; i++){
       const b = document.createElement("div"); b.className = "sgm-block";
-      const kx = CW / (C[i + 1] - C[i]);                                // this slice, stretched to exactly CW wide
+      const ci = 0;                                                     // review 2026-10-05: every cube the strip's first, deep-blue one
+      const kx = CW / (C[ci + 1] - C[ci]);                              // this slice, stretched to exactly CW wide
       b.style.cssText = "left:" + (x0 + i * CW).toFixed(2) + "px;top:" + top.toFixed(2) + "px;width:" + CW.toFixed(2) + "px;height:" + CW.toFixed(2) + "px;--d:" + (FIRST + i * STEP) + "ms;" +
-        "background-image:url(" + ROW.src + ");background-size:" + (ROW.w * kx).toFixed(2) + "px " + (ROW.h * ky).toFixed(2) + "px;background-position:" + (-C[i] * kx).toFixed(2) + "px " + (-ROW.top * ky).toFixed(2) + "px";
+        "background-image:url(" + ROW.src + ");background-size:" + (ROW.w * kx).toFixed(2) + "px " + (ROW.h * ky).toFixed(2) + "px;background-position:" + (-C[ci] * kx).toFixed(2) + "px " + (-ROW.top * ky).toFixed(2) + "px";
       box.appendChild(b);
     }
     /* dashed end lines, centred on the tip and on the eraser end. Length as marked on the review screenshot
@@ -7365,10 +5944,13 @@ boot();
     const y0 = yTop + LINE_TOP, want = cubeBot + LINE_END - y0;
     const nDash = Math.max(Math.round((want + PERIOD - DASH) / PERIOD), Math.ceil((cubeBot + 6 - y0 + PERIOD - DASH) / PERIOD));
     const y1 = y0 + nDash * PERIOD - (PERIOD - DASH);                  // ends on a WHOLE dash (review: the last one was cut off), still below the cubes
-    const marksAt = 0;                                                  // the lines come FIRST, then the cubes
+    /* review 2026-10-05: "match the behaviour of the dotted lines in the game screens" - as the game's end lines
+       (.md-line show + pulse): each DRAWS itself from the top down, then glows; the start line first, the end line
+       after it (END_AT) - the size and colour are the landing's own. They are done before the last cube lands. */
+    const marksAt = { start: 0, end: 250 };                            // the lines come FIRST, then the cubes
     [["start", x0], ["end", x1]].forEach(([k, x])=>{
       const e = document.createElement("div"); e.className = "sgm-mark " + k;
-      e.style.cssText = "left:" + (x - LINE_W / 2).toFixed(2) + "px;top:" + y0.toFixed(2) + "px;width:" + LINE_W + "px;height:" + (y1 - y0).toFixed(2) + "px;--d:" + marksAt + "ms";
+      e.style.cssText = "left:" + (x - LINE_W / 2).toFixed(2) + "px;top:" + y0.toFixed(2) + "px;width:" + LINE_W + "px;height:" + (y1 - y0).toFixed(2) + "px;--d:" + marksAt[k] + "ms";
       box.appendChild(e);
     });
     hero.appendChild(box);                                          // AFTER the pencil: it stays the first .sg-art img
@@ -7490,6 +6072,8 @@ boot();
   const idle = { t: "child", until: 0 };
   function chooseIdle(){
     const btn = document.getElementById("sgBtn"), btnOn = !!(window.__sgIntroDone && btn), r = Math.random();
+    /* QA checklist 2026-10-05: while the play button pulses nothing else on the screen moves - the eyes rest on it */
+    if(btn && btn.classList.contains("idle-pulse")) return btn;
     if(btnOn && r < 0.32) return btn;                          // the play button, once it is up: an invitation
     if(r < (btnOn ? 0.47 : 0.3)) return mascot;
     if(r < 0.88) return "child";
@@ -7681,7 +6265,7 @@ boot();
   }
   function init(){
     const hero = document.getElementById("sgHero"); img = hero && hero.querySelector("img");
-    if(!img || !/pencil_purple/.test(img.getAttribute("src") || "")) return;   // the rig is measured on this pencil only
+    if(!img || !/pencil_purple/.test(srcOf(img))) return;   // the rig is measured on this pencil only
     rig = new Image();
     rig.onload = ()=>{
       const go = ()=>{
