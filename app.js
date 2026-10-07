@@ -4343,6 +4343,7 @@ function boot(){
   document.addEventListener("sg-intro-done", ()=>{ if(_releasePending) releaseStart(); });
   const playLanding = ()=>{
     if(!onLandingNow()) return;
+    document.dispatchEvent(new Event("sg-greeting-start"));                  // (the cube row's watchdog counts from here)
     clearTimeout(_startWatchT); _startWatchT = setTimeout(()=> releaseStart(true), 18000);   // watchdog (forces it; 18s: the intro now starts on "आज", ends ~13.5s)
     /* released only when the greeting was really heard; a blocked/failed start leaves it grey for the
        child's first tap (or the watchdog) */
@@ -4915,7 +4916,8 @@ function boot(){
         D = (fx.nibX !== null && fx.nibX < w.barL) ? (w.barL - fx.nibX) + PAST_NIB : 0;
         if(w2Phase === "run" || w2Phase === "close" || w2Phase === "gap") restW2();   // a replay: मापना plays again after लंबाई
         w2Phase = "wait"; w1Done = false; w1Quiet = false;
-        if(D > 0 && !reduce){ tStart = startAt(now, ct, T_WORD); showCopy(w, true); frameW1(0, 0, 0, 1, 0); pen.prepare(PEN_K * D); phase = "pull"; winced = false; if(window.SGEyes) SGEyes.react("surprise"); }
+        if(D > 0 && !reduce){ tStart = startAt(now, ct, T_WORD); showCopy(w, true); frameW1(0, 0, 0, 1, 0); pen.prepare(PEN_K * D); phase = "pull"; winced = false; if(window.SGEyes) SGEyes.react("surprise");
+          document.dispatchEvent(new Event("sg-title-fx-start")); }                // (the cube row's watchdog re-arms from here)
         else w1Done = true;                                                    // nothing to stretch to / reduced motion: मापना may go
       }
       const t = (now - tStart) / 1000;
@@ -5901,7 +5903,7 @@ boot();
      STEP (review 2026-09-30: "the cubes are getting placed very fast"): was 140ms - all 7 popped in within 0.84s, one
      sweep rather than blocks placed one by one. 400ms is a clear one-by-one pace: the 7th lands ~3.3s after the lines
      start (was ~1.7s). Their shadows, the pencil's eyes and the play button's release all follow STEP. */
-  const MARK_DUR = 350, CUBES_AFTER = 120, STEP = 280, CUBE_DUR = 420, WATCHDOG = 16000;   // ms; watchdog: never wait for the title fx forever
+  const MARK_DUR = 350, CUBES_AFTER = 120, STEP = 280, CUBE_DUR = 420;   // ms
   const FIRST = MARK_DUR + CUBES_AFTER;                                                    // the first cube, once the lines are in
   let built = false;
   function build(){
@@ -5981,12 +5983,18 @@ boot();
       setTimeout(()=>{ eyes.react("happy"); if(blocks[3]) eyes.look("measure", blocks[3], 7, 800); }, FIRST + (N - 1) * STEP + CUBE_DUR * 0.7);
     }
   }
-  // step 1 is the title animation (it fires "sg-title-fx-done"); a watchdog from the loader lifting covers a title
-  // animation that never runs (autoplay blocked, a different title)
+  /* step 1 is the title animation: the cubes come only once it is done ("sg-title-fx-done"), straight after it (review
+     2026-10-07: "the cubes will only come after the title animation is done - immediately after that"). The watchdog
+     that covers a title animation that never runs used to count 16s from the loader lifting - with the title now
+     starting on the greeting's "आज" (4.69s in), a child who took a few seconds to tap got the cubes in the MIDDLE of the
+     title animation. Now it counts from what the title waits for: 16s from the greeting's start (the title ends ~11s in),
+     re-armed to 12s once the title animation itself starts (it runs ~6.2s); before any greeting, only a 40s fallback. */
   if(window.__sgTitleFxDone) run(); else document.addEventListener("sg-title-fx-done", run, { once: true });
-  const armWatchdog = ()=> setTimeout(run, WATCHDOG);
-  if(document.body.classList.contains("loaded")) armWatchdog();
-  else new MutationObserver((_, o)=>{ if(document.body.classList.contains("loaded")){ o.disconnect(); armWatchdog(); } })
+  let watchT = 0; const armWatchdog = ms =>{ clearTimeout(watchT); if(!started) watchT = setTimeout(run, ms); };
+  document.addEventListener("sg-greeting-start", ()=>{ if(!window.__sgTitleFxDone) armWatchdog(16000); });
+  document.addEventListener("sg-title-fx-start", ()=> armWatchdog(12000));
+  if(document.body.classList.contains("loaded")) armWatchdog(40000);
+  else new MutationObserver((_, o)=>{ if(document.body.classList.contains("loaded")){ o.disconnect(); armWatchdog(40000); } })
          .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 })();
 

@@ -992,6 +992,10 @@ SOFTWARE
   0.29-1.40, मैं हूँ स्विफ्टी 2.45-3.66, आज हम सीखेंगे 4.69-5.85, किसी चीज़ की लंबाई कैसे मापते हैं 6.36-9.2). The 2026-10-05
   QA move to the greeting's start (0.3s) is undone. The intro (title, then cubes) now ends ~4s after the greeting; the
   play button pops once it is done (~13.3s in Chrome), and the start watchdog waits 18s (was 15s).
+- **Cubes only after the title (2026-10-07, review: "the cubes will only come after the title animation is done -
+  immediately after that"):** the cube row starts on "sg-title-fx-done" (measured: the same frame). Its watchdog no longer
+  counts 16s from the loader lifting (a late tap got the cubes mid-title); it counts 16s from the greeting's start
+  ("sg-greeting-start"), re-armed to 12s when the title animation starts ("sg-title-fx-start"), 40s before any greeting.
 - **Start + speed (earlier):** it starts on the spoken **"आज"** (आज हम सीखेंगे), 3.13s into `vo_landing.ogg` (`T_WORD`), and
   runs on one clock `SLOW = 1.5`× slower than its (tightened) durations in `app.js` — so it ENDS when the faster
   version that started on "लंबाई" did (~7.5s instead of ~5.0s; the first screen is no longer). Measured: लंबाई stretches
