@@ -987,7 +987,12 @@ SOFTWARE
   3 in 6), same sharpness. Without `ImageDecoder` (e.g. iOS WebView), or on any error, the `<img>` path is unchanged.
 
 ## Landing title animation (2026-09-29) — `app.js` block `[landing title fx]`, CSS `[landing title fx]`
-- **Start + speed (latest):** it starts on the spoken **"आज"** (आज हम सीखेंगे), 3.13s into `vo_landing.ogg` (`T_WORD`), and
+- **Start (2026-10-07, review: "the title animation will start from 'आज हम सीखेंगे लंबाई कैसे मापते हैं' and not from
+  'नमस्ते दोस्तों'"):** `T_WORD = 4.69` - the spoken "आज" in the current 9.2s `vo_landing.ogg` (its pauses: नमस्ते दोस्तों
+  0.29-1.40, मैं हूँ स्विफ्टी 2.45-3.66, आज हम सीखेंगे 4.69-5.85, किसी चीज़ की लंबाई कैसे मापते हैं 6.36-9.2). The 2026-10-05
+  QA move to the greeting's start (0.3s) is undone. The intro (title, then cubes) now ends ~4s after the greeting; the
+  play button pops once it is done (~13.3s in Chrome), and the start watchdog waits 18s (was 15s).
+- **Start + speed (earlier):** it starts on the spoken **"आज"** (आज हम सीखेंगे), 3.13s into `vo_landing.ogg` (`T_WORD`), and
   runs on one clock `SLOW = 1.5`× slower than its (tightened) durations in `app.js` — so it ENDS when the faster
   version that started on "लंबाई" did (~7.5s instead of ~5.0s; the first screen is no longer). Measured: लंबाई stretches
   on "आज हम सीखेंगे", मापना's ruler starts at 5.75s, as the voice says "कैसे मापते हैं". The per-step numbers below

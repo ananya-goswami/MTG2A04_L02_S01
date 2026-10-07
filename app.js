@@ -4307,7 +4307,7 @@ function boot(){
      sgBtnPulseStrong); any tap on the landing restarts that 5s timer.
      "Heard" means the clip really played to its end (voEl.ended). When the browser BLOCKS autoplay the
      button stays grey and the child's first tap - anywhere, the grey button included - starts the
-     greeting, so the pop still lands exactly when the greeting ends. Never strands the child: a 15s
+     greeting, so the pop still lands exactly when the greeting ends. Never strands the child: an 18s
      watchdog releases the button even if the greeting never reports back at all.
      NB the waiting state is .sg-waiting + aria-disabled, NOT the disabled attribute - a disabled
      button swallows the tap that has to start a blocked greeting. */
@@ -4336,14 +4336,14 @@ function boot(){
   };
   setStartBtnReady(false);   // grey + disabled from first paint, until the greeting has been heard
   /* [landing intro] the gold pop waits for the whole intro too (title words -> cubes -> lines, "sg-intro-done"),
-     so the button is the LAST thing to arrive (review 2026-09-29). The 15s watchdog still forces it - never stranded. */
+     so the button is the LAST thing to arrive (review 2026-09-29). The 18s watchdog still forces it - never stranded. */
   let _releasePending = false;
   const releaseStart = (force)=>{ if(!force && !window.__sgIntroDone){ _releasePending = true; return; }
     clearTimeout(_startWatchT); _releasePending = false; if(onLandingNow()) setStartBtnReady(true); };
   document.addEventListener("sg-intro-done", ()=>{ if(_releasePending) releaseStart(); });
   const playLanding = ()=>{
     if(!onLandingNow()) return;
-    clearTimeout(_startWatchT); _startWatchT = setTimeout(()=> releaseStart(true), 15000);   // watchdog (forces it)
+    clearTimeout(_startWatchT); _startWatchT = setTimeout(()=> releaseStart(true), 18000);   // watchdog (forces it; 18s: the intro now starts on "आज", ends ~13.5s)
     /* released only when the greeting was really heard; a blocked/failed start leaves it grey for the
        child's first tap (or the watchdog) */
     /* review 2026-10-05: "why is the sound box getting disabled - this should not happen anywhere in the game": the
@@ -4531,7 +4531,13 @@ function boot(){
        ends and nothing else moves then - so the title fx (~4.4s) + the cube row (~3.3s) must be done before the 9.2s
        greeting ends: it starts with the greeting itself (measured in Chrome: title fx 7.66s at SLOW 1.5 + cubes 3.32s at
        STEP 400 ran 1.8s past the greeting - now ~6.1s + ~2.7s, done ~9.1s). Was "आज" (3.13s in the old 7.5s clip). */
-    const T_WORD = 0.3;
+    /* Review 2026-10-07: "the title animation will start from 'आज हम सीखेंगे लंबाई कैसे मापते हैं' and not from 'नमस्ते
+       दोस्तों' - when Swifty is saying that, that is logically correct": it starts on the spoken "आज" again - 4.69s into
+       the current 9.2s vo_landing.ogg (its pauses, ffmpeg silencedetect -35dB: नमस्ते दोस्तों 0.29-1.40 | मैं हूँ स्विफ्टी
+       2.45-3.66 | आज हम सीखेंगे 4.69-5.85 | किसी चीज़ की लंबाई कैसे मापते हैं 6.36-9.2). So the intro (title ~6.1s, then
+       the cubes ~2.7s) now runs on ~4.3s past the greeting; the play button still pops once it is all done
+       ("sg-intro-done"), and its watchdog waits 18s (was 15s) so it never cuts the intro short. */
+    const T_WORD = 4.69;
     const PULL = 0.6, HOLD = 0.15;                             // stretch, then a short hold at full stretch (tightened 2026-09-29: the
                                                                // whole first screen must stay short - 15 slides follow)
     const PAST_NIB = 5;                                        // stage px: ल's left edge is pulled this far PAST the pencil nib tip.
