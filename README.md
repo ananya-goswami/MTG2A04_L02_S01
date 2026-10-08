@@ -45,7 +45,8 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   on the classroom tray after 8s.
 - Code: `MDK.shake` (the kit's lateral buzz, recipes 11/20), `MDK.softGlow` (the kit's hint glow, recipe 12: a green ring
   for cards and areas, a green glow that follows a picture's shape), the ladder in `MDK.childMeasure` (`cfg.hints`);
-  the sheet's 8 lines are `vo_hint_mcq2_1/_2`, `vo_hint_mcq3_1/_2`, `vo_hint_dd_1/_2`, `vo_ok_mcq2`, `vo_ok_dd`, recorded
+  the sheet's lines are `vo_hint_mcq2_1/_2`, `vo_hint_mcq3_1/_2`, `vo_hint_dd_1/_2`, `vo_ok_dd` (and was `vo_ok_mcq2`, T1's
+  praise - removed 2026-10-08, the deck's page 2 "Correct Response: SFX"), recorded
   in the lesson's voice and re-timed like every other clip (see `VO_MANIFEST.md`).
 
 ### The slides
@@ -53,11 +54,16 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   legs / `obj_table_short.webp` 308px - the yellow top on brown legs; supplied art 2026-09-30, cropped tight, its
   faint stray pixels cleared so the outline stays clean) stand on the card's calm floor (CSS `[T1 tables]`: light wood under the grid-paper
   wall, a skirting line, soft shadows), a little right of centre so Swifty's corner stays free. Tap the longer one.
-  Right = SFX + confetti + "शाबाश! आपने सही चुना।" + a clean green outline that follows the table's own shape (FLN
+  Right = SFX + confetti (no VO - the deck's "Correct Response: SFX", review 2026-10-08 "follow the ppt"; it used to
+  say "शाबाश! आपने सही चुना।", `vo_ok_mcq2`, removed) + a clean green outline that follows the table's own shape (FLN
   animation kit recipe 21, engine A, `ol ol-alpha`: four zero-blur passes + a soft glow) with the kit's small pop, then
-  on. Wrong = the sheet's MCQ – 2 ladder; never a red box or a red glow on a table (review 2026-09-30). When the answer
-  is shown, the hand taps the long table's front leg (`options[].tap`, the point on the picture) with the kit's tap
-  ripple and "यह टेबल ज्यादा लंबी है।" plays.
+  on. Wrong = the deck's own line (review 2026-10-08: "follow this instruction VO when selected wrong option as in the
+  ppt" - page 2 "Incorrect: Pulsate/hand nudge on the long table and play VO: यह टेबल ज्यादा लंबी है।"; it was the
+  sheet's MCQ – 2 ladder, `data.wrong_cue "sheet"`, still in the code): `data.wrong_cue "deck"` - every wrong tap the
+  tapped table shakes and returns, the long table pulses (MDK.softGlow, green, following its shape) and the hand taps
+  its front leg (`options[].tap`, the point on the picture) with the kit's tap ripple, and "यह टेबल ज्यादा लंबी है।"
+  plays (`audio.try_again` = `hint` = `reveal` = `vo_p2_fb`); the child then taps it. After a 3rd wrong tap the engine
+  shows the answer with the same line and moves on. Never a red box or a red glow on a table (review 2026-09-30).
 - **T2 — page 3, `MEASURE_DEMO`.** The long table on the floor and the toy box. Heading VO; VO1 (`vo_p3_explain_a/_b`):
   the start line and its flag pulse, then the finish; VO2 (`vo_demo_start`): Swiftee's hand drags blocks 1 and 2, each
   counted aloud with a digit and a ✓; VO3 (`vo_rule_a/_b/_c`): the last block's end glows, a block set down with a GAP
@@ -76,6 +82,32 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   counting; a block not laid flush - the sheet's block ladder; idle 6s the ghost drag. Then the header becomes the
   question (its VO) and three answer cards "<k> ब्लॉक्स" come up: the sheet's MCQ – 3 ladder. Right — SFX + confetti +
   the deck's correct VO.
+  **G1 follows the deck's page 5 as it is (review 2026-10-08: "in this game screen follow the ppt instructions as it is
+  for everything"; `data.wrong_cue: "deck"`, app.js MEASURE_ASK `[deck]`):** a block not laid flush only goes back (the
+  robot's vanish + a new cube on its lid - no VO, no lit tile, no ghost; the idle ghost drag stays). Wrong answer 1 - the
+  option wiggles, the laid blocks glow (gold with a white rim, swelling a little, three pulses) and "ब्लॉक्स को एक बार फिर
+  गिनिए।" plays (`vo_try_again`, restored); 2 - each block lights up in turn as it is counted aloud, एक ... आठ
+  (`vo_num_1`-`8`, CSS `.mq-counting`); 3 on - a counting digit under each block, then the hand on "8 ब्लॉक्स" (no VO;
+  the options stay open - the child taps it). Right - SFX + confetti + "शाबाश! पलंग की लंबाई 8 ब्लॉक्स है।".
+  Review 2026-10-08 ("the VO is still not correct"): the question is never re-asked by itself (the deck has no
+  inactivity line for it - it used to come back after 7s idle, between the attempts). Since the [vo-lock] (below) no
+  tap reaches the options while any line - the question or a rung's - is said; each one plays to its end first.
+  **G2 almirah follows the deck's page 6 the same way (review 2026-10-08: "in this game screen also follow the
+  recommendations exactly"; `data.wrong_cue: "deck"`):** the deck's 7 blocks again (was 5), options 6 / 7 / 8, "शाबाश!
+  अलमारी की लंबाई 7 ब्लॉक्स है।" (`vo_p6_ok`, the 2026-09-28 render restored from git); wrong 2 counts एक ... सात up the
+  column, wrong 3 puts the digits BESIDE the blocks (left of the column). Seven blocks only fit the tall screen at a
+  53px cube (74 everywhere else) - the user chose "7 blocks, smaller cube here" over keeping 5 at 74px or 53px on
+  every screen.
+  **G2b pillow follows the deck's page 6 (pillow) the same way (review 2026-10-08 "same for this game screen also";
+  `data.wrong_cue: "deck"`):** its count already was the deck's - 3 blocks, options 2 / 3 / 5, "शाबाश! तकिये की
+  लंबाई 3 ब्लॉक्स है।" - so only the feedback changed: wrong 1 the blocks glow + `vo_try_again`; wrong 2 एक ... तीन;
+  wrong 3 the digits below the row, then the hand on "3 ब्लॉक्स".
+  **G3 fridge follows the deck's page 7 the same way (review 2026-10-08 "same for this game screen also"):** the deck's
+  6 blocks again (was 5), options 4 / 5 / 6, "शाबाश! फ्रिज की लंबाई 6 ब्लॉक्स है।" (`vo_p7_ok`, the 2026-09-28 render
+  restored from git), counting एक ... छह up the column. Six blocks fit the tall screen at a 62px cube - the user chose
+  "6 blocks, smaller cube here" over keeping 5 at 74px. The deck says "digits below each block"; in a column that
+  would sit on the next block, so they stand BESIDE the blocks as on G2. With G3 every MEASURE_ASK runs the deck's
+  lines; `vo_hint_mcq3_1`, `vo_hint_count`, `vo_hint_drag` had no slide left and are deleted (git has them).
   **G1 (review 2026-10-01: "use this for better slide but keep the background minimal only - non distracting, so that
   the main focus is on the main gameplay")** follows the supplied mock-up: the wooden charpai with its blue-and-cream
   weave (`obj_charpai.webp`, cut out of the mock-up; it replaced the metal-legged `obj_bed.webp`), centred on the
@@ -117,7 +149,21 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
 - **G4 mats — page 8, P1 chairs — page 9, `COMPARE_MEASURED`.** Two objects side by side, already measured: blocks
   flush along each mat's long side (a row under it) / up beside each chair from the floor, no numbers. Tap the longer /
   taller one. Right — it lifts with a green glow, the other greys, SFX + confetti, "6 ब्लॉक्स" / "7 ब्लॉक्स" under the
-  mats ("4" / "5" beside the chairs), the deck's correct VO. Wrong — the sheet's MCQ – 2 ladder. The chairs are in the
+  mats ("4" / "5" beside the chairs), the deck's correct VO. Wrong — the sheet's MCQ – 2 ladder (P1). **G4 follows the
+  deck's page 8 as it is (review 2026-10-08: "follow the recommdations exactly"; `data.wrong_cue: "deck"`):** the deck's
+  6 / 7 blocks (were 5 / 6 - the user chose "6 and 7, cube 72px": the two rows fit at 72px, 74 elsewhere); wrong 1 -
+  the tapped mat wiggles, then both mats' blocks light up one by one, first then second, a digit below each (they
+  stay), each counted aloud (एक ... छह, then एक ... सात), then only the question again (`vo_p8_reask`, restored from
+  git; it plays to its end - the [vo-lock]); wrong 2 on - it wiggles and the hand nudges the longer mat (no VO, nothing locked);
+  the child's tap on it then gets the correct SFX only (the user chose "SFX only, as written" - it lights up, the
+  counts show, no correct VO). No idle re-ask. The digits fade as the counts come in. `vo_hint_compare` and
+  `vo_hint_tap` had no slide left and are deleted (git has them). **P1 the same, the deck's page 9 (review 2026-10-08:
+  "in this game screen also follow the recommdations exactly"):** the deck's 4 / 5 blocks (were 3 / 4), the cube 74px
+  again - the user chose "4 and 5, 74px", so `data.zoom` is gone (at 4 / 5 the height capped it at 75.6px anyway);
+  wrong 1 counts both chairs up their columns, digits BESIDE the blocks, then "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?"
+  (`vo_p9_reask`, the deck's own "ऊँची", restored from git); wrong 2 the hand on the taller chair, its tap the whole
+  correct response WITH "शाबाश! यह कुर्सी ज़्यादा लंबी है।" (review 2026-10-08 "last VO is still missing in this" - G4
+  keeps the SFX only: its `data.nudge_sfx_only`). `vo_hint_mcq2_1/_2` had no slide left and are deleted. The chairs are in the
   deck's order, the 4-block chair first (`obj_chair_short.webp`, `obj_chair_tall.webp` — split from the deck's two-chair
   picture). G4's counts (review 2026-10-01: "replace these boxes with the correct box layout, take help from
   HI01H01_L02_S04 — only in this slide"): `data.count_box: "card"` shows each count in that game's answer card instead
@@ -150,6 +196,15 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   box (the hand points at the box's right slot; the boxes are spaced so the hand never covers the next one). All three
   — `vo_match_ok`, on. The art is the supplied HD art (P2's pictures with the blocks drawn on; P3's cards, with the
   object, its blocks and its magnet laid on by the game - one block size on all three cards) - see "P2 / P3 as photos".
+  **P2 follows the deck's page 10 as it is (review 2026-10-08: "in this game screen also follow the recommdations
+  exactly"):** the deck's counts again - bench 7, blackboard 5 (rows), stool 3 (a column) - were 4 / 3 / 2; the boxes
+  in its order 3 / 7 / 5; `data.ppt_hints` as P3 (wrong 1 the line bounces back, no VO - `try_again` removed; wrong 2
+  that object's blocks light up with digits 1, 2, 3 ... shown, not said; wrong 3 on the hand on the right box); a right
+  pair locks + the SFX; all three `vo_match_ok`. The shared P2 / P3 cube stays 29px and the cards 241 x 171 (P3's
+  5-block window still sets them), so P3 does not change. The digits on these two slides are drawn at .82 (26px) so
+  the bench's seven sit one per cube (CSS `.mr.mr-stack .md-num`).
+  The 2nd rung's digits are a hint for that one object (review 2026-10-08 "why is this still present afterwards?" -
+  they used to stay to the end): they fade once that object is matched, or at the end (`clearCount`, P2 and P3).
 - **P4 — pages 12-13, `CLASSROOM_FIT`** (replaces the old P4 and P5). The classroom (`scene_classroom.svg`: the wall
   and the tiled floor; its bunting, clock, window and door the supplied HD pictures) with four empty spaces, each with a strip of faint
   blocks and its size: the blackboard's on the wall (6, लंबाई), the chair's beside the window (4, ऊँचाई), the small
@@ -162,6 +217,16 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   object. The deck's VO names the bench, so "बेंच को ब्लॉक से मापिए।" / "अब बेंच के लिए सही जगह चुनिए।" play when the
   bench is the first object; the next objects' instructions play without VO (the header still names each one). After
   the fourth, on. Idle 8s on the tray: the hand points at it (flow only).
+  **P4 follows the deck's page 13 as it is (review 2026-10-08: "follow the recommdations exactly"; `data.wrong_cue:
+  "deck"`, app.js CLASSROOM_FIT `[deck]`):** the deck's 6 / 5 / 8 / 4 - board 6, almirah 5 (was 3), bench 8, chair 4
+  (was 2): the two upright spaces grew upward on the picture (chair y 263, its foot unchanged; the almirah's foot moved
+  25px forward onto the floor, y 207, so its top clears the painted clock). Measuring: ONE block waits at the source
+  place (the rest stacked under it - each one taken shows the next); a block not flush just goes back - no hints, no
+  ghost. The FIRST object picked - any of the four - gets its own two lines (`audio.measure_<id>` / `place_<id>`; the
+  user chose "record all four": six new clips, see VO_MANIFEST); later objects run without VO. A right fit: snaps in +
+  the correct SFX (no "शाबाश! सही जगह पर रखा।"); a wrong space: it shakes and the object goes back to the tray - nothing
+  else (no hint, never moved in for the child). No idle hand on the tray. `vo_ok_dd`, `vo_hint_dd_1/_2` had no slide
+  left and are deleted (git has them).
   Review 2026-10-01 ("use better assets in this game screen - use the previous slide's HD assets"): the bench and the
   blackboard are now P2's supplied art with its blocks taken off (`obj_bench.webp` ar 0.2856 - its top edge, hidden
   under the blocks, redrawn straight with its outline; `obj_blackboard.webp` ar 0.4544), for the drawn `.svg`s (removed);
@@ -246,13 +311,27 @@ Tagged `QA checklist 2026-10-05` in `app.js` / `style.css`.
 - **Next button:** pulses as soon as it turns active.
 - **Idle nudges:** 7s everywhere (`IDLE_MS`; the card's `nudge_timeout_ms` per phase); P2/P3 got one (the hand on the
   next box); a guided question re-asks itself after 7s idle.
-- **Guided feedback - 3 layers:** 1 clarify (`try_again`), 2 a strong hint with the procedure (`vo_hint_count`: count the
+- **Guided feedback - 3 layers** (G1: the deck's own page-5 lines instead - see G1 above): 1 clarify (`try_again`), 2 a strong hint with the procedure (`vo_hint_count`: count the
   blocks laid / `vo_hint_compare`: more blocks is longer), 3 the wrong options lock and the right one glows with the hand
   on it (`vo_hint_tap`) - the child taps it. Laying blocks: 1 `block_try`, 2 the rule (`vo_rule_a`), 3 the tile glows +
   the hand shows the drag (`vo_hint_drag`). A wrong drop wiggles. No red anywhere: wrong = amber `#F5A524`.
-- **Order:** guided measuring runs easier to harder - G2b pillow (3, row) -> G1 bed (8, row) -> G2 almirah (4, column) ->
-  G3 fridge (4, column) -> G4.
+- **Order:** review 2026-10-08 ("after the door screen the bed screen will come", then "shift the pillow screen after
+  the almirah screen"): T3 door -> G1 bed (8, row) -> G2 almirah (4, column) -> G2b pillow (3, row) -> G3 fridge (4,
+  column) -> G4. (It was G2b pillow first, easier to harder.)
+  The guided phase gate now plays before G1 (worked out from the phase change, not the slide id).
 - **End screen:** VO is the standard "बहुत बढ़िया, दोस्त! तुमने कमाल कर दिया!".
+
+## The screen takes no input while a voiceover speaks (2026-10-08) — `app.js` `VoLock`, CSS `[vo-lock]`
+- Review: "make sure the screen is disabled whenever the VO is playing throughout the game". Every slide and the
+  landing: while a voiceover clip (`assets/voiceover/vo_*`) is really sounding - from the shared VO element's `playing`
+  to its pause / end / error - a clear layer (`#voLock`, z-index 150000: over the game and the phase card, under the
+  rotate prompt) takes every tap and drag. Nothing greys out (review 2026-10-05: the speaker is never shown disabled).
+  Sound effects (`playSfx`) and `play()`'s silent beats do not lock; a drag already under way when a line starts
+  finishes, and the layer goes up once that pointer is released. The dev nav stays clickable (QA).
+- Tested: the landing (the play button covered during the greeting, live after it); T1 (a tap on the long table
+  during the question and during "यह टेबल ज्यादा लंबी है।" - nothing; after - it answers); G1 (a drag during the
+  instruction - nothing; taps on an option during the question and during "ब्लॉक्स को एक बार फिर गिनिए।" - nothing);
+  T2 (block 4 can't be taken while "तीन" is said, can right after).
 
 ## Internal QA before the push (2026-10-01)
 - **Played**, each slide in a fresh page the way a child would: the landing (its play button starts T1), T1 → CEL -
@@ -899,8 +978,21 @@ SOFTWARE
     the move without an answer. Any touch ends it. Reduced motion: no demo.
   Verified headless: the demo frames, nothing left after it, P2 / P3 played through, the 3rd wrong with no hand, 0
   console errors. Not run: P2 then P3 in one session (the once-only rests on the window flag).
+- Then (review 2026-10-08): "in this game screen change the tv with image 2 asset. and follow the ppt as it is for
+  everything" - P3 follows SME deck page 11 to the letter: the window 5 (its height) / the water bottle 3 (its height) /
+  the TV 4 (`axis "x"`: along its longer side, the blocks on top), boxes `[5, 4, 3]` in the deck's order.
+  `assets/obj_tv.webp` replaced in place by the supplied "Cartoon Ocean Adventure on TV" (1536x1024 PNG: its faint dark
+  halo dropped, the body made fully opaque, cropped to the set, 600x348, ar 0.58). `data.ppt_hints` - the deck's own
+  Feedback/Hint, no hint VO (`audio.try_again` removed): wrong 1 - the red line bounces back into the dot it was drawn
+  from; wrong 2 - the object's blocks light up one by one with their digits 1, 2, 3 ... (shown, not said: 650ms each);
+  wrong 3 on - a hand nudge, its fingertip tapping the right box's dot (the label stays clear), until the next pair.
+  Right: the line locks green + the SFX; all three: `vo_match_ok`. P2 keeps its own ladder. The window's 5 blocks make the
+  shared P2 / P3 cube 29px (was ~36): the six cards stay one size, 241 x 171. Verified headless (Edge): no VO on three
+  wrong pairs, the hand on the 3rd, only `vo_match_ok` at the end.
 
 ## P1 zoom (2026-10-07) — card `slides[P1].data.zoom`, `app.js` COMPARE_MEASURED
+- REMOVED 2026-10-08: P1 went to the deck's 4 / 5 chairs at the game's 74px cube (see G4 / P1 above). The code still
+  reads `data.zoom`; no slide sets it now.
 - Review: "zoom in this screen a bit, do not change anything else". P1 (the two chairs) only: `data.zoom 1.15` scales
   the slide's cube 74 -> 85px (the chairs, the cat and the blocks with it; the fit rules still cap it - nothing clipped at
   1920x894, 1366x768, 1024x768, 2400x1080). Asked first, since it breaks "one cube size on every screen" (2026-10-06):

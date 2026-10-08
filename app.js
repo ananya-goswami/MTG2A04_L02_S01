@@ -238,6 +238,25 @@ function setPlaying(on){
    _playTok retires a superseded clip's callbacks, so a stopped clip can never fire onEnd late. */
 const voEl = new Audio(); voEl.preload = "auto";
 let _playTok = 0;
+/* [vo-lock] review 2026-10-08 "make sure the screen is disabled whenever the VO is playing throughout the game": while a
+   voiceover clip (assets/voiceover/vo_*) is really sounding - from the element's own `playing` to its pause / end /
+   error - a clear layer over the whole game (#voLock, CSS [vo-lock]) takes every tap and drag; nothing greys out (review
+   2026-10-05: the speaker is never shown disabled). Sound effects (playSfx) and play()'s silent beats do not lock. A
+   drag already under way when a line starts is left to finish: the layer goes up once that pointer is released. The dev
+   nav stays on top (QA). */
+const VoLock = (function(){
+  const layer = document.createElement("div"); layer.id = "voLock"; layer.setAttribute("aria-hidden", "true");
+  document.body.appendChild(layer);
+  const down = new Set(); let want = false;
+  const apply = ()=> document.body.classList.toggle("vo-lock", want && down.size === 0);
+  const isVO = ()=> /(^|\/)vo_[^\/]*$/.test(srcOf(voEl).split("?")[0]);
+  voEl.addEventListener("playing", ()=>{ want = isVO(); apply(); });
+  ["pause", "ended", "error", "abort", "emptied"].forEach(t => voEl.addEventListener(t, ()=>{ want = false; apply(); }));
+  window.addEventListener("pointerdown", e =>{ if(e.target !== layer) down.add(e.pointerId); }, true);
+  ["pointerup", "pointercancel"].forEach(t => window.addEventListener(t, e =>{ if(down.delete(e.pointerId)) apply(); }, true));
+  ["click", "dblclick", "contextmenu"].forEach(t => layer.addEventListener(t, e =>{ e.preventDefault(); e.stopPropagation(); }));
+  return { get on(){ return document.body.classList.contains("vo-lock"); } };
+})();
 /* chipFor(src): the ONE chip a clip belongs to, or null. The landing greeting belongs to the
    landing chip; a slide's own lines (prompt / ask / conclude ...) to that slide's chip - the in-card
    tutorial chip when the tutorial frame is up, else the header chip. Feedback, option words and
@@ -1769,14 +1788,17 @@ const MDK = (function(){
      box onto the next tile. A drop on the next tile snaps flush (onHit(n, tile) - may return a Promise, e.g. a counting
      VO); anywhere else - a gap, an overlap, off the row - it bounces back to the box. The hint sheet's Drag & Drop
      ladder, counted per tile (cfg.hints): attempt 1 - it returns + hints.say(1) (think again, nothing shown); attempt 2
-     on - it returns, the tile glows and the hand shows the drag (the ghost) + hints.say(2) (the rule). Idle cfg.idleMs -
-     the ghost drag (the sheet has no inactivity row; the decks' idle ghost stays). After the last one, onAll(). cfg:
-     { scene, slide, alive, blocks, slots, slotXY(k), S, hand, placed0, idleMs, hints:{say(attempt)}, showTiles (the
-     next tile's outline while a block is carried), onHit, onAll, onWrong(attempt) } */
+     - it returns + hints.say(2) (the rule); attempt 3 on - it returns, the tile glows and the hand shows the drag (the
+     ghost) + hints.say(3). No cfg.hints + cfg.ghostAt 1 (T2 / T3, the deck's own "Wrong attempt: bounce back, then
+     show the ghost-drag animation"): every wrong drop returns, then the plain ghost drag - no VO, no lit tile. Idle
+     cfg.idleMs - the ghost drag (the sheet has no inactivity row; the decks' idle ghost stays). After the last one,
+     onAll(). cfg: { scene, slide, alive, blocks, slots, slotXY(k), S, hand, placed0, idleMs, hints:{say(attempt)},
+     ghostAt (default 3), showTiles (the next tile's outline while a block is carried), onHit, onAll, onWrong(attempt) } */
   function childMeasure(cfg){
     const { scene, blocks, slots, slotXY, S, hand } = cfg, N = slots.length, STOP = {};
     let placed = cfg.placed0 || 0, drag = null, idleT = 0, tok = 0, on = false;
     const misses = [];                                                       // wrong drops per tile - the hint ladder
+    const GHOST_AT = cfg.ghostAt || 3;                                       // the wrong drop (per tile) the ghost drag follows from
     const live = ()=> on && cfg.alive();
     const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
     const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : (b._z || 3); };
@@ -1837,8 +1859,8 @@ const MDK = (function(){
                where the last block ends (hints.say(2)); 3 the visual nudge - the tile glows and the hand shows the
                drag (hints.say(3)) */
             if(cfg.hints) cfg.hints.say(Math.min(m, 3));
-            if(m >= 3 && hand) setTimeout(()=>{ if(!live() || drag || placed !== k) return;
-              slots[k].classList.add("show", "target"); ghost(true).then(()=>{ if(live()) armIdle(); }); }, 350);
+            if(m >= GHOST_AT && hand) setTimeout(()=>{ if(!live() || drag || placed !== k) return;
+              const lit = !!cfg.hints; if(lit) slots[k].classList.add("show", "target"); ghost(lit).then(()=>{ if(live()) armIdle(); }); }, 350);
             else armIdle(); });
         }
       };
@@ -2117,8 +2139,10 @@ const SlideModules = {
       const target = n =>{ if(arrowEl){ arrowEl.remove(); arrowEl = null; } if(phase !== "child" || n >= N) return;
         const p = slotXY(n); arrowEl = AX === "x" ? K.arrow(scene, p.x + S / 2, p.y - 30, "down") : K.arrow(scene, p.x - 30, p.y + S / 2, "right"); };   // [t3-left] from the open side, pointing at the tile
       /* ---- the child's turn: MDK.childMeasure ---- */
+      /* review 2026-10-08 ("follow the ppt"): the deck's wrong attempt - bounce back, then the ghost drag, every time,
+         no VO (not the hint sheet's ladder) */
       const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, placed0: DEMO, idleMs: IDLE_MS, respawn: box.respawn,
-        hints: { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },   // the hint sheet's Drag & Drop ladder (MDK.childMeasure)
+        ghostAt: 1,
         onHit: (n, tile)=>{ placeMark(tile, n); target(n); if(box.react) box.react("happy"); if(box.settle) box.settle(blocks.filter(b => !b._placed)); return sayNum(n); },   // the box's pile settles
         onWrong: ()=>{ if(box.react) box.react("sad"); },                    // [robot] its face: hearts / closed eyes
         onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); },   // [robot] watching while idle
@@ -2243,6 +2267,14 @@ const SlideModules = {
                                              ध्यान से देखिए और सही उत्तर पहचानिए।");
                                   wrong #3 - (the sheet stops at 2) the right card is shown, its VO, on (never stuck).
                                   Laying the blocks: the sheet's Drag & Drop ladder (MDK.childMeasure).
+       data.wrong_cue "deck" (G1, review 2026-10-08: "in this game screen follow the ppt instructions as it is for
+       everything" - the deck's page 5) replaces both ladders with the deck's own lines:
+         a block not laid flush . it goes back (the robot's vanish + a new cube on its lid) - nothing else: no VO, no
+                                  lit tile, no ghost (the idle ghost drag stays)
+         wrong #1 ............... the option wiggles, the laid blocks glow, audio.try_again ("ब्लॉक्स को एक बार फिर गिनिए।")
+         wrong #2 ............... each laid block lights in turn as it is counted aloud, एक ... आठ (vo_num_k)
+         wrong #3 on ............ a counting digit under each block, then the hand on the right option (no VO; the
+                                  options stay open - the child taps it)
        axis "x": the tiles in a row below the object; "y": a column beside it, from its foot up.
        data: { n, axis, obj:{src, ar, a0, a1}, s, ask_hi, options:[..], unit_hi }
        audio: prompt, ask, correct, try_again, hint, block_try, block_hint */
@@ -2348,10 +2380,12 @@ const SlideModules = {
       if(box.link) box.link(blocks);                                         // [robot] only the next cube shows, on its lid
       const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const DECK = d.wrong_cue === "deck";                                   // the deck's own wrong-answer lines (above)
       let phase = "measure";
       /* ---- measure ---- */
       const run = K.childMeasure({ scene, slide, alive, blocks, slots, slotXY, S, hand, idleMs: IDLE_MS, respawn: box.respawn,
-        hints: { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") }, onAll: ask,
+        hints: DECK ? null : { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") }, onAll: ask,
+        ghostAt: DECK ? Infinity : undefined,                                // [deck] a wrong drop only goes back
         onHit: ()=>{ if(box.react) box.react("happy"); if(box.settle) box.settle(blocks.filter(b => !b._placed)); },   // the holder's pile settles
         onWrong: ()=>{ if(box.react) box.react("sad"); },                   // [robot] its face: hearts / closed eyes
         onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); } });   // [robot] watching while idle
@@ -2365,8 +2399,10 @@ const SlideModules = {
         // an empty holder fades away; one with spare blocks left in it stays (they were not needed)
         if(!ROBOT && !blocks.some(b => !b._placed)){ box.back.classList.add("empty"); box.front.classList.add("empty"); }   // (the robot stays)
         $("promptText").textContent = d.ask_hi || slide.prompt_hi;
-        opts.classList.add("in"); busy = true;
-        say("ask").then(()=>{ busy = false; armAskIdle(); });
+        /* [deck] review 2026-10-08 ("the VO is still not correct"): not busy once the options are up - but no tap reaches
+           them while the question is said (the [vo-lock], VoLock), so it always plays to its end */
+        opts.classList.add("in"); busy = !DECK;
+        say("ask").then(()=>{ if(!DECK){ busy = false; armAskIdle(); } });
       }
       async function onWrong(o){
         wrong++; busy = true;
@@ -2379,10 +2415,35 @@ const SlideModules = {
            2 ... a strong hint - the procedure: count the blocks laid, that many blocks is its length (audio.hint)
            3 ... the visual nudge: the wrong cards lock (faded, untappable), the right one glows and the hand points at
                  it (audio.nudge) - the child still taps it themselves */
-        if(wrong === 1){ await say("try_again"); }
+        if(DECK) await deckWrong();
+        else if(wrong === 1){ await say("try_again"); }
         else if(wrong === 2){ await say("hint"); }
         else { lockToRight(); await say("nudge"); }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armAskIdle(); }
+      }
+      /* [deck] the deck's page 5 wrong answers (data.wrong_cue "deck"): 1 the blocks glow + "count again"; 2 each block lit
+         as it is counted aloud; 3 on a digit under each block, then the hand on the right option */
+      const laid = ()=> blocks.filter(b => b._placed).sort((a, b)=> AX === "x" ? K.pos(a).x - K.pos(b).x : K.pos(b).y - K.pos(a).y);
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      /* the blocks' glow: a white rim + a gold glow round each cube's own shape, swelling a little (the kit's hint glow,
+         MDK.softGlow, in the counting gold - mdGlow's yellow alone hardly shows on the peach floor) */
+      const GLOW_OFF = "drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 0 rgba(255,184,0,0))",
+            GLOW_ON = "drop-shadow(0 0 3px rgba(255,255,255,.95)) drop-shadow(0 0 12px rgba(255,184,0,1))";
+      const glowBlock = b =>{ const cs = getComputedStyle(b), f = cs.filter, base = f && f !== "none" ? f + " " : "", sc = parseFloat(cs.scale) || 1;
+        b.animate([{ filter: base + GLOW_OFF, scale: String(sc) }, { filter: base + GLOW_ON, scale: String(sc * 1.04) }, { filter: base + GLOW_OFF, scale: String(sc) }],
+                  { duration: 900, iterations: reduce ? 1 : 3, easing: "ease-in-out" }); };
+      let digits = null, nudged = false;
+      async function deckWrong(){
+        if(wrong === 1){ laid().forEach(glowBlock); await say("try_again"); }
+        else if(wrong === 2){ const bs = laid();
+          for(let k = 0; k < bs.length; k++){ if(!alive()) return;
+            bs[k].classList.add("mq-counting"); await sayNum(k + 1); bs[k].classList.remove("mq-counting"); } }
+        else {
+          if(!digits){ digits = [];
+            for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.wait(140); }
+            await K.wait(350); }
+          nudged = true; if(alive() && !state.locked) placeNudge(right);
+        }
       }
       function lockToRight(){
         optEls.forEach(x =>{ if(x !== right){ x.classList.add("faded", "locked"); x.disabled = true; } });
@@ -2391,10 +2452,11 @@ const SlideModules = {
       }
       /* an idle child in the question (7s, QA checklist 2026-10-05): the question is asked again - and on the third
          layer, the hand returns to the right card */
+      // [deck] not on the deck's page 5 (no inactivity line for the question): the question is never re-asked by itself
       let askIdleT = 0;
-      function armAskIdle(){ clearTimeout(askIdleT); askIdleT = setTimeout(()=>{
+      function armAskIdle(){ clearTimeout(askIdleT); if(DECK) return; askIdleT = setTimeout(()=>{
         if(!alive() || phase !== "ask" || busy || state.locked) return;
-        if(right.classList.contains("hint-on")) placeNudge(right);
+        if(right.classList.contains("hint-on") || nudged) placeNudge(right);
         busy = true; say("ask").then(()=>{ if(alive() && !state.locked){ busy = false; armAskIdle(); } });
       }, IDLE_MS); }
       function onRight(o, revealed){
@@ -2438,7 +2500,15 @@ const SlideModules = {
          wrong #3 ..... (the sheet stops at 2) the right one is shown, its counts + VO, on (never stuck)
        axis "x" (the mats): each n·S long, its row of blocks under it, both rows on one line. axis "y" (the chairs):
        each n·S tall on one floor, its column of blocks beside it. data: { axis, s, unit_hi, items:[{src, ar, n,
-       correct}] } (items in the deck's order - its "first" and "second"). audio: prompt, correct, try_again, hint. */
+       correct}] } (items in the deck's order - its "first" and "second"). audio: prompt, correct, try_again, hint.
+       data.wrong_cue "deck" (G4, review 2026-10-08: "follow the recommendations exactly" - the deck's page 8) instead:
+         wrong #1 ..... the tapped one wiggles; then the blocks of BOTH, first then second, light up one by one with a
+                        digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the
+                        second); then only the question again (audio.reask) - it plays to its end (VoLock)
+         wrong #2 on .. it wiggles; the hand nudges the right one (no VO, nothing locked); the child's tap on it
+                        gets the correct response (data.nudge_sfx_only, G4: the SFX only - it lights up, its counts
+                        show, no correct VO; P1: with its correct VO)
+         no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask. */
     mount(host, slide){
       const d = slide.data, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2508,9 +2578,12 @@ const SlideModules = {
       });
       const right = els.find(e => e.it.correct) || els[els.length - 1];
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
-      let wrong = 0, busy = true;
+      const DECK = d.wrong_cue === "deck";                                   // the deck's own wrong-answer lines (above)
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
+      let wrong = 0, busy = true, nudged = false, digits = [];
       function onRight(e, revealed){
         state.locked = true; busy = true; stopNudge(); clearTimeout(idleT);
+        digits.forEach(n =>{ n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, fill: "forwards" }); setTimeout(()=> n.remove(), 300); }); digits = [];   // [deck] the counts below take their place
         e.img.classList.add("cm-right"); els.forEach(o =>{ if(o !== e){ o.img.classList.add("cm-dim"); if(o.rider) o.rider.classList.add("cm-dim"); } });
         e.blocks.forEach(b => b.classList.add("glow"));
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrong + 1, score: wrong === 0 ? 1 : 0 }); }catch(e2){}
@@ -2525,7 +2598,28 @@ const SlideModules = {
             c.textContent = txt; if(reduce){ c.style.opacity = 1; c.style.scale = 1; } else requestAnimationFrame(()=> c.classList.add("in"));
           } else K.plate(scene, txt, o.plateAt.cx, o.plateAt.y, PW);
         }, 250 + i * 350));
-        say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 900));
+        // [deck] after the hand nudge the deck asks for "the SFX used for the correct response": data.nudge_sfx_only (G4 -
+        // the user chose "SFX only, as written") - the SFX and no correct VO; else (P1, review 2026-10-08 "last VO is still
+        // missing in this") the whole correct response, its VO too
+        (DECK && nudged && d.nudge_sfx_only ? K.wait(1600) : say("correct")).then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 900));
+      }
+      /* [deck] the deck's page 8 wrong answers (data.wrong_cue "deck", see above) */
+      async function deckWrong(){
+        if(wrong === 1){
+          await K.wait(250);
+          for(const o of els) for(let k = 0; k < o.blocks.length; k++){
+            if(!alive() || state.locked) return;
+            const b = o.blocks[k]; b.classList.add("mq-counting");
+            digits.push(K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right"));
+            await sayNum(k + 1); b.classList.remove("mq-counting");
+          }
+          if(!alive() || state.locked) return;
+          busy = false; setSwMood("point"); await say("reask");             // only the question again (no tap during it - VoLock)
+          return;
+        }
+        stopAudio();                                                         // (the re-asked question, if still going)
+        nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.hit); }, 300);
+        busy = false; setSwMood("point");
       }
       async function onWrong(e){
         wrong++; busy = true;
@@ -2533,6 +2627,7 @@ const SlideModules = {
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
         sfxWrongSoft(); setSwMood("tryagain");
         K.shake(e.img, 10); if(e.rider) K.shake(e.rider, 10);                                      // wiggles and returns (its rider with it)
+        if(DECK) return deckWrong();
         /* QA checklist 2026-10-05 - three layers: 1 think again (audio.try_again); 2 the strong hint - count both rows,
            more blocks is longer (audio.hint); 3 the wrong one locks (dimmed, untappable), the right one glows and the
            hand points at it (audio.nudge) - the child still taps it */
@@ -2547,7 +2642,7 @@ const SlideModules = {
       }
       /* an idle child (7s, QA checklist 2026-10-05): the question again - on the third layer the hand comes back too */
       let idleT = 0;
-      function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{
+      function armIdle(){ clearTimeout(idleT); if(DECK) return; idleT = setTimeout(()=>{   // [deck] never re-asked by itself
         if(!alive() || busy || state.locked) return;
         if(wrong >= 3) placeNudge(right.hit);
         busy = true; say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
@@ -2588,7 +2683,11 @@ const SlideModules = {
        box's head. The child joins an object to a box with a line - drags from either dot (or card / box) to the other
        side, or taps one then the other (HI01's pair games: a red flash for a wrong pair, never solved for the child).
        Right: the line stays, green. Wrong: the line flashes red and fades, the same ladder - the 3rd rung's hand travels
-       from the object's dot to its box's dot (HI01 travelNudge) and loops until the next pair. */
+       from the object's dot to its box's dot (HI01 travelNudge) and loops until the next pair.
+       data.ppt_hints (P3 - review 2026-10-08 "follow the ppt as it is for everything", SME deck page 11's Feedback/Hint):
+       the deck's own ladder, no hint VO - 1: the red line bounces back into the dot it was drawn from; 2: the object's
+       blocks light up one by one with their digits 1, 2, 3 ... (shown, not said); 3 on: a hand nudge on the right box
+       (its fingertip tapping the box's dot - the label stays clear), until the next pair. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2608,6 +2707,7 @@ const SlideModules = {
       // under the game's 74 here (~48 on both P2 and P3, the same: no column of three measured objects holds 74). Before, a row of cards over
       // a row of boxes (2026-10-06 - 07). A dot on each card's right edge and each box's left edge.
       const LINES = d.join === "lines", DOT = 21;                          // (21: the Figma connector, FLN "Match the following" 1162:29905)
+      const PPT = !!d.ppt_hints;                                           // the deck's own wrong-match ladder (see above)
       // a box; the panels' padding / gap; end-line overhang (12 / 10, was 16 / 14: P2's three rows hold the game's 44px cube).
       // [lines] review 2026-10-06 "increase the size of all 6 boxes": the boxes 196 x 76 -> 236 x 92
       const BW = LINES ? 236 : 196, BH = LINES ? 92 : 76, BG = 22, PAD = LINES ? 8 : 12, G = LINES ? 12 : 10, ENDS = 10;   // [lines] 8 / 12 (review 2026-10-07: the 3rd card sat on the stage's bottom edge)
@@ -2720,31 +2820,40 @@ const SlideModules = {
         return K.glide(b, to, reduce ? 0 : 220, false).then(()=>{
           if(!alive()) return;
           b.classList.add("ok"); e.panel.classList.add("ok"); if(e.slotEl) e.slotEl.classList.add("filled");
-          e.blocks.forEach(x => K.okFlash(x)); sfxCorrect(); setSwMood("happy");
+          e.blocks.forEach(x => K.okFlash(x)); sfxCorrect(); setSwMood("happy"); clearCount(e);
           GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: e.it.id, value: e.it.n, attempts: e.wrong + 1 });
           if(matched === objs.length) finish(); else { busy = false; armIdle(); }
         });
       }
-      async function miss(e, b){
+      async function miss(e, b, from){
         const m = ++e.wrong; wrongAll++; busy = true; stopNudge();
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: e.it.id, box: b._v, attempts: m });
         sfxWrongSoft(); setSwMood("tryagain"); K.shake(e.panel, 8); K.shake(e.img, 8);
-        await (LINES ? wrongLine(e, b) : home(b, true)); if(!alive()) return;
+        await (LINES ? wrongLine(e, b, from) : home(b, true)); if(!alive()) return;
         if(m === 1) await say("try_again");                                   // 1: bounced back
         else if(m === 2){                                                    // 2: its blocks counted, one by one, digits on
-          if(count) count.forEach(x => x.remove()); count = [];
+          if(count) count.forEach(x => x.remove()); count = []; count._e = e;
           for(let k = 0; k < e.blocks.length; k++){
             if(!alive()) return;
             e.blocks[k].classList.add("mr-counting"); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));
-            await sayNum(k + 1); e.blocks[k].classList.remove("mr-counting");
+            await (PPT ? K.wait(reduce ? 300 : 650) : sayNum(k + 1)); e.blocks[k].classList.remove("mr-counting");
           }
         } else {                                                             // 3 on: the hand on its right box
-          const rb = rightBox(e); if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
+          const rb = rightBox(e);
+          if(rb && PPT) tapHand(rb._dot);                                    // [ppt_hints] the hand alone, on the box's dot
+          else if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
         }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
+      /* the 2nd rung's digits are a hint for that one object (review 2026-10-08 "why is this still present afterwards?" -
+         they stayed on the blackboard after it was matched, to the end): they fade once it is matched, or at the end */
+      function clearCount(e){
+        if(!count || (e && count._e !== e)) return;
+        const c = count; count = null;
+        c.forEach(x =>{ x.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, fill: "forwards" }); setTimeout(()=> x.remove(), 300); });   // (the pop's fill holds its opacity: fade from script)
+      }
       function finish(){
-        state.locked = true; busy = true; stopNudge(); clearTimeout(idleT);
+        state.locked = true; busy = true; stopNudge(); clearTimeout(idleT); clearCount();
         const first = wrongAll === 0;
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongAll + 1, score: first ? 1 : 0 }); }catch(e2){}
         recordResult(slide, first); setSwMood("happy");
@@ -2787,7 +2896,7 @@ const SlideModules = {
       function pairUp(a, h){
         const e = a.kind === "obj" ? a.e : h.e, b = a.kind === "box" ? a.b : h.b;
         unpick(); hover(null); clearHelp();
-        if(e.it.n === b._v) lockLine(e, b); else miss(e, b);
+        if(e.it.n === b._v) lockLine(e, b); else miss(e, b, a.kind);
       }
       // (review 2026-10-07 "if I connect with correct or wrong one, the line again comes from right to left and gets
       //  connected - this should not happen": the child's own line is already there, so the kept / red line just takes
@@ -2797,16 +2906,31 @@ const SlideModules = {
         mkLine(e.dot, b._dot, "ok"); e.dotEl.classList.add("ok"); b._dotEl.classList.add("ok");
         // (review 2026-10-07 "after correct match the cubes should not show green outline": the card, the line and the box
         //  turn green - the cubes stay as they are, no okFlash)
-        b.classList.add("ok"); e.panel.classList.add("ok"); sfxCorrect(); setSwMood("happy");
+        b.classList.add("ok"); e.panel.classList.add("ok"); sfxCorrect(); setSwMood("happy"); clearCount(e);
         GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: e.it.id, value: e.it.n, attempts: e.wrong + 1 });
         if(matched === objs.length) finish(); else { busy = false; armIdle(); }
       }
-      // a wrong pair: the line is drawn red, both ends flash red, then it fades (red first, always - HI01 28r)
-      const wrongLine = (e, b)=> new Promise(r =>{
+      // a wrong pair: the line is drawn red, both ends flash red, then it fades (red first, always - HI01 28r).
+      // [ppt_hints] the deck's "bounce the incorrect match back": after the red, its far end springs back into the dot it
+      // was drawn from (from: "obj" / "box", the side the child started on)
+      const wrongLine = (e, b, from)=> new Promise(r =>{
         const ends = [b, e.panel, e.dotEl, b._dotEl];                       // (Figma frame 5: both cards, both dots, the line red)
-        const l = mkLine(e.dot, b._dot, "no"); ends.forEach(x => x.classList.add("no")); K.shake(b, 8);
-        setTimeout(()=>{ l.classList.add("gone"); ends.forEach(x => x.classList.remove("no")); setTimeout(()=>{ l.remove(); r(); }, 320); }, reduce ? 500 : 750);
+        const a = PPT && from === "box" ? b._dot : e.dot, z = a === e.dot ? b._dot : e.dot;
+        const l = mkLine(a, z, "no"); ends.forEach(x => x.classList.add("no")); K.shake(b, 8);
+        setTimeout(()=>{ ends.forEach(x => x.classList.remove("no"));
+          if(!PPT || reduce){ l.classList.add("gone"); setTimeout(()=>{ l.remove(); r(); }, 320); return; }
+          const t0 = performance.now(), MS = 380, back = k => 1 - (1 - k) * (1 - k) * (1 + 2.2 * k);   // ease-out with a little overshoot
+          const step = now =>{ const k = Math.min(1, (now - t0) / MS), f = back(k);
+            setLine(l, a, { x: z.x + (a.x - z.x) * f, y: z.y + (a.y - z.y) * f });
+            if(k < 1) requestAnimationFrame(step); else { l.remove(); r(); } };
+          requestAnimationFrame(step);
+        }, reduce ? 500 : 750);
       });
+      // [ppt_hints] the 3rd rung: the hand's fingertip on the right box's dot, tapping, until the next pair (clearHelp)
+      function tapHand(p){
+        stopTravel(); travel = K.hand(scene, 0); travel.on(p);
+        if(!reduce) travel.el.animate([{ translate: "0 12px" }, { translate: "0 0" }, { translate: "0 12px" }], { duration: 1000, iterations: Infinity, easing: "ease-in-out" });
+      }
       if(LINES){
         scene.addEventListener("pointerdown", ev =>{
           stopDemo(); touched = true;                                        // (a child who has started never gets the demo)
@@ -2922,7 +3046,17 @@ const SlideModules = {
          fourth, on.
        data: { sc (the classroom's block px), unit_hi, vo_object, items:[{id, name_hi, src, ar, n, axis, space:{x, y,
        markers, label:[cx, top]}}], room:{decor:[{src, x, y, w}], bunting:{src, n, ar, w, step, x0, hang, rope}} } in the
-       room's px (1033 x 340). audio: intro, measure, place, item_ok, try_again, hint, block_try, block_hint. */
+       room's px (1033 x 340). audio: intro, measure, place, item_ok, try_again, hint, block_try, block_hint.
+       data.wrong_cue "deck" (review 2026-10-08: "follow the recommdations exactly" - the deck's page 13) instead:
+         measure ..... ONE block waits at the source place (the rest stacked under it - each one taken shows the next);
+                       nothing else: no ghost, no start pulse, no counting VO, no hints, no target outlines - a block not
+                       flush just goes back
+         VO .......... the FIRST object picked, whichever it is, gets its own two lines (audio.measure_<id>,
+                       audio.place_<id>: "<name> को ब्लॉक से मापिए।" / "अब <name> के लिए सही जगह चुनिए।"); after
+                       that the game runs without VO
+         place ....... right: it snaps in + the correct SFX (no praise VO); wrong: the space shakes and the object goes
+                       back to the tray - nothing else (the child reconsiders on its own: no hints, never moved in for
+                       them); no idle hand on the tray. audio: intro, measure_<id>, place_<id>. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -2946,6 +3080,8 @@ const SlideModules = {
       const items = d.items;
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const setHead = t =>{ $("promptText").textContent = t; };
+      const DECK = d.wrong_cue === "deck";                                   // the deck's page 13 as it is (see above)
+      const voRole = (role, it)=> DECK ? role + "_" + it.id : role;          // [deck] each object's own measure / place line
       /* [juice] review 2026-10-07 "make the end game screen the best": motion only, no new hints (the SME's measure rules
          stand). rectIn(el): an element's box in scene px (the room is zoomed by Z, the stage by kS) */
       const rectIn = el =>{ const a = el.getBoundingClientRect(), b = scene.getBoundingClientRect();
@@ -3064,8 +3200,8 @@ const SlideModules = {
       }
       /* ---- the game ---- */
       let phase = "pick", first = true, cur = null, run = null, wrongs = 0, placedN = 0, idleT = 0, pending = null, anyRev = false;
-      const voFor = it => first && it && it.id === d.vo_object;
-      function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
+      const voFor = it => first && it && (DECK || it.id === d.vo_object);   // [deck] the first object, whichever
+      function armIdle(){ clearTimeout(idleT); if(DECK) return; idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
         const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, IDLE_MS); }
       function toPick(idle){
         phase = "pick"; cur = null; setHead(slide.prompt_hi || ""); scene.classList.remove("cf-measuring", "cf-placing");
@@ -3081,7 +3217,7 @@ const SlideModules = {
         cur = it; phase = "measure"; scene.classList.add("cf-measuring");
         setHead(it.name_hi + " को ब्लॉक से मापिए।");
         measureView(it);
-        if(voFor(it)) say("measure"); else stopAudio();
+        if(voFor(it)) say(voRole("measure", it)); else stopAudio();
       }
       /* the measuring view: the object big in the centre (a row on top of a long one, a column left of a tall one),
          dashed lines at its ends, the blocks waiting in the tray */
@@ -3117,9 +3253,11 @@ const SlideModules = {
         const gap = Math.round(S * .16), bx = (W - (M * S + (M - 1) * gap)) / 2, by = SH ? TY + TH * SHELF.floor - S
                  : FULL ? Math.min(TY + (TH - S) / 2, Math.max(oy + oh + 28, TY - S * .4))   // (review 2026-10-07 "the cubes are really below - shift them up": nearer the object, never on it)
                  : TY + (TH - S) / 2;
-        const blocks = []; for(let j = 0; j < M; j++){ const b = K.cube(layer, j, bx + j * (S + gap), by, S); b._z = 3; b.style.zIndex = 3; blocks.push(b); }
+        // [deck] "A block appears at the source place": the blocks stacked on one spot, centred, the next one on top
+        const blocks = []; for(let j = 0; j < M; j++){ const b = K.cube(layer, j, DECK ? (W - S) / 2 : bx + j * (S + gap), by, S); b._z = DECK ? 3 + j : 3; b.style.zIndex = b._z; blocks.push(b); }
         run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: K.hand(layer, S),
-          idleMs: 0, showTiles: false, hints: { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },
+          idleMs: 0, showTiles: false, hints: DECK ? null : { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },
+          ghostAt: DECK ? Infinity : undefined,                              // [deck] a block not flush just goes back
           onAll: ()=> setTimeout(()=> measured(it, layer), 650) });
         run.start();
       }
@@ -3127,7 +3265,7 @@ const SlideModules = {
         if(!alive() || cur !== it) return;
         run.stop(); phase = "place";
         setHead("अब " + it.name_hi + " के लिए सही जगह चुनिए।");
-        if(voFor(it)) say("place");
+        if(voFor(it)) say(voRole("place", it));
         layer.querySelectorAll(".md-block:not(.placed)").forEach(b => b.classList.add("cf-spare"));
         /* the blocks stay on it a moment; then the classroom comes back and the object, still measured, moves to the tray */
         setTimeout(()=>{ if(!alive() || cur !== it) return;
@@ -3199,6 +3337,7 @@ const SlideModules = {
           sfxWrongSoft(); setSwMood("tryagain"); K.shake(sp._sp, 8);           // the wrong space shakes...
           back().then(()=>{                                                    // ...and the object returns to the tray
             if(!alive() || phase !== "place" || cur !== it) return;
+            if(DECK){ setSwMood("point"); return; }                            // [deck] nothing else - the child reconsiders
             if(m === 1) say("try_again");                                      // attempt 1: think again
             else if(m === 2){ K.softGlow(it._sp); placeNudge(it._anchor); say("hint"); }   // attempt 2: its space glows + the hand on it
             else { busy = true; stopNudge();                                   // after the sheet's last attempt: it moves in by itself
@@ -3211,7 +3350,7 @@ const SlideModules = {
       function fit(it, c, revealed){
         phase = "fit"; it._done = true; placedN++; first = false; stopNudge();
         if(revealed) anyRev = true;
-        stopAudio(); if(!revealed){ sfxCorrect(); setSwMood("happy"); say("item_ok"); }   // the sheet: locks + glows + "शाबाश! सही जगह पर रखा।"
+        stopAudio(); if(!revealed){ sfxCorrect(); setSwMood("happy"); if(!DECK) say("item_ok"); }   // the sheet: locks + glows + "शाबाश! सही जगह पर रखा।" ([deck] the SFX only)
         // the confetti once, when the LAST object is in (review 2026-10-01: "confetti will only drop after all are correctly
         // placed"); not when one of them was shown
         if(placedN >= items.length && !anyRev){ try{ confettiCannon(); }catch(e){} }
@@ -3258,7 +3397,7 @@ const SlideModules = {
         // (review 2026-10-07 "remove Swifty from here": no Swiftie hopping onto the bench - the finished room holds a moment)
         return new Promise(r => setTimeout(r, 1800));
       }
-      state.replayAudio = ()=>{ if(phase === "pick") say("intro"); else if(phase === "measure" && voFor(cur)) say("measure"); else if(phase === "place" && voFor(cur)) say("place"); };
+      state.replayAudio = ()=>{ if(phase === "pick") say("intro"); else if(phase === "measure" && voFor(cur)) say(voRole("measure", cur)); else if(phase === "place" && voFor(cur)) say(voRole("place", cur)); };
       requestAnimationFrame(()=> scene.classList.add("in"));
       toPick(false);
       say("intro").then(()=>{ if(alive() && phase === "pick") armIdle(); });
@@ -3299,7 +3438,13 @@ const SlideModules = {
     // 2026-09-30: "for the hint part follow the excel sheet, not the slides"): every wrong tap - the tapped picture
     // shakes and returns; #1 - nothing else shown (VO: audio.try_again, via mountTapOptions); #2 - after a moment the
     // right picture glows softly (VO: audio.hint); #3 - the engine shows the answer (audio.reveal) and the hand taps it
-    // (o.tap: its leg), then on. The right option's own audio is the praise ("शाबाश! आपने सही चुना।").
+    // (o.tap: its leg), then on. Right = SFX + confetti only: the deck's "Correct Response: SFX" (review 2026-10-08 -
+    // the right option's own praise clip, "शाबाश! आपने सही चुना।" vo_ok_mcq2, is gone).
+    // data.wrong_cue:"deck" (review 2026-10-08: "follow this instruction VO when selected wrong option as in the ppt" -
+    // the deck's page 2 "Incorrect: Pulsate/hand nudge on the long table and play VO: यह टेबल ज्यादा लंबी है।"): every
+    // wrong tap - the tapped picture shakes and returns, the right picture pulses (MDK.softGlow) and the hand taps it,
+    // and the deck's line plays (audio.try_again = audio.hint = audio.reveal); the child then taps it. The engine's
+    // max_attempts reveal still ends the slide after the 3rd wrong tap, with the same line.
     mount(host, slide){
       const d = slide.data;
       mountTapOptions({
@@ -3336,8 +3481,13 @@ const SlideModules = {
           const n = state.attempts;                                                                     // this wrong tap's number
           if(n === 2) setTimeout(()=>{ if(!state.locked && right.isConnected) MDK.softGlow(right.querySelector(".pk-in") || right, true); }, 600);
           else if(n >= 3) setTimeout(()=>{ if(right.isConnected) placeNudge(right.querySelector(".pk-tap") || right); }, 450);   // the answer shown: the hand taps its leg
+        } : d.wrong_cue === "deck" ? (opt, cell)=>{
+          MDK.shake(cell.querySelector(".pk-in") || cell, 10);                                         // shakes and returns
+          const right = host.querySelector('.opt-cell[data-right="1"]'); if(!right || right === cell) return;
+          setTimeout(()=>{ if(!right.isConnected || (right.classList.contains("correct") && !right.classList.contains("reveal-pulse"))) return;   // tapped right meanwhile
+            MDK.softGlow(right.querySelector(".pk-in") || right, true); placeNudge(right.querySelector(".pk-tap") || right); }, 450);   // pulses + the hand taps its leg
         } : undefined,
-        reask: d.wrong_cue === "sheet" ? false : undefined   // the sheet's attempt line only - no re-ask of the question after it
+        reask: d.wrong_cue === "sheet" || d.wrong_cue === "deck" ? false : undefined   // the attempt line only - no re-ask of the question after it
       });
       if(d.look){ const g = host.querySelector(".opt-grid"); if(g) g.classList.add("pk-" + d.look);
         const card = host.closest(".tut-card"); if(card) card.classList.add("tc-" + d.look); }   // the card's own look (CSS [T1 tables]: the floor)
@@ -3928,7 +4078,7 @@ const ASSET_SIZES = {
   "assets/obj_table_long.webp": 31502,
   "assets/obj_table_measure.webp": 45156,
   "assets/obj_table_short.webp": 21208,
-  "assets/obj_tv.webp": 52550,
+  "assets/obj_tv.webp": 51630,
   "assets/obj_watercan.webp": 93936,
   "assets/obj_window.webp": 55550,
   "assets/painting_answer.webp": 47420,
@@ -3971,15 +4121,6 @@ const ASSET_SIZES = {
   "assets/toybox_front.webp": 23106,
   "assets/voiceover/sfx_celebrate.ogg": 8344,
   "assets/voiceover/vo_demo_start.ogg": 7652,
-  "assets/voiceover/vo_hint_compare.ogg": 25407,
-  "assets/voiceover/vo_hint_count.ogg": 24948,
-  "assets/voiceover/vo_hint_dd_1.ogg": 17585,
-  "assets/voiceover/vo_hint_dd_2.ogg": 15071,
-  "assets/voiceover/vo_hint_drag.ogg": 13012,
-  "assets/voiceover/vo_hint_mcq2_1.ogg": 16331,
-  "assets/voiceover/vo_hint_mcq2_2.ogg": 12399,
-  "assets/voiceover/vo_hint_mcq3_1.ogg": 14337,
-  "assets/voiceover/vo_hint_tap.ogg": 17997,
   "assets/voiceover/vo_landing.ogg": 32354,
   "assets/voiceover/vo_match_instr.ogg": 11850,
   "assets/voiceover/vo_match_ok.ogg": 18568,
@@ -3992,11 +4133,15 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_num_7.ogg": 3108,
   "assets/voiceover/vo_num_8.ogg": 3086,
   "assets/voiceover/vo_num_9.ogg": 2775,
-  "assets/voiceover/vo_ok_dd.ogg": 10303,
-  "assets/voiceover/vo_ok_mcq2.ogg": 9707,
   "assets/voiceover/vo_p13_intro.ogg": 32060,
   "assets/voiceover/vo_p13_measure.ogg": 8800,
+  "assets/voiceover/vo_p13_measure_almirah.ogg": 10949,
+  "assets/voiceover/vo_p13_measure_board.ogg": 9677,
+  "assets/voiceover/vo_p13_measure_chair.ogg": 8561,
   "assets/voiceover/vo_p13_place.ogg": 10765,
+  "assets/voiceover/vo_p13_place_almirah.ogg": 12870,
+  "assets/voiceover/vo_p13_place_board.ogg": 13012,
+  "assets/voiceover/vo_p13_place_chair.ogg": 10375,
   "assets/voiceover/vo_p2_ask.ogg": 17889,
   "assets/voiceover/vo_p2_fb.ogg": 8670,
   "assets/voiceover/vo_p3_child.ogg": 18404,
@@ -4014,23 +4159,26 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p5_ok.ogg": 13477,
   "assets/voiceover/vo_p6_ask.ogg": 13954,
   "assets/voiceover/vo_p6_instr.ogg": 11475,
-  "assets/voiceover/vo_p6_ok.ogg": 14560,
+  "assets/voiceover/vo_p6_ok.ogg": 13819,
   "assets/voiceover/vo_p6b_ask.ogg": 12300,
   "assets/voiceover/vo_p6b_instr.ogg": 9893,
   "assets/voiceover/vo_p6b_ok.ogg": 13117,
   "assets/voiceover/vo_p7_ask.ogg": 13102,
   "assets/voiceover/vo_p7_instr.ogg": 9760,
-  "assets/voiceover/vo_p7_ok.ogg": 13914,
+  "assets/voiceover/vo_p7_ok.ogg": 13383,
   "assets/voiceover/vo_p8_ask.ogg": 14441,
   "assets/voiceover/vo_p8_ok.ogg": 12448,
+  "assets/voiceover/vo_p8_reask.ogg": 13209,
   "assets/voiceover/vo_p9_ask.ogg": 14593,
   "assets/voiceover/vo_p9_ok.ogg": 12280,
+  "assets/voiceover/vo_p9_reask.ogg": 13327,
   "assets/voiceover/vo_pt_guided.ogg": 7736,
   "assets/voiceover/vo_pt_practice.ogg": 7611,
   "assets/voiceover/vo_pt_tutorial.ogg": 7759,
   "assets/voiceover/vo_rule_a.ogg": 22761,
   "assets/voiceover/vo_rule_b.ogg": 8243,
   "assets/voiceover/vo_rule_c.ogg": 10176,
+  "assets/voiceover/vo_try_again.ogg": 9659,
   "assets/voiceover/vo_well_done.ogg": 15199
 };
 /* @asset-sizes:end */
