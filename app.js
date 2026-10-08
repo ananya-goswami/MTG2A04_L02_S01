@@ -380,7 +380,7 @@ function bgmDuck(){
   if(!BGM || !BGM.el) return;
   const el = BGM.el, from = el.volume, to = isPlaying ? BGM.DUCK : BGM.VOL, ms = to < from ? 180 : 600, t0 = performance.now();
   cancelAnimationFrame(BGM.raf);
-  const step = now =>{ if(BGM.el !== el) return; const k = Math.min(1, (now - t0) / ms);
+  const step = now =>{ if(BGM.el !== el) return; const k = Math.max(0, Math.min(1, (now - t0) / ms));   // (a frame stamped a little BEFORE t0 gave k < 0 and a volume over 1 - it threw: the clamp the MTG2A01 games already have)
     el.volume = from + (to - from) * k; if(k < 1) BGM.raf = requestAnimationFrame(step); };
   BGM.raf = requestAnimationFrame(step);
 }
@@ -4485,9 +4485,21 @@ function boot(){
   setStartBtnReady(false);   // grey + disabled from first paint, until the greeting has been heard
   /* [landing intro] the gold pop waits for the whole intro too (title words -> cubes -> lines, "sg-intro-done"),
      so the button is the LAST thing to arrive (review 2026-09-29). The 18s watchdog still forces it - never stranded. */
+  /* [landing autoplay] review 2026-10-08 ("I am still needing to click randomly on the title screen that comes after the
+     loading screen to play the VO - this should be automatic"; the user: "without adding any extra element the voiceover
+     should play after the loader"): a browser with no tap on the page yet refuses every sound, so the greeting tried
+     as the loader lifts is rejected (NotAllowedError) - and with the play button hidden until she has spoken, the child
+     had nothing to press and tapped at random. Where sound is allowed (the SwiftPAL app, a browser that lets this site
+     play) nothing changes: she speaks the moment the loader lifts. Where it is refused, the play button shows at once,
+     gold and pulsing; its tap - the gesture the browser waits for - starts the greeting (the button steps back while
+     she speaks) and when she and the title animation are done the lesson starts by itself, as HI02H11 does with
+     CARD.landing_vo_on_tap. One tap, on the button, never a random one. */
+  let _landBlocked = false, _goAfterGreeting = false, _askedOnTap = false;
   let _releasePending = false;
   const releaseStart = (force)=>{ if(!force && !window.__sgIntroDone){ _releasePending = true; return; }
-    clearTimeout(_startWatchT); _releasePending = false; if(onLandingNow()) setStartBtnReady(true); };
+    clearTimeout(_startWatchT); _releasePending = false; if(!onLandingNow()) return;
+    if(_goAfterGreeting && _greetingHeard){ _goAfterGreeting = false; startGame(true); return; }   // [landing autoplay] on by itself
+    setStartBtnReady(true); };
   document.addEventListener("sg-intro-done", ()=>{ if(_releasePending) releaseStart(); });
   const playLanding = ()=>{
     if(!onLandingNow()) return;
@@ -4498,7 +4510,11 @@ function boot(){
     /* review 2026-10-05: "why is the sound box getting disabled - this should not happen anywhere in the game": the
        speaker is never greyed out (the QA checklist's disabled-while-the-greeting-speaks state is gone). A tap while the
        greeting is still playing is ignored, as on every speaker (replayTap), so it never restarts the line mid-way. */
+    if(_landBlocked) setStartBtnReady(false);                                // [landing autoplay] she speaks now - the button steps back
     play(landSrc, ()=>{ if(voEl.ended){ _greetingHeard = true; releaseStart(); } });
+    const tok = _playTok, p = voEl.play();                                   // (the same pending play - its promise says if the browser refused)
+    if(p && p.catch) p.catch(err =>{ if(err && err.name === "NotAllowedError" && tok === _playTok && onLandingNow() && !_greetingHeard){
+      _landBlocked = true; setStartBtnReady(true); } });                     // [landing autoplay] refused: the play button, now
   };
   // any tap on the landing restarts the 5s idle timer (only once the button is live)
   window.addEventListener("pointerdown", ()=>{ if(onLandingNow() && !startWaiting()) armStartPulse(); }, true);
@@ -4614,13 +4630,19 @@ function boot(){
       if(!_greetingHeard && !isPlaying) playLanding();
       return;
     }
+    if(_landBlocked && !_greetingHeard && !_askedOnTap){                    // [landing autoplay] this tap is the gesture:
+      _askedOnTap = true; _goAfterGreeting = true;                          // the greeting first, then on by itself
+      sfxPlay(); _ac(); Screen.fullscreen(); playLanding(); return; }
+    startGame(false);
+  };
+  function startGame(auto){
     if(_starting) return;  // a second tap while slide 0's files finish loading
     disarmStartPulse(); clearTimeout(_startWatchT);
     stopAudio();          // silence the landing greeting BEFORE slide 0 speaks (no VO overlap)
-    sfxPlay();            // QA checklist 2026-10-05: the standard play button SFX
+    if(!auto) sfxPlay();  // QA checklist 2026-10-05: the standard play button SFX ([landing autoplay] auto: it played on the tap)
     bgmStart();           // ...and the background music starts on this tap (never before it)
     _ac();                // unlock/resume WebAudio on the start gesture so the first clip never clips
-    Screen.fullscreen();  // [responsive] a phone/tablet browser: the whole screen, held in landscape (Android)
+    if(!auto) Screen.fullscreen();  // [responsive] a phone/tablet browser: the whole screen, held in landscape (Android)
     // [engine JS] r4/P1: peek gate into the tutorial. The landing stays visible-and-BLURRED behind the
     // peeking Swiftie + "चलिए शुरू करें"; it hides once the tutorial mounts (in the callback).
     // [loading] the gate's Swiftie and slide 0 are almost always in long before this tap; if not, a spinner holds here.
@@ -4634,7 +4656,7 @@ function boot(){
         mountSlide(0);
       }, "tutorial");
     }, "tutorial");
-  };
+  }
   /* ===== [landing title fx] लंबाई STRETCHES TO THE PENCIL NIB AND SPRINGS BACK; मापना BECOMES A RULER =====
      (review 2026-09-28/29). Starts on the spoken "आज" (आज हम सीखेंगे), 3.13s into vo_landing.ogg - 2.3s before "लंबाई"
      (5.41s), so the animation has time to be unhurried and still ends when it did (edge-tts word

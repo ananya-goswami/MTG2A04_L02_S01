@@ -333,6 +333,29 @@ Tagged `QA checklist 2026-10-05` in `app.js` / `style.css`.
   instruction - nothing; taps on an option during the question and during "ब्लॉक्स को एक बार फिर गिनिए।" - nothing);
   T2 (block 4 can't be taken while "तीन" is said, can right after).
 
+## The landing greeting after the loader (2026-10-08) — `app.js` `[landing autoplay]`
+- Reviewer: "I am still needing to click randomly on the title screen that comes after the loading screen to play the
+  VO - this should be automatic"; the user: "without adding any extra element the voiceover should play after the
+  loader". A browser refuses every sound until the page has had a tap (HI02H11, the reference, has the same limit - its
+  greeting starts "inside a tap"). Where sound is allowed (the SwiftPAL app, a browser that lets the site play) nothing
+  changes: she speaks as the loader lifts. Where it is refused (NotAllowedError on the greeting the loader starts), the
+  play button - hidden until she had spoken, so there was nothing to press - shows at once, gold and pulsing; its tap
+  starts the greeting (the button steps back, the screen locks while she speaks) and when the greeting and the title
+  animation are done the lesson starts by itself (`startGame(true)`: no second tap, no play SFX, fullscreen asked on the
+  tap). A tap elsewhere first still starts her, and the button then waits for its own tap as before.
+- Tested in Chrome with `--autoplay-policy=document-user-activation-required` (the desktop default): refused at 0.2s,
+  the button pulsing; one tap - the greeting, then the tutorial gate at 20.6s and T1 at 23.9s. With sound allowed:
+  the greeting on its own, the button after it, as before. The BGM fade's volume could go over 1 (a frame stamped before
+  its start) and threw - clamped (the MTG2A01 games already had it).
+
+## The phase gates' headline (2026-10-08) — CSS `.phase-gate.talking .pg-title`
+- Reviewer: "for transition screens with chaliye shuru karein, aaiye sath karein etc., use the same animation for the
+  pink text on top of swiftee as" hindi-game-gender-identify.vercel.app (HI02H11_L03_S02). Its headline is written on
+  left to right: `pgWipe`, a clip-path opening from the left over .9s, cubic-bezier(.25,.6,.3,1), 24px insets so the
+  white outline is never cut; it stays while Swiftie ducks. Ours starts .28s in (the gate line is the headline, after
+  the clip's lead). Was a .38s scale pop and a .3s fade out. MTG2A04 only for now (user) - pv-addition-kit's
+  assemble.py copies this engine by fixed line numbers from 2026-10-07 and must be made anchor-based before a rebuild.
+
 ## Internal QA before the push (2026-10-01)
 - **Played**, each slide in a fresh page the way a child would: the landing (its play button starts T1), T1 → CEL -
   every slide completes; the wrong-answer ladders (T1, G1 incl. a block laid off the row, G4, P2) give the sheet's hints,

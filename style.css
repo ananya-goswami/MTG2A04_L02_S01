@@ -1676,10 +1676,14 @@ body.is-start .sg-sky{
    translateX(-50%) centring so the pop scales about the headline's own centre. Under the reduced-motion kill the
    animation is dropped and the end state stays, so the headline still appears on cue. */
 .phase-gate .pg-title{opacity:0;}
-.phase-gate.talking .pg-title{opacity:1;animation:pgTitleIn .38s cubic-bezier(.34,1.5,.6,1) both;}
-.phase-gate.talking.leaving .pg-title{animation:pgTitleOut .3s ease-in both;}
-@keyframes pgTitleIn{from{opacity:0;transform:translateX(-50%) scale(.6);}to{opacity:1;transform:translateX(-50%) scale(1);}}
-@keyframes pgTitleOut{to{opacity:0;transform:translateX(-50%) scale(.92);}}
+/* review 2026-10-08 ("for transition screens with chaliye shuru karein, aaiye sath karein etc., use the same animation for
+   the pink text on top of swiftee as this file" - hindi-game-gender-identify.vercel.app, HI02H11_L03_S02): its headline
+   is WRITTEN ON left to right as the words are said - pgWipe, a clip-path that opens from the left over .9s
+   (cubic-bezier(.25,.6,.3,1)), its insets 24px wide so the white outline is never cut - and it stays while Swiftie
+   ducks, gone with the gate (no exit fade). Ours starts .28s in: each gate line is its headline, after the clip's
+   0.28s lead. Was a .38s scale pop on the VO's first tick and a .3s fade out. */
+.phase-gate.talking .pg-title{opacity:1;animation:pgWipe .9s cubic-bezier(.25,.6,.3,1) .28s both;}
+@keyframes pgWipe{from{clip-path:inset(-24px 100% -24px -24px);}to{clip-path:inset(-24px -24px -24px -24px);}}
 
 /* [10] WRONG card: the shake never played. A wrong tap carries BOTH .crossed and .wg-wrong, and
    `.opt-cell.crossed{animation:none}` (same specificity, later) beat `.opt-cell.wg-wrong{animation:wgNo}`.
