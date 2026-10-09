@@ -9,7 +9,7 @@
      request, so without this the very first paint is unstyled. This inline rule
      lands the loader's own colour on the first frame. -->
 <style>html,body{background:#FFFFFF;margin:0;}</style>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261009-1427">
 <!-- [loading] the landing's own files start downloading with the page, alongside style.css - not only once app.js has
      arrived and asked for them (the boot loader waits for exactly these: app.js Assets, CRIT). http(s) only: on
      file:// a preload of a fetch() fails, and local files need no head start. -->
@@ -226,16 +226,28 @@
         "options": [
           {
             "src": "assets/obj_table_long.webp",
+            "feet": [
+              [0.065, 0.9946, 0.0733],
+              [0.1478, 0.7649, 0.0656],
+              [0.8489, 0.7649, 0.0656],
+              [0.9328, 0.9946, 0.0733]
+            ],
             "w": 450,
             "correct": true,
             "emoji": "🪑",
             "tap": [
-              0.932,
-              0.74
+              0.5,
+              0.2
             ]
           },
           {
             "src": "assets/obj_table_short.webp",
+            "feet": [
+              [0.0863, 0.9934, 0.0871],
+              [0.1766, 0.8073, 0.0742],
+              [0.8218, 0.8073, 0.0742],
+              [0.9113, 0.9934, 0.0855]
+            ],
             "w": 308,
             "emoji": "🪑"
           }
@@ -264,12 +276,18 @@
       },
       "data": {
         "robot_enter": true,
-        "n": 6,
+        "n": 9,
         "demo": 2,
         "axis": "x",
-        "count_at": 1.92,
+        "count_at": 2.38,
         "obj": {
           "src": "assets/obj_table_measure.webp",
+          "feet": [
+            [0.0585, 0.9941, 0.0768],
+            [0.1353, 0.8239, 0.0661],
+            [0.8607, 0.8258, 0.067],
+            [0.9411, 0.9941, 0.0759]
+          ],
           "w": 560,
           "ar": 0.4562,
           "a0": 0.0018,
@@ -301,10 +319,10 @@
       },
       "data": {
         "robot_enter": true,
-        "n": 5,
+        "n": 7,
         "demo": 2,
         "axis": "y",
-        "count_at": 2.12,
+        "count_at": 2.56,
         "holder": "painting",
         "floor": "wood",
         "wall": "paint",
@@ -336,7 +354,7 @@
         "try_again": "vo_try_again"
       },
       "data": {
-        "n": 8,
+        "n": 12,
         "axis": "x",
         "wrong_cue": "deck",
         "holder": "basket",
@@ -356,9 +374,9 @@
         },
         "ask_hi": "पलंग की लंबाई कितनी है?",
         "options": [
-          7,
-          8,
-          9
+          11,
+          12,
+          13
         ],
         "unit_hi": "ब्लॉक्स",
         "fill": "stage",
@@ -385,6 +403,7 @@
       "data": {
         "n": 7,
         "axis": "y",
+        "line_in": 0.11,
         "wrong_cue": "deck",
         "obj": {
           "src": "assets/obj_almirah_sock.webp",
@@ -423,7 +442,7 @@
         "try_again": "vo_try_again"
       },
       "data": {
-        "n": 3,
+        "n": 5,
         "axis": "x",
         "wrong_cue": "deck",
         "obj": {
@@ -432,9 +451,9 @@
         },
         "ask_hi": "तकिये की लंबाई कितनी है?",
         "options": [
-          2,
-          3,
-          5
+          4,
+          5,
+          7
         ],
         "unit_hi": "ब्लॉक्स",
         "bg": "dusk",
@@ -463,7 +482,7 @@
         "try_again": "vo_try_again"
       },
       "data": {
-        "n": 6,
+        "n": 7,
         "axis": "y",
         "wrong_cue": "deck",
         "obj": {
@@ -474,9 +493,9 @@
         },
         "ask_hi": "फ्रिज की लंबाई कितनी है?",
         "options": [
-          4,
           5,
-          6
+          6,
+          7
         ],
         "unit_hi": "ब्लॉक्स",
         "bg": "kitchen",
@@ -510,12 +529,12 @@
           {
             "src": "assets/obj_mat_1.webp",
             "ar": 0.4945,
-            "n": 6
+            "n": 8
           },
           {
             "src": "assets/obj_mat_2.webp",
             "ar": 0.42,
-            "n": 7,
+            "n": 9,
             "correct": true
           }
         ],
@@ -547,7 +566,7 @@
           {
             "src": "assets/obj_chair_short.webp",
             "ar": 1.615,
-            "n": 4,
+            "n": 6,
             "seat": {
               "cx": 0.5,
               "y": 0.502
@@ -556,7 +575,7 @@
           {
             "src": "assets/obj_chair_tall.webp",
             "ar": 1.7926,
-            "n": 5,
+            "n": 7,
             "correct": true,
             "seat": {
               "cx": 0.5,
@@ -597,12 +616,14 @@
         "bg": "softboard",
         "join": "lines",
         "ppt_hints": true,
+        "no_ends": true,
         "items": [
           {
             "id": "bench",
             "src": "assets/obj_bench_p2.webp",
             "n": 7,
             "axis": "x",
+            "seat": 0.25,
             "ar": 0.4116
           },
           {
@@ -647,6 +668,7 @@
         "bg": "fridge",
         "join": "lines",
         "ppt_hints": true,
+        "no_ends": true,
         "items": [
           {
             "id": "window",
@@ -658,22 +680,22 @@
           {
             "id": "watercan",
             "src": "assets/obj_watercan.webp",
-            "n": 3,
+            "n": 4,
             "axis": "y",
             "ar": 1.5967
           },
           {
             "id": "tv",
             "src": "assets/obj_tv.webp",
-            "n": 4,
+            "n": 6,
             "axis": "x",
             "ar": 0.58
           }
         ],
         "boxes": [
+          6,
           5,
-          4,
-          3
+          4
         ]
       },
       "signals": {
@@ -704,7 +726,7 @@
         "wrong_cue": "deck",
         "dims": true,
         "bg": "classroom",
-        "sc": 54,
+        "sc": 39,
         "tray_h": 150,
         "unit_hi": "ब्लॉक्स",
         "vo_object": "bench",
@@ -715,7 +737,7 @@
             "src": "assets/obj_bench.webp",
             "ar": 0.2433,
             "sit": 0.235,
-            "n": 8,
+            "n": 11,
             "axis": "x",
             "space": {
               "x": 449,
@@ -731,11 +753,11 @@
             "name_hi": "छोटी अलमारी",
             "src": "assets/obj_almirah.webp",
             "ar": 1.5915,
-            "n": 5,
+            "n": 7,
             "axis": "y",
             "space": {
               "x": 920,
-              "y": 207,
+              "y": 204,
               "label": [
                 941,
                 132
@@ -747,11 +769,11 @@
             "name_hi": "कुर्सी",
             "src": "assets/obj_chair.webp",
             "ar": 1.6151,
-            "n": 4,
+            "n": 6,
             "axis": "y",
             "space": {
               "x": 184,
-              "y": 263,
+              "y": 245,
               "label": [
                 256,
                 168
@@ -763,7 +785,7 @@
             "name_hi": "ब्लैकबोर्ड",
             "src": "assets/obj_blackboard.webp",
             "ar": 0.4483,
-            "n": 6,
+            "n": 9,
             "axis": "x",
             "space": {
               "x": 417,
@@ -817,6 +839,9 @@
       "vo_num_7": "assets/voiceover/vo_num_7.ogg",
       "vo_num_8": "assets/voiceover/vo_num_8.ogg",
       "vo_num_9": "assets/voiceover/vo_num_9.ogg",
+      "vo_num_10": "assets/voiceover/vo_num_10.ogg",
+      "vo_num_11": "assets/voiceover/vo_num_11.ogg",
+      "vo_num_12": "assets/voiceover/vo_num_12.ogg",
       "vo_p13_measure": "assets/voiceover/vo_p13_measure.ogg",
       "vo_p2_ask": "assets/voiceover/vo_p2_ask.ogg",
       "vo_p2_fb": "assets/voiceover/vo_p2_fb.ogg",
@@ -867,7 +892,7 @@
       "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg"
     },
     "audio_text": {
-      "vo_landing": "नमस्ते दोस्तों! मैं हूँ स्विफ्टी। आज हम सीखेंगे, किसी चीज़ की लंबाई कैसे मापते हैं।",
+      "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
       "vo_match_instr": "हर चीज़ को उसके सही माप से मिलाइए।",
       "vo_match_ok": "शाबाश! आपने सभी चीज़ों को उनके सही माप से मिला दिया।",
       "vo_num_1": "एक",
@@ -879,24 +904,27 @@
       "vo_num_7": "सात",
       "vo_num_8": "आठ",
       "vo_num_9": "नौ",
+      "vo_num_10": "दस",
+      "vo_num_11": "ग्यारह",
+      "vo_num_12": "बारह",
       "vo_p13_measure": "बेंच को ब्लॉक से मापिए।",
       "vo_p2_ask": "इनमें से कौन-सी टेबल ज्यादा लंबी है? उस पर टैप करिए।",
       "vo_p2_fb": "यह टेबल ज्यादा लंबी है।",
-      "vo_p3_done": "शाबाश! यह टेबल 6 ब्लॉक्स लंबी है।",
-      "vo_p4_done": "शाबाश! यह दरवाजा 5 ब्लॉक्स लंबा है।",
+      "vo_p3_done": "शाबाश! यह टेबल 9 ब्लॉक्स लंबी है।",
+      "vo_p4_done": "शाबाश! यह दरवाजा 7 ब्लॉक्स लंबा है।",
       "vo_p5_instr": "पलंग की लंबाई ब्लॉक से मापिए।",
       "vo_p7_ask": "अब बताइए, फ्रिज की लंबाई कितनी है?",
-      "vo_p6b_ok": "शाबाश! तकिये की लंबाई 3 ब्लॉक्स है।",
+      "vo_p6b_ok": "शाबाश! तकिये की लंबाई 5 ब्लॉक्स है।",
       "vo_p6b_ask": "अब बताइए, तकिये की लंबाई कितनी है?",
       "vo_p6b_instr": "तकिये की लंबाई ब्लॉक से मापिए।",
       "vo_p6_instr": "अलमारी की लंबाई ब्लॉक से मापिए।",
       "vo_p5_ask": "अब बताइए, पलंग की लंबाई कितनी है?",
-      "vo_p5_ok": "शाबाश! पलंग की लंबाई 8 ब्लॉक्स है।",
+      "vo_p5_ok": "शाबाश! पलंग की लंबाई 12 ब्लॉक्स है।",
       "vo_try_again": "ब्लॉक्स को एक बार फिर गिनिए।",
       "vo_p6_ask": "अब बताइए, अलमारी की लंबाई कितनी है?",
       "vo_p6_ok": "शाबाश! अलमारी की लंबाई 7 ब्लॉक्स है।",
       "vo_p7_instr": "फ्रिज की लंबाई ब्लॉक से मापिए।",
-      "vo_p7_ok": "शाबाश! फ्रिज की लंबाई 6 ब्लॉक्स है।",
+      "vo_p7_ok": "शाबाश! फ्रिज की लंबाई 7 ब्लॉक्स है।",
       "vo_p8_ask": "कौन-सी चटाई ज़्यादा लंबी है? उस पर टैप करिए।",
       "vo_p8_ok": "शाबाश! यह चटाई ज़्यादा लंबी है।",
       "vo_p8_reask": "अब बताइए, कौन-सी चटाई ज़्यादा लंबी है?",
@@ -918,7 +946,7 @@
       "vo_p4_explain_a": "इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे",
       "vo_p4_explain_b": "और ऊपर तक जाएंगे।",
       "vo_p4_child": "अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है।",
-      "vo_well_done": "बहुत बढ़िया, दोस्त! तुमने कमाल कर दिया!",
+      "vo_well_done": "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!",
       "vo_p13_intro": "आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए।",
       "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।",
       "vo_p13_measure_almirah": "छोटी अलमारी को ब्लॉक से मापिए।",
@@ -965,7 +993,7 @@
 </script>
 
 <!-- ============ ENGINE ============ -->
-<script src="swiftpal-bridge.js"></script>   <!-- [QA 01] host bridge: Android / iOS / web - must load before app.js -->
-<script src="app.js"></script>
+<script src="swiftpal-bridge.js?v=20261009c"></script>   <!-- [QA 01] host bridge: Android / iOS / web - must load before app.js -->
+<script src="app.js?v=20261009-1427"></script>
 </body>
 </html>

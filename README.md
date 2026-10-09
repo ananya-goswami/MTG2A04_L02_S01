@@ -61,7 +61,8 @@ multiplies anything in `transform` (the hand used to drift up to 84px off its bl
   ppt" - page 2 "Incorrect: Pulsate/hand nudge on the long table and play VO: यह टेबल ज्यादा लंबी है।"; it was the
   sheet's MCQ – 2 ladder, `data.wrong_cue "sheet"`, still in the code): `data.wrong_cue "deck"` - every wrong tap the
   tapped table shakes and returns, the long table pulses (MDK.softGlow, green, following its shape) and the hand taps
-  its front leg (`options[].tap`, the point on the picture) with the kit's tap ripple, and "यह टेबल ज्यादा लंबी है।"
+  the middle of its top (`options[].tap` [0.5, 0.2], the point on the picture - review 2026-10-08 "the hand nudge tap
+  should come at the center of the table"; was its front leg) with the kit's tap ripple, and "यह टेबल ज्यादा लंबी है।"
   plays (`audio.try_again` = `hint` = `reveal` = `vo_p2_fb`); the child then taps it. After a 3rd wrong tap the engine
   shows the answer with the same line and moves on. Never a red box or a red glow on a table (review 2026-09-30).
 - **T2 — page 3, `MEASURE_DEMO`.** The long table on the floor and the toy box. Heading VO; VO1 (`vo_p3_explain_a/_b`):
@@ -356,6 +357,296 @@ Tagged `QA checklist 2026-10-05` in `app.js` / `style.css`.
   the clip's lead). Was a .38s scale pop and a .3s fade out. MTG2A04 only for now (user) - pv-addition-kit's
   assemble.py copies this engine by fixed line numbers from 2026-10-07 and must be made anchor-based before a rebuild.
 
+## Every voiceover matches the PPT (2026-10-08) — `VO_MANIFEST.md`
+- "match exactly from ppt then make" (the VO manifest): every card line compared with `MTG2A04_L02_S01_review.pptx`
+  (24 Sep) and every sentence clip transcribed. Three differed, and the user chose all three back to the deck, each the
+  2026-09-28 render restored from git (7c1f24e): the greeting "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज
+  की लंबाई कैसे मापते हैं।" (was "दोस्तों", 5 Oct QA; the title animation now starts on its "आज", `T_WORD` 3.18s - was
+  4.69s); the end screen "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!" (was the QA standard "बहुत बढ़िया, दोस्त!
+  तुमने कमाल कर दिया!"); the door - 9 blocks again, "शाबाश! यह दरवाजा 9 ब्लॉक्स लंबा है।" (`count_at` 2.14s on its
+  "नौ"), which takes T3's cube to 44px (74 elsewhere; the user chose it knowing). `VO_MANIFEST.md` is now generated from
+  the card data, the deck and the files: every clip in play order with its line, when it plays, its length and its source.
+- Seen while testing (not changed, as before): on T3 the आगे arrow overlaps the lowest blocks and their digits, and the
+  "N ब्लॉक्स" badge sits on the door's lower part - the same at 5 blocks.
+- T3, review 2026-10-08 ("the door is too much at the bottom, shift it little upper along with the floor so that everything
+  remains same just the floor will be little more visible"): the door, its column, the dashed lines and the floor line
+  rise together by `LIFT` = 16px (app.js MEASURE_DEMO, T3 branch) - nothing changes size; the floor under the door shows
+  ~29px instead of ~11px. 26px was tried: the top dashed line nearly touched the heading's "ई" (the stage scales as one,
+  so the gap is the same on every screen).
+  Then "i still dont see the changes shift a little more upper": the top can only rise to `LIFT` = 20 (the heading), so
+  the rest comes from the floor band under the door, `FLOOR` 4 -> 18: the door's foot stands 34px above where it was,
+  ~45px of floor shows, and the door (and its 9 cubes) is ~3% shorter - 42.9px cubes, were 44.4.
+
+## One 53px cube on every screen (2026-10-08) — `app.js` `MDK.CUBE` 53, `ROBOT_S`
+- Review: "the size of cube will remain as shown in image 1 throughout the game" (image 1 = G2, the almirah, 53px), then
+  "do not reduce the sizes of any elements plz" and "if number of cubes changes thats fine". So every measuring screen
+  asks for 53 and the COUNTS changed to keep each object at (at least) its size: T2 table 6 -> 9, T3 door 9 -> 7 (8 do
+  not fit its height), G1 bed 8 -> 12 (options 11 / 12 / 13), G2 almirah 7 (as it was), G2b pillow 3 -> 5 (4 / 5 / 7),
+  G3 fridge 6 -> 7 (5 / 6 / 7), G4 mats 6 / 7 -> 8 / 9, P1 chairs 4 / 5 -> 6 / 7, P4 bench / almirah / chair / blackboard
+  6 / 5 / 8 / 4 -> 11 / 7 / 6 / 9 with the room's block `sc` 54 -> 39 so its spaces keep their size. Sizes, old -> new:
+  table 444 -> 479, door 386 -> 371 (-4%: 7 is the most that fits), bed 592 -> 636, pillow 222 -> 265, fridge and almirah
+  the same, mats 433 / 505 -> 424 / 477 (-2% / -6%: 9 / 10 do not fit side by side), chairs 183 / 206 -> 197 / 207; the
+  classroom's enlarged objects the same within 2%.
+- New lines (edge-tts Swara, the lesson's finish): `vo_p3_done` 9, `vo_p4_done` 7, `vo_p5_ok` 12, `vo_p6b_ok` 5, `vo_p7_ok` 7,
+  and the counting words `vo_num_10` / `11` / `12` (दस / ग्यारह / बारह - the bed's 12). The "N ब्लॉक्स" badge pops on the
+  spoken number: T2 `count_at` 2.38s, T3 2.56s.
+- The robot keeps its size (it used to be 2.7 cubes wide - at 53 it would shrink to 143px): `ROBOT_S` 74, the 53px cube
+  centred on its lid. It also stands HALF WAY from where it was to the blocks (review: "shift the robo mop a little more
+  right so that drag and drop of cube is not a lot of distance"; the user chose "about halfway"), never under आगे.
+- Not this size: the match-the-following cards (P2 / P3, ~29px - their equal cards) and the landing's cube row.
+- P2 / P3, same day: "remove pink dotted lines from this play screen" (P2) and "here also" (P3) - `data.no_ends` draws no
+  end lines. "zoom in the bottle and tv so that they look bigger": they grow by blocks, the shared 29px cube and the six
+  equal cards unchanged (the window's 5 sets the card height; the counts must differ for the three boxes): the bottle
+  3 -> 4 (87 -> 116px tall), the TV 4 -> 6 (116 -> 174px wide), boxes 6 / 5 / 4 (the PPT's descending order).
+- "in all such gameplay screens the box with correct number of blocks, like 9 blocks, will come before the confetti":
+  T2 / T3 - the confetti no longer bursts as the last block lands; it waits for the "N ब्लॉक्स" box (which rises on the
+  spoken number) and bursts once it has risen (~1.1s later, with the stars' spin). G4 / P1 - the count boxes pop at once
+  on the right tap (0 / 0.3s, were 0.25 / 0.6s), the confetti after them (0.75s); the correct SFX stays on the tap.
+  Measured in Chrome: T2 box 4.12s -> confetti 5.22s; T3 4.27s -> 5.37s; G4 / P1 boxes 0.02 + 0.3s -> confetti 0.76s.
+
+## P4: the wave entrance at a calm pace (2026-10-09) — app.js `[calm]`
+- Review, of the [waves] entrance: "the entry is really fast - diagnose the error and fix it, apply the same in all
+  endgame elements". Not a fault in the motion: the [waves] route has no loop, so it is ~8-10 robot widths, not ~15,
+  and at the same pace (4.2 a second) the whole entrance took 2.6-3.1s - as short as the 3.2s drive turned down before -
+  with a sideways wave every ~0.75s.
+- The robot drives the wave route at 2.2 robot widths a second (the traced path, if brought back, keeps 4.2): home
+  4.9-5.9s after it sets off - as the 4.7-5.4s entrance before the waves - a slow sway every ~1.5s. Measured in
+  Chrome at 1945 × 897: average 1.7, fastest moments under 3.3; a cube ready 5.5-6.4s after the tap. One drive for
+  all four objects; all four played through.
+
+## P4: the robot's route in waves (2026-10-09) — app.js `wavePath` `[waves]`
+- Review: "make the path of the robo mop a little better, like waves - for a better UX". The traced path (`DRIVE_PATH`)
+  had a loop that crossed itself - a tangled trail - and tight turns.
+- `wavePath(x0, y0, hx, hy, rw, rh, boxes)`: a smooth route - in from the screen's top-left corner along the top, down
+  the free floor left of the object, round into the front, a calm glide into its spot (a Catmull-Rom curve) - with a
+  sine sway along it: round waves, `WAVE_LEN` 640 px of floor each (~0.75s at the steady pace), `WAVE_AMP` 85 px to
+  each side (smaller far away, with the robot's perspective), calm at the start (they grow as it leaves the wall) and at
+  the end (the last stretch straight). Where the sway would take the robot into the object or its slots, off the
+  stage's left edge or up the wall, it is reduced there. `data.drive_path: "traced"` brings the traced path back.
+- Designed against each object's real geometry (a model of `drive()`): a zigzag of big bends gave pointy chevrons (the
+  free floor is short top to bottom); joining crests through mid-points, straight runs with corners; the final one -
+  gentle round waves on a smooth route - touches no object, never leaves the stage, never climbs the wall, for all four.
+- Same steady speed; no loop, so shorter: 2.6-3.1s, a cube ready ~3.1-3.5s after the tap (was 5.2-5.9s). Checked in
+  Chrome at 1945 × 897: the wave trails of all four objects, a real-speed recording, all four played through.
+
+## P4: the robot's drive at a steady pace (2026-10-09) — app.js `MDK.robot drive()` `[steady]`
+- Review: "the robo mop entry animation was really fast". The `[quick]` drive (3.2s, eased in and out) covered most of
+  its path in a dash: measured in Chrome on the reviewer's screen, its fastest moments ran at 12-13 robot widths a
+  second - the original 6.5s drive (on the stage) averaged 3.15 and peaked at 5.7 (a faithful model of drive()).
+- `drive()` takes `o.speed` now: a steady pace over the ground - a sine ramp in over the first 20% of the time, that
+  speed, a sine ramp into its spot over the last 30% - the time following from the path's length (`o.ms` and the
+  old easing remain for calls without it). P4 drives at 4.2 robot widths a second: the original's average pace,
+  never as fast as its peak. Measured (same method as above): average 3.3, fastest moments 5.3-6.6 (about half the
+  3.2s drive's); drives of 4.7-5.4s, a cube ready 5.2-5.9s after the tap. All four objects played through.
+
+## P4 measuring view: a floor, shadows, a quicker drive (2026-10-09) — CSS `[floor]`, app.js `[floor]`, `[quick]`
+- Review (asked whether the solid colour was right for the screen, the issues listed - "sure, fix the issue"). On one
+  flat cream the objects floated, the robot drove (small far, big near) and mopped a floor that was not there, its clean
+  trail read as smoke, and each cube could be taken only ~7.1s after the tap (~28s of waiting over the four objects).
+- `[floor]`: the veil is still solid and plain, but a floor in the classroom's own colours - a thin wall band (#FEF0D2)
+  and its skirting line (#DA8A43) at the very top (7.4-8.3% down, above the robot's way in), the floor below (#F1D9BB
+  far → #FAEEDF near); the same on the side bands, whose lines meet the stage's; on a 4:3 screen the bands above and
+  below the stage (a mirror image - it put floor above the wall and a second skirting line) are plain wall / plain
+  floor. Each measured object gets a soft floor shadow at its foot (`.cf-floorshadow`). The robot's trail now reads as
+  a clean, shiny path on the floor.
+- `[quick]`: the same path driven in 3.2s after a 0.3s pause (was 6.5s after 0.45s) - a cube can be taken ~3.6-3.7s
+  after the tap; the object's line is 2.3-2.9s. The way in starts 11% down the STAGE (just below the skirting line) -
+  11% of the visible height put it on the wall on a 4:3 screen.
+- Checked in Chrome at 1945 × 897 (the reviewer's screen) and 1024 × 768: all four objects played through - measured,
+  placed from their own box, on to the celebration.
+
+## P4: the option boxes stay up while placing; the robot drives in for all four (2026-10-09) — `[boxes]`, `[all four]`
+- Review, the classroom after the bench was measured: "bring back all the option boxes as they were, and only enable this
+  bench box to place it in the correct position". The tray's boxes had been hidden while placing, the measured object
+  alone at the tray's centre. Now (CSS `[boxes]`, app.js `makeCard`): the boxes stay up - the others dimmed (.45,
+  grey) and off, the object's own box on (`.cf-cur`) - and the measured object, its blocks on it, flies into ITS box,
+  where the box's picture was; it is dragged from there to its space, and a wrong drop sends it back into the box.
+- Review: "add the same robo mop animation in all four elements ... and make it stop at the same position as in the
+  bench game screen": the drive-in ([drive], [drive-in]) runs every time a measuring view opens (it ran for the first
+  object only), and the robot stops centred under every object, its lid's cube 18px below the object's foot ([near];
+  it had stood beside the column for the almirah and the chair).
+- Average / longest drag from the robot's cube to a slot at 1945 × 897 (the robot at the foot of the view → now):
+  bench 443 / 508 → 288 / 383 px, almirah 385 / 562 → 319 / 488, chair 376 / 526 → 279 / 421, board 507 / 543 → 377 / 425.
+  A cube can be taken ~7.1s after each object is tapped (the drive). All four objects played through in Chrome.
+
+## P4: the robot stands by the object - shorter drags (2026-10-09) — app.js `[near]` (superseded above: now under every object)
+- Review, the bench's measuring view: "reduce the distance between the robo mop and the bench - the drag and drop takes a
+  lot of time because of the distance; the same in all the last game screens". It stood at the foot of the view by the
+  tray whatever the object; it was moved under a long object and beside a tall one's column, and the drive's path was
+  made to end at the new spot (along the front to its point nearest home, then into it).
+
+## P4: the robot drives in from the screen's top-left corner (2026-10-09) — app.js `[drive-in]`, CSS `[drive-in]`
+- Review, a red circle at the screen's top-left corner: "the mop should enter from here". It started off the stage along
+  its very top edge (the reviewer's path drawn on a wide window), and the stage clips (`#stage`, `.slide-stage`
+  overflow hidden): unseen for its first ~2s, then it popped in at the stage's edge. Now it starts peeking in at the
+  VISIBLE screen's left edge, at the circle's height (11% down), and joins the reviewer's path at its 5th point, where it
+  turns down the left side; while an object is measured the stage does not clip (the room is under the solid veil, the
+  side bands sit behind the stage), so on a screen wider than the stage it is seen coming in over the side band. The
+  mop's trail canvases cover the whole visible screen (`trailInit`). Checked in Chrome at 1945 × 897: in view at ~1s
+  inside the circle, home at ~7.6s; the whole P4 played through (4 objects measured and placed, on to the celebration).
+- Found while checking (not changed - reported): the first object waits ~7.2s from the tap until a cube can be taken
+  (its line is 2.3s; a drag during the drive gets no response); on the solid veil the measured objects have no floor
+  shadow (they float) and the mop's white trail reads as smoke until it fades (~3s after the robot is home).
+
+## P4 measuring view: a solid background (2026-10-09) — CSS `[solid]`
+- Review, of the classroom's measuring view (the bench enlarged, the robot below): "make the background here solid". The
+  classroom ghosted through a see-through cream veil (80%, backdrop blur), the room layer at 16% blurred, the side bands
+  at 25% blurred. Now `.cf-veil` is opaque - #FCF4E7, the colour the faded room read as - the room goes to 0 under it,
+  and the side bands get the same solid colour (`.stage-bleed i::after`); all fade in and out with the view (.45s). The
+  veil overhangs the scene by 2px (it rounded a pixel short of the stage and a sliver of the room showed at the right).
+- On the solid colour the robot's mopping trail shows more while it drives in ([drive], the reviewer's path); it dries to
+  almost nothing once the robot has arrived. Checked in Chrome at 1920 × 891: the view while the robot drives in, once it
+  has arrived (no seams), and the classroom coming back after the bench is measured.
+
+## The bulb light: glowing orange jelly cubes (2026-10-09) — `gen_cube_lit.py`, app.js `MDK.bulb`, CSS `[bulb]`
+- Review, with a picture of the pillow slide whose cubes glow as glossy orange jelly cubes (an edited picture - its lid
+  cube is ~30% bigger than the row's): "use these cubes throughout for the effect". Measured on the picture: the blue
+  cube's own design recoloured - the face orange at the top (253,150,33) to golden yellow at the bottom (255,213,30), a
+  deep red-orange rim (~245,65,5), a cream-orange bevel line (253,202,115), the white gloss kept; round each a bright
+  cream-yellow outline (255,241,165) and a warm glow fading into the floor.
+- `gen_cube_lit.py` now recolours the game's cube part by part by its own shading (its green channel; a small dead zone
+  so its faint face texture does not show): `assets/cube_orange.webp` (the lit cube) and `cube_orange_light.webp` (a
+  soft golden light low in the face, screened, a touch of the twinkle). New names again; `cube_gold*` are gone. The rim
+  is a full deep red-orange so each cube still reads in a flush row (the picture's cubes have gaps - the game's must not).
+- `MDK.bulb`'s glow: a bold cream-yellow outline (two tight drop-shadows) and an 8px warm golden glow, scaled to the
+  cube. Up = the picture; the twinkle is the glow breathing (.05 .. 1), the halo and pool with it, the cube .93 .. 1.04
+  bright - measured round the pillow row: +84 .. +118 warmth (red - blue). The same on every screen that lights cubes:
+  G1-G3 (+ the pillow) after a wrong answer, G4 / P1 and P2 / P3 while counting - checked in Chrome on each.
+- The robot's waiting cube stays blue (in the picture it is lit too): it is not part of the measured row, and lit it
+  would make 6 glowing cubes for a 5-block answer. `?v=` bumped to 20261009p (another edit had put it back to `i`).
+
+## The bulb light: a glow you can see, and the twinkle back (2026-10-09) — app.js `MDK.bulb`, CSS `[bulb]`
+- Review, a screenshot of the pillow row with its 2nd cube lit: "analyse yourself if the glow is really evidently visible
+  - and the टिमटिमाना effect is gone". It was not: the glow was a pale haze BEHIND the cubes, so round a cube in a row
+  its blue neighbours hid it but for two slivers; and the twinkle, slowed and made shallow, could not be seen.
+- The glow is now ON the lit cube: two warm golden-orange drop-shadows hugging its rounded shape (2px + 7px, scaled to
+  the cube - `gk` = size / 53, so P2 / P3's small cubes get a tight one too), and the cube is raised one z-index over
+  its neighbours while it is lit, so the glow shows all round it - on the floor and over the next cubes' edges. The
+  halo behind it and the floor pool are a clear golden orange (they were a pale cream); the spill layer is gone.
+- The twinkle can be seen again: a diya's flicker, ~1.6 s round for a counted cube (~2 s in a row, each its own pace),
+  dips to about half - the glow .5 .. .95 / .2 .. .7, the light inside .25 .. .9. Measured on the 2nd pillow cube:
+  the ring round it goes from +3 (off) to +35 .. +60 warmth (red - blue) as it twinkles.
+- Fixed: a cube lit again while its light was still fading out could be left raised or lose its blue picture - the
+  fade's tidy-up is now run at once (`el._bulbTidy`). `?v=` bumped (20261009l). Checked in Chrome: the pillow cube on
+  its own, the lit row (slow-motion recording), P2's small cubes, and the re-light case.
+
+## The bulb light: one even honey gold, crisp, little glow (2026-10-09) — `gen_cube_lit.py`, app.js `MDK.bulb`, CSS `[bulb]`
+- Review: "remove the inside shadow, reduce the glow effect and make the colour of the glow more evident - I can't
+  really see the blocks nicely". The resin's deeper inside framed by paler walls, and its back edges, read as a shadow
+  inside each cube; the soft wide haze round them blurred the blocks into each other and into the floor.
+- The lit cube (`assets/cube_gold.webp` / `cube_gold_light.webp`; the `cube_honey*` files are gone) is now ONE even,
+  richer honey gold (255,194,90), edge to edge - no inside / walls / top face / back edges - with only the cube's own
+  bevel lines and gloss for its shape and a crisp caramel outline; the soft light inside stays (it carries the slow
+  twinkle). The glow cut back: a tight warm edge glow (2px) and a faint halo (6 / 16px, at most .55), the pool and the
+  spill faint. `?v=` bumped (20261009j). Checked in Chrome on the pillow row (slow-motion recording) and P2's cards.
+
+## The bulb light: soft honey gold, a candle's twinkle (2026-10-09) — `gen_cube_lit.py`, app.js `MDK.bulb`, CSS `[bulb]`
+- Review, of the golden amber: "still very harsh to the eyes - not warm lights". A saturated amber filling the whole cube
+  read as a highlighter, and the twinkle changed ~5 times a second, deep. Warm light is soft and slow - candlelight.
+- Re-rendered in HONEY GOLD (`assets/cube_honey.webp` / `cube_honey_light.webp`; the `cube_amber*` files are gone):
+  softened towards warm cream (never towards grey - that went lime), enough honey left and a clear caramel edge that
+  it still reads on a beige floor (a paler honey, tried first, faded into it); the light inside a soft cream gold.
+  The halo, pool and spill softer and wider. The twinkle slow (a ~2.6 s breath in a row, ~1.9 s for a counted cube,
+  ~2 changes a second at most) and shallow: the light inside .63 .. .8, the glow round it ~.55 .. .75; the switch
+  flash .35 / .3. `?v=` bumped (20261009i). Checked in Chrome on the pillow row, recorded in slow motion, side by side
+  with the amber and the paler honey.
+
+## The bulb light: warm golden amber, twinkling (2026-10-09) — `gen_cube_lit.py`, app.js `MDK.bulb`, CSS `[bulb]`
+- Review, of the softened light on the pillow row: "too lime flavour - can't see much because the floor is skin colour
+  too - I want warm yellow light, and its टिमटिमाना (twinkling)". Softening had desaturated the yellow (CSS
+  `saturate(.7)` + a pale resin) - it went khaki-lime and, pale on a beige floor, nearly vanished; the twinkle, at
+  half strength, could hardly be seen.
+- Re-rendered in WARM GOLDEN AMBER (`assets/cube_amber.webp` / `cube_amber_light.webp` - new names again, so no cached
+  copy; the `cube_resin*` files are gone): the resin golden amber, with more body at the walls, a deeper amber outline
+  (it stands clear of a beige floor), the light inside warm gold - never white, so no glare. The CSS desaturation is
+  gone; the halo, pool and spill are amber (they show on beige and on white cards).
+- The twinkle can be seen again: the light inside 0 .. .85 (×TWINKLE, dips to .35), the amber glow .2 .. .8, the edge
+  glow .3 .. .7 - bright moments are warm gold, not white. `?v=` bumped (20261009g). Checked in Chrome: the pillow row
+  (slow-motion recording), G1's peach floor, P2's white cards.
+
+## The bulb light, softened (2026-10-09) — app.js `MDK.bulb`, CSS `[bulb]`
+- Review, with the counted pillow cube lit: "the light is too much - hurting the eyes". Every light is now at most half
+  its old strength - a night lamp, not a torch: the light inside at most .5 (was 1) and warm, not white-hot (CSS
+  `sepia(.3)` on `.md-bulb-light`); the resin a softer butter yellow (`saturate(.7)` on `.md-bulb`); the glow round it
+  - the pool, the halo, the spill - at most ~.5 / .55 / .4 (were 1); its edge glow faint; the switch flash .45 / .35
+  (was .9 / .7). The twinkle stays, gentler (its dips shallower), so it flickers softly and never strobes.
+- The switch: blue and yellow are never shown at once (half-way they made a grey-green): switching on, the blue fades
+  in the first half and the resin with its light in the second, the soft flash bridging them; switching off, the
+  reverse. Done in code and CSS only (the art is unchanged), with `?v=` on app.js / style.css bumped (20261009f), so
+  no cached file can bring the old light back. Checked in Chrome on the pillow row, recorded in slow motion.
+
+## The bulb light: a resin cube with a light inside, twinkling (2026-10-09) — CSS `[bulb]`, app.js `MDK.bulb`, `tools/gen_cube_lit.py`
+- Review, with the pillow row lit as opaque golden cubes and a photo of a lime resin cube lamp: "still it's too solid -
+  I want something similar to that, with a टिमटिमाना (twinkling) effect". The golden cubes in the screenshot were the
+  first lit-cube images: they had been replaced three times under the same file names and the browser kept the old
+  ones - so the new layers have NEW names (`assets/cube_resin.webp`, `cube_resin_light.webp`; the `cube_lit_*` files
+  are gone) and the `?v=` on app.js / style.css in index.html is bumped (20261009c).
+- The cube lit is now the photo's resin cube, in two layers rendered from the cube itself (`gen_cube_lit.py`): the RESIN
+  (`.md-bulb`, steady) - clear and pale at the walls so the floor shows through, deeper yellow inside, the top face
+  paler, its back edges faintly seen through it, the edges carrying the light (brightest low down), a crisp outline -
+  and the LIGHT inside (`.md-bulb-light`, screened onto the resin): a source low in the middle with its glow rising
+  through the cube. New: `.md-bulb-pool`, the pool of light on the floor under it (the photo's lit table).
+- The twinkle (`TWINKLE` in app.js): after the power-up the light flickers like a diya's flame - an irregular cycle of
+  ups and dips (~1.1 s for a counted cube, ~1.5 s in a row, each cube at its own pace: a row twinkles like fairy
+  lights); the light inside, the pool, the halo and the spill twinkle together, the resin stays.
+- The switch: blue and yellow cross-faded went a muddy green half-way, so the swap now happens under a quick warm-white
+  flash of the cube's own shape (`.md-bulb-flash`, `FLASH_ON` / `FLASH_OFF`) - a light catching.
+- Checked in Chrome: the pillow row lit (recorded in slow motion through power-up, twinkle and switch-off), each cube
+  counted, P2's small cubes.
+
+## The bulb light: see-through walls, warm light coming out (2026-10-09) — CSS `[bulb]`, app.js `MDK.bulb`, `tools/gen_cube_lit.py`
+- Review, a screenshot of the pillow row with its first cube lit (dim: an opaque amber block): "the glow effect is coming
+  very solid - not like the walls of the cube become a little translucent and warm transparent colours coming out of
+  it". The lit art was opaque, so it read as paint, and its light stayed behind the neighbouring cubes.
+- `gen_cube_lit.py` now renders the frosted light cube with SEE-THROUGH WALLS: the light inside near-white and even,
+  the walls round it (towards the outline) warmer and partly transparent - the floor shows faintly through them - a
+  crisp outline, a line of light inside it, the bevel and the gloss faintly. Dim: warmer (golden) and more
+  see-through; full: warm white. The shape is measured on a squircle fitted to the cube (exponent 6): a plain
+  distance-to-edge made the walls reach further in at the corners, and the corners looked cut.
+- See-through means the blue must go while it is lit (blue through the walls went grey-green): `MDK.bulb` moves the
+  cube's own picture onto a layer (`.md-bulb-blue`) that fades out as the light comes on, and puts it back on the cube
+  when the light goes off. The light coming out: the halo behind (warmer, wider - yellow near, orange as it spreads)
+  and a new `.md-bulb-spill` over the neighbours, `mix-blend-mode: screen` (it brightens them, never tints the blue).
+- Picked from a side-by-side of four looks (blue glass lit inside - went lavender; warm see-through amber glass;
+  the frosted lamp; the blue cube with light leaking out - looked faded): the frosted lamp with see-through walls, the
+  photo's look. Checked in Chrome on the pillow row (each cube lit as it is counted; the row lit) and on P2's cards.
+
+## The bulb light: a frosted light cube (2026-10-09) — CSS `[bulb]`, app.js `MDK.bulb`, `tools/gen_cube_lit.py`
+- Review, with a photo of a frosted LED light cube glowing in a dark room: "I want the cubes to glow like this - power
+  up, then dim, then up". The lit art (below) is re-rendered as that: every pixel light, near-white and even (no spot),
+  the top a touch brighter, the faces falling off softly at the edge, frosted - no gloss, the bevel only as soft tone.
+  Full power = warm-bulb white (`cube_lit_full`); turned down = a lower, warmer glow (`cube_lit_dim`). Pure white was
+  tried: on P2 / P3's white cards a white light vanished (the photo's room is dark), so the light is a warm white and
+  the light it throws (`.md-bulb-halo`, the photo's lit floor and wall) a wider warm-golden bloom.
+- The order is now the photo's: it POWERS UP straight to full, then dims, then up again (it used to come on dim first);
+  a lit row powers up cube by cube, then breathes full / dim together. While lit, the cube's own dark drop-shadow fades
+  out (a light casts none). Checked in Chrome: G1's bed row after a wrong answer (up / dim / up) and P2's small cubes.
+
+## The bulb light on a cube: the cube becomes the lamp (2026-10-09) — CSS `[bulb]`, app.js `MDK.bulb`, `tools/gen_cube_lit.py`
+- Review (a screenshot of the version below: a white spot in a blue cube, a white star on its corner): "this is still bad
+  - see what I actually want". What was asked across the reviews: the light in the WHOLE cube, not gathered in the
+  middle; warm yellow; the cube going see-through like a lamp, not a solid block; its outline lit too; dim, then a
+  little more power. Light laid over the blue cube can't give that - yellow over blue mixes to white (screen) or olive
+  (normal) - so every overlay showed as a white blob in a blue cube.
+- Now the cube's own art is swapped for itself LIT: `assets/cube_lit_dim.webp` / `cube_lit_full.webp`, rendered by
+  `python tools/gen_cube_lit.py` from the game's cube (the strip's first cube, the same box `MDK.cube` shows) as warm
+  glowing glass from its own shading - a broad bright body over most of the cube (never a spot), warmer towards its
+  edges, a glowing line just inside the rim, the bevel's light lines and the gloss kept, its soft edge a little fuller
+  so no blue fringe shows. `.md-bulb` (dim: soft gold) and `.md-bulb-hot` (power: bright warm yellow) cross-fade over
+  the blue cube - the dim / power breathing as before; the warm halo behind is a little stronger. The corner twinkle is
+  gone (on a lit row it was a white star on every cube at once). Preloaded on MEASURE_ASK / COMPARE_MEASURED /
+  MATCH_ROWS. Checked in Chrome on G1's bed row after a wrong answer, at dim and at full power.
+
+## The bulb light on a cube (2026-10-08) — CSS `[bulb]`, app.js `MDK.bulb` (unchanged) — replaced above
+- Review: "still the light effect is too solid - take help from internet and fix this effect of glow bulb effect". The
+  light layers were opaque yellow painted over the cube, so a lit cube became a solid yellow block. Rebuilt the way glow is
+  usually done on the web: the inside light is ADDED (`.md-bulb`: `mix-blend-mode: screen` - it can only brighten, never
+  cover - a warm-white core fading to clear, with soft layered inset glows); at power a small warm filament in the middle
+  (`.md-bulb-hot`, normal blend - screen on bright blue washes yellow out to white - clear well before the edges); the
+  glow outside is a bloom of stacked soft shadows, each wider and fainter (`.md-bulb-halo`, no fill). The cube stays blue
+  glass, lit from inside; the dim / power breathing and the twinkle are as before. Checked frozen at dim and at power on
+  the bed's row and on P2's small cubes.
+
 ## Internal QA before the push (2026-10-01)
 - **Played**, each slide in a fresh page the way a child would: the landing (its play button starts T1), T1 → CEL -
   every slide completes; the wrong-answer ladders (T1, G1 incl. a block laid off the row, G4, P2) give the sheet's hints,
@@ -593,6 +884,15 @@ Every change is tagged `[QA nn]` (checklist section) in `app.js` / `style.css` /
   (behind the picture, the foot covers its top half) + the top's soft shade on the floor between the four feet, in the
   floor's warm brown. The shadow stays down while the table drops in, lifts (it lightens) or shakes. Re-measure `feet`
   if a table picture is replaced.
+- 2026-10-08 (review: "the tables looks like they are in the air, add a shadow so that it looks like the tables are
+  placed on the floor"): the feet had gone from the card when the pictures were replaced, so only the old soft ellipse
+  showed. Re-measured from the current art's alpha (each leg = the columns reaching below the apron; its foot = those
+  within 3% of its lowest pixel): `obj_table_long.webp` [0.065, .9946, .0733] [.1478, .7649, .0656] [.8489, .7649, .0656]
+  [.9328, .9946, .0733]; `obj_table_short.webp` [.0863, .9934, .0871] [.1766, .8073, .0742] [.8218, .8073, .0742]
+  [.9113, .9934, .0855] - in both card copies.
+- Same day, "same for this table" (T2, `obj_table_measure.webp`, MEASURE_DEMO already calls `MDK.ground` with `data.obj.feet`):
+  its feet re-measured the same way - [.0585, .9941, .0768] [.1353, .8239, .0661] [.8607, .8258, .067] [.9411, .9941, .0759].
+  Still without feet (the old ellipse only): T3 door, G2 almirah, G2b pillow, G3 fridge, G4 mats, P1 chairs.
 
 ## T2 table measuring layout (2026-09-30) — `app.js` `[t2-layout]` (MEASURE_DEMO, axis x), CSS `.md-box-*.open`
 - Own table art, `assets/obj_table_measure.webp` (supplied 2026-09-30: a green table with a cream top and two drawers,

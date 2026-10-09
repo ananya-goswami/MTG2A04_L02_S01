@@ -1918,7 +1918,7 @@ body.is-start .sg-sky{
    - hover lifts, a press squashes; right = the kit's green object outline (recipe 21) + its pop;
    - wrong = the deck's page 2 (data.wrong_cue "deck", review 2026-10-08; app.js PICK_EXTREME, MDK.shake / MDK.softGlow):
      every wrong tap the tapped table shakes and returns (no red), the long table pulses and the kit's tap hand taps its
-     front leg, with "यह टेबल ज्यादा लंबी है।".
+     top, in its middle, with "यह टेबल ज्यादा लंबी है।".
    The checklist's tile borders/backgrounds (!important) are switched off here: the tables are the targets. */
 /* ON THE GROUND (review 2026-09-30: "place the tables a little more down, they should look like they are on ground",
    + "a non-distracting background"): the card gets a floor - the bottom third, a light wood floor under the
@@ -1973,7 +1973,7 @@ body.is-start .sg-sky{
 .pk-tables .opt-cell.correct .pk-img.ol-alpha,.pk-tables .opt-cell.ck-correct .pk-img.ol-alpha{
   --ol-c:var(--correct,#00B132);animation:olYes calc(var(--olT) * 1.35) ease-in-out both;}
 .pk-tables .wg-fx,.pk-tables .ck-fx{display:none !important;}
-/* the hand's anchor (the answer shown after the last wrong tap) = the tap point on the right table's front leg
+/* the hand's anchor (the answer shown after the last wrong tap) = the tap point on the right table (the middle of its top, card options[].tap)
    (data: options[].tap = [x, y], fractions of the picture). placeNudge puts the fingertip 8px under its target's
    lower edge, so this 2px dot sits 10px above it. */
 .pk-tables .pk-tap{position:absolute;width:2px;height:2px;margin:-10px 0 0 -1px;pointer-events:none;}
@@ -2333,9 +2333,55 @@ body.is-start .sg-sky{
 .mq-opt.wrong{border:5px solid #F5A524;}
 .mq-opt.correct{border:5px solid #00B132;background:#EFFBF2;}
 .mq-opt.faded{opacity:.45 !important;}
-/* [deck] MEASURE_ASK data.wrong_cue "deck", 2nd wrong answer (review 2026-10-08, the deck's page 5): each laid block lights
-   up in turn as it is counted aloud - the counting hint's look (.mr-counting) */
-.mq .md-block.mq-counting,.cm .md-block.mq-counting{filter:drop-shadow(0 0 4px #FFC21A) drop-shadow(0 0 10px rgba(255,194,26,.9));scale:1.08;transition:scale .15s,filter .15s;}
+/* [bulb] the hint light on a cube (app.js MDK.bulb - review 2026-10-08: "remove that glow effect and put bulb effect, so that
+   the cubes will not pop out"; it replaces .mq-counting / .mr-counting, which swelled each cube 1.08). Both are children of
+   the cube, inside its box: the cube never changes size. The power-up and the twinkle are MDK.bulb's animation.
+   Turned down on the way (review 2026-10-08 / 09): a white-hot centre spot; the cube recoloured a solid yellow; a blue
+   frame round a lit inside ("cover the whole cube"); opaque yellow layers ("too solid"); light screened over the blue (a
+   white blob in a blue cube - "still bad"); an opaque lit cube, then a frosted one ("very solid", twice). Light can't be
+   laid over the blue cube (the two mix to white or olive), and an opaque lit cube reads as paint.
+   THE CUBE BECOMES A LAMP - the photo the review sent (2026-10-09: "something similar to that, with a टिमटिमाना effect"):
+   a resin cube lamp, see-through, its light low in the middle and rising through it, the edges carrying the light, a
+   pool of light on the table. Two layers rendered from the cube itself (tools/gen_cube_lit.py), the same box as its own
+   crop of the strip, so they sit exactly on it:
+   .md-bulb-blue ... the cube's own blue picture, moved here while it is lit so it can fade out (through see-through resin
+                     the blue went grey-green); back on the cube itself when the light goes off
+   .md-bulb ........ the cube lit (assets/cube_orange.webp): a glossy orange jelly cube - the blue cube's own rim, bevel
+                     line and gloss, recoloured (the face orange at the top, golden yellow at the bottom); steady
+   .md-bulb-light .. the light inside (assets/cube_orange_light.webp): soft golden, low in the middle of the face,
+                     screened onto it (it only adds light) - the part that twinkles
+   .md-bulb-pool ... the pool of light it throws on the floor under it (below)
+   .md-bulb-halo ... the light it throws round itself, behind the cubes (below)
+   (its corner twinkle star is gone: on a lit row it was a white star on every cube at once) */
+.md-block .md-bulb-blue{position:absolute;inset:0;pointer-events:none;background-repeat:no-repeat;}
+.md-block .md-bulb,.md-block .md-bulb-light{position:absolute;inset:0;pointer-events:none;opacity:0;background:0 0/100% 100% no-repeat;}
+/* (review 2026-10-09 "the light is too much, hurting the eyes" - then, of the softened one, "too lime, can't see much on the
+   skin-coloured floor - I want warm yellow light, twinkling": a pale, desaturated yellow went khaki-lime and vanished on
+   beige. Warm golden amber instead - it stands out from the floor by its colour, not by glare - with a deeper amber
+   outline; the light inside warm gold, never white. The strengths and the twinkle are MDK.bulb's.) */
+/* (then "still very harsh to the eyes - not warm lights": a saturated amber read as a highlighter; now honey gold softened
+   towards warm cream, a soft caramel outline, a soft wide glow - candlelight) */
+/* (then "remove the inside shadow, reduce the glow, make the colour more evident - I can't really see the blocks": one
+   even, richer honey gold with a crisp caramel edge; the haze round it cut back to a tight warm edge and a faint halo) */
+/* (then, with a picture of the pillow slide's cubes glowing as glossy orange jelly cubes: "use these cubes throughout for the
+   effect" - that look, measured on the picture: tools/gen_cube_lit.py; its bright outline and glow are MDK.bulb's) */
+.md-block .md-bulb{background-image:url(assets/cube_orange.webp);}
+.md-block .md-bulb-light{background-image:url(assets/cube_orange_light.webp);mix-blend-mode:screen;}
+/* the switch (MDK.bulb FLASH_ON / FLASH_OFF): the cube's own shape in warm white, flashed for a moment while blue and resin
+   swap - cross-faded, they showed a muddy green half-way; a light catching hides it */
+.md-block .md-bulb-flash{position:absolute;inset:0;pointer-events:none;opacity:0;background-repeat:no-repeat;
+  filter:brightness(0) invert(1) sepia(.3) saturate(1.8);}
+/* the pool of light on the floor under it (the photo's lit table): an oval round its foot, behind the cubes - the cube
+   covers its upper half, so it shows below and beside the base; in a lit row the pools run together into one band */
+.md-bulb-pool{position:absolute;pointer-events:none;opacity:0;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,170,50,.6),rgba(255,155,45,.28) 45%,rgba(255,150,40,0));}
+/* the warm light coming out of it, besides the glow on the cube itself (MDK.bulb's drop-shadows, over its neighbours): a
+   short soft bloom BEHIND the cubes (a sibling one z-index under them) - stacked soft shadows only, never a block of
+   colour - and the pool on the floor under it; a clear warm golden orange, so they can be seen on a beige floor and on
+   P2 / P3's white cards (review 2026-10-09: "is the glow really evidently visible?" - the pale one was not) */
+.md-bulb-halo{position:absolute;pointer-events:none;opacity:0;border-radius:24%;background:transparent;
+  box-shadow:0 0 calc(8px * var(--k,1)) calc(3px * var(--k,1)) rgba(255,166,40,.75),
+             0 0 calc(20px * var(--k,1)) calc(7px * var(--k,1)) rgba(255,150,40,.32);}   /* (short: the blocks stay crisp; --k: the cube's size / 53) */
 .mq .md-num,.cm .md-num{z-index:13;}
 .md-block.glow{animation:mdGlow .8s ease-in-out 2 !important;opacity:1;}
 @keyframes mdGlow{0%,100%{filter:drop-shadow(0 3px 3px rgba(12,46,92,.22));}50%{filter:drop-shadow(0 0 12px rgba(255,196,26,.95)) drop-shadow(0 3px 3px rgba(12,46,92,.22));}}
@@ -2435,8 +2481,9 @@ body.is-start .sg-sky{
 .cf-space.hover{border-color:#00B132 !important;background-color:rgba(0,177,50,.16);}
 .cf-space.filled{border-color:transparent;background:none;animation:none;}
 .cf-sb{position:absolute;box-sizing:border-box;border:2px dashed rgba(47,130,222,.7);border-radius:7px;background:rgba(47,130,222,.12);}
-/* [dims] the measured side's double-headed arrow (app.js data.dims) and its label: on it (a length), left of it (a height) */
-.cf-dim{position:absolute;pointer-events:none;--c:#2F6FD6;transition:--c .2s;}
+/* [dims] the measured side's double-headed arrow (app.js data.dims) and its label on it, both inside the space's middle;
+   gone once the object is in (it stands over them) */
+.cf-dim{position:absolute;pointer-events:none;--c:#2F6FD6;transition:opacity .3s;}
 .cf-dim.h{height:3px;margin-top:-1.5px;background:var(--c);border-radius:2px;}
 .cf-dim.v{width:3px;margin-left:-1.5px;background:var(--c);border-radius:2px;}
 .cf-dim::before,.cf-dim::after{content:"";position:absolute;width:0;height:0;border:7px solid transparent;}
@@ -2444,9 +2491,10 @@ body.is-start .sg-sky{
 .cf-dim.h::after{right:-1px;top:50%;translate:0 -50%;border-right:0;border-left:12px solid var(--c);}
 .cf-dim.v::before{top:-1px;left:50%;translate:-50% 0;border-top:0;border-bottom:12px solid var(--c);}
 .cf-dim.v::after{bottom:-1px;left:50%;translate:-50% 0;border-bottom:0;border-top:12px solid var(--c);}
-.cf-dim.ok{--c:#00B132;}
-.cf-label.dim{translate:-50% -50%;z-index:2;pointer-events:none;}
-.cf-label.dim.narrow{translate:-100% -50%;padding:3px 6px 4px;border-radius:9px;line-height:1.05;}
+.cf-dim.ok{opacity:0;}
+.cf-label.dim{translate:-50% -50%;z-index:2;pointer-events:none;transition:opacity .3s;}
+.cf-label.dim.ok{opacity:0;}
+.cf-label.dim.narrow{padding:3px 6px 4px;border-radius:9px;line-height:1.05;}
 .cf-label.dim.narrow b{font-size:20px;}
 .cf-label.dim.narrow i{display:block;font-style:normal;font-size:12px;font-weight:800;}
 .cf-strip.ok .cf-sb{border-style:solid;border-color:rgba(0,177,50,.75);background:rgba(0,177,50,.15);}
@@ -2474,12 +2522,35 @@ body.is-start .sg-sky{
 #stage[data-bg="classroom"] .slide-stage{padding:0;}
 .md-stage.cf.cf-roomfull{width:100%;margin:0;}
 .cf-room.full{border-radius:0;box-shadow:none;overflow:visible;}
-.cf-veil{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(251,245,236,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:opacity .45s;}
+/* [solid] review 2026-10-09 ("make the background here solid"): while an object is measured the classroom no longer ghosts
+   through a see-through veil - the veil is solid, the room's own warm cream (the colour the faded room read as, #FCF4E7),
+   over the stage and its side bands alike; it fades in and out with the measuring view (.45s) */
+/* [floor] review 2026-10-09 (is the solid colour right for this screen? - "sure, fix the issue"): on one flat cream the
+   objects floated, the robot drove (small far, big near) and mopped a floor that was not there, and its clean trail read
+   as smoke. Still solid and plain, but a FLOOR, in the classroom's own colours: a thin wall band and its skirting line at
+   the very top (above the robot's way in, 11% down), the floor below, a touch deeper far away and lighter near - the
+   robot drives on it, its trail is a clean path on it, the objects stand on it (their shadows: app.js [floor]). Same
+   on the stage and its side bands (both 750 tall: the lines meet); on a 4:3 screen the top / bottom bands mirror it */
+.cf-veil{position:absolute;inset:0 -2px;pointer-events:none;opacity:0;transition:opacity .45s;
+  background:linear-gradient(180deg,#FEF0D2 0,#FEF0D2 7.4%,#DA8A43 7.4%,#DA8A43 8.3%,#F1D9BB 8.3%,#FAEEDF 100%);}   /* (-2px each side: the scene can round a pixel short of the stage - a sliver of the room showed at its right edge) */
 .cf.cf-measuring .cf-veil{opacity:1;}
 /* its side bands: unmirrored, the picture carrying on (1760 px wide, its left at stage x -213.5) */
 .stage-bleed[data-bg="classroom"] .b-l{transform:scale(var(--scale,1)) translateX(-1332px);background-position:1118.5px 0 !important;}
 .stage-bleed[data-bg="classroom"] .b-r{transform:scale(var(--scale,1)) translateX(1332px);background-position:-1545.5px 0 !important;}
-body:has(.cf.cf-measuring) .stage-bleed i{opacity:.25;filter:blur(4px);transition:opacity .45s,filter .45s;}
+.stage-bleed i::after{content:"";position:absolute;inset:0;opacity:0;transition:opacity .45s;   /* [solid] [floor] the bands' veil */
+  background:linear-gradient(180deg,#FEF0D2 0,#FEF0D2 7.4%,#DA8A43 7.4%,#DA8A43 8.3%,#F1D9BB 8.3%,#FAEEDF 100%);}
+/* (on a screen taller than 16:9 the bands above and below the stage are its mirror image - the floor's gradient mirrored put
+   floor above the wall and a second skirting line: there, plain wall above and plain near floor below) */
+.stage-bleed .b-t::after,.stage-bleed .b-tl::after,.stage-bleed .b-tr::after{background:#FEF0D2;}
+.stage-bleed .b-b::after,.stage-bleed .b-bl::after,.stage-bleed .b-br::after{background:#FAEEDF;}
+/* [floor] the measured object's shadow on the floor (app.js measureView): soft, at its foot, in once it has landed */
+.cf-floorshadow{position:absolute;pointer-events:none;z-index:0;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(110,62,20,.38),rgba(110,62,20,.16) 60%,rgba(110,62,20,0));animation:mdFade .4s ease-out .45s backwards;}
+body:has(.cf.cf-measuring) .stage-bleed i::after{opacity:1;}
+/* [drive-in] the robot drives in from the screen's top-left corner (review 2026-10-09) - on a screen wider than the stage that
+   corner is on the side band, so while an object is measured the stage does not clip (the room is under the solid veil
+   then; the bands sit behind the stage, so the robot shows over them) */
+body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage{overflow:visible;}
 /* (the room's px are the stage's now, its objects bigger: the labels and arrows grow with them) */
 .cf-room.full .cf-label.dim{padding:4px 14px 6px;border-radius:14px;border-width:2.5px;}
 .cf-room.full .cf-label.dim b{font-size:24px;}
@@ -2515,7 +2586,13 @@ body:has(.cf.cf-measuring) .stage-bleed i{opacity:.25;filter:blur(4px);transitio
 .cf-item img{max-width:86%;height:62%;object-fit:contain;pointer-events:none;}
 .cf-item:active{translate:0 2px;box-shadow:0 2px 0 #D9D9D9;}
 .cf-item.done{opacity:.45;filter:grayscale(1);cursor:default;}
-.cf.cf-measuring .cf-item,.cf.cf-placing .cf-item{opacity:0;pointer-events:none;}
+.cf.cf-measuring .cf-item{opacity:0;pointer-events:none;}
+/* [boxes] review 2026-10-09 ("bring back all the option boxes as they were, and only enable this bench box to place it"):
+   while the measured object is placed the boxes stay up - the others dimmed and off, its own box on, its picture
+   giving way to the measured object (app.js makeCard: the card waits in the box) */
+.cf.cf-placing .cf-item{pointer-events:none;}
+.cf.cf-placing .cf-item:not(.cf-cur){opacity:.45;filter:grayscale(.7);}
+.cf-item.cf-cur img{visibility:hidden;}
 .cf-item{transition:opacity .3s,filter .3s,left .45s cubic-bezier(.3,1.2,.5,1),scale .3s;}
 .cf-item.leaving{opacity:0 !important;scale:.7;pointer-events:none;}   /* a placed object's box leaves; the rest close up (app.js layoutTray) */
 .cf.cf-measuring .cf-room{opacity:0;}
@@ -2547,9 +2624,9 @@ body:has(.cf.cf-measuring) .stage-bleed i{opacity:.25;filter:blur(4px);transitio
 .md-stage.in.cf .cf-item{animation:cfDropIn .6s cubic-bezier(.3,1.45,.5,1) backwards;animation-delay:calc(.35s + var(--i,0) * .12s);}
 @keyframes cfRoomIn{from{opacity:0;filter:blur(6px);}}
 @keyframes cfDropIn{0%{opacity:0;translate:0 -46px;}60%{opacity:1;}}
-/* measuring: the room stays, dimmed and soft behind (it used to vanish) */
+/* measuring: the room goes under the solid veil ([solid] - it used to stay, dimmed and blurred, showing through) */
 .cf-room{transition:opacity .45s,filter .45s;}
-.cf.cf-measuring .cf-room{opacity:.16;filter:blur(5px) saturate(.8);}
+.cf.cf-measuring .cf-room{opacity:0;}
 .cf-fly{animation:none !important;opacity:1;}
 /* a right drop: it drops into its space with a squash, then the dust and the sparks */
 .cf-placed{animation:cfLand .55s cubic-bezier(.3,1.2,.5,1) both;}
@@ -2693,6 +2770,26 @@ body:has(.cf.cf-measuring) .stage-bleed i{opacity:.25;filter:blur(4px);transitio
 .rb-aura i::after{content:"";position:absolute;inset:-28%;border-radius:40%;background:rgba(150,225,255,.5);filter:blur(16px);}   /* a wider haze */
 @keyframes rbAura{0%,100%{opacity:.55;}50%{opacity:1;}}
 @media (prefers-reduced-motion:reduce){ .rb-aura i{animation:none;opacity:.8;} }
+/* [roam] the clean floor the robot mop leaves behind (app.js MDK.robot roam / follow, review 2026-10-08): two canvases at
+   the bottom of the scene - .base, every footprint it has passed over, a soft white gloss (brighter while wet, .on, then it
+   settles and stays) and .wet, the mop's strands, there while it moves and drying away after; .rb-spark - twinkles on the
+   clean floor; .rb-shine - one sweep of light over it once it stops (masked to the cleaned shape) */
+.rb-trail{position:absolute;z-index:0;pointer-events:none;}
+/* (review 2026-10-09, the P4 drive: a glossy, see-through sheen - the floor shows through it like fresh wet shine; at .75 / .5
+   the white band read as a smoke ribbon) */
+.rb-trail.base{opacity:.4;filter:blur(3px);transition:opacity 2.2s ease-out;}
+.rb-trail.base.on{opacity:.55;transition-duration:.3s;}
+.rb-trail.wet{opacity:0;filter:blur(.5px);transition:opacity 2.2s ease-in;}
+.rb-trail.wet.on{opacity:.6;transition-duration:.2s;}
+/* the twinkle (MDK.robot sparkle): a solid gold star, bold arms, a small white heart and a tight warm glow - review 2026-10-09:
+   the white star with a pale-blue glow vanished on the white sheen and the cream floor, and a thin gradient star blurred into a
+   pale gold square at its real 8-16px */
+.rb-spark{position:absolute;z-index:1;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 0C11 6.5 13.5 9 20 10C13.5 11 11 13.5 10 20C9 13.5 6.5 11 0 10C6.5 9 9 6.5 10 0Z' fill='%23FFC21A'/%3E%3Ccircle cx='10' cy='10' r='2.6' fill='%23fff'/%3E%3C/svg%3E") center/contain no-repeat;
+  filter:drop-shadow(0 0 1px rgba(220,130,0,.9)) drop-shadow(0 0 3px rgba(255,200,60,.85));}
+.rb-shine{position:absolute;z-index:1;pointer-events:none;
+  background:linear-gradient(105deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.9) 50%,rgba(255,255,255,0) 62%) 100% 0/250% 100% no-repeat;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;}
 
 /* ==================== [ground] the measured objects stand on the floor (review 2026-10-05) - app.js MDK.ground ====================
    As T1's tables ([T1 ground]): from the card's feet - a tight, dark contact shadow centred on each foot's bottom edge, behind
@@ -2744,8 +2841,7 @@ body:has(.cf.cf-measuring) .stage-bleed i{opacity:.25;filter:blur(4px);transitio
 .mr .mr-end{z-index:6;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff) drop-shadow(0 1px 1.5px rgba(90,20,50,.35));}
 .mr .mr-end.v{width:6px;background-image:linear-gradient(#E0137B 0 10px,transparent 10px 15px);background-size:6px 15px;border-radius:3px;}
 .mr .mr-end.h{height:6px;background-image:linear-gradient(90deg,#E0137B 0 10px,transparent 10px 15px);background-size:15px 6px;border-radius:3px;}
-/* the counting hint (2nd wrong drop): each block lights up as it is counted */
-.mr .md-block.mr-counting{filter:drop-shadow(0 0 4px #FFC21A) drop-shadow(0 0 10px rgba(255,194,26,.9));scale:1.08;transition:scale .15s;}
+/* the counting hint (2nd wrong drop): each block lights up as it is counted - the bulb (MDK.bulb, CSS [bulb]) */
 .mr .md-num{z-index:13;}
 /* [lines] P2 / P3 (2026-10-08): the shared cube is 29px, the digit 32 - P2's 7-block bench crowded its digits into each
    other; at .82 (26px) each sits on its own cube. transform, so the pop's own `scale` (mdPop) still runs */

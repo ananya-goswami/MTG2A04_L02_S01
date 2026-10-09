@@ -887,6 +887,15 @@ const MDK = (function(){
   const reduce = ()=> !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   const px = v => (Math.round(v * 10) / 10) + "px";
   const wait = ms => new Promise(r => setTimeout(r, reduce() ? Math.min(ms, 80) : ms));
+  /* the counting beat (review 2026-10-09: "third time wrong attempt gives 1, 2, 3, 4, 5 really fast - slow this interaction
+     down a bit, and the same speed throughout the game"): every hint that counts the blocks one by one - the digits shown,
+     the numbers said, or both - moves on one number every COUNT_MS. Before: 140ms (G1-G3's 3rd wrong - each digit pops
+     in over .45s, so three or four popped at once, 12 in ~1.7s), 650ms (P3), ~1.05-1.2s (waiting out each spoken
+     number). 850: the spoken numbers' words end by ~.81s (vo_num_1..12: a .28s lead-in, the word, then silence to
+     ~1.05-1.17s), so a said number is never cut - the next one only cuts its silent tail. A plain timer, not wait():
+     the pace carries the count, so reduced motion keeps it. countBeat(say): say the number (if any), then the beat. */
+  const COUNT_MS = 850;
+  const countBeat = say =>{ if(say) say(); return new Promise(r => setTimeout(r, COUNT_MS)); };
   function add(parent, tag, cls, css){ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; parent.appendChild(e); return e; }
   const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
   const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
@@ -1135,7 +1144,10 @@ const MDK = (function(){
      fractions of the body. Same interface as the toy box ({back, front, spots, w, h, settle}) + link, react, hold. One more cube than the row needs: when the row is
      full a last one still rises onto the lid and stays there (it can't be dragged - the row is measured). */
   const ROBOT = { w: 2.7, ar: 0.5688, face: [0.1191, 0.559, 0.771, 0.3746], seat: [0.5025, 0.3304] };
-  function robotGeom(n, s){ const w = ROBOT.w * s; return { w, h: w * ROBOT.ar }; }
+  /* review 2026-10-08 ("do not reduce the sizes of any elements"): the robot keeps the size it had with the 74px cube on
+     every screen - the cube on its lid is the game's cube (53), centred on the seat */
+  const ROBOT_S = 74;
+  function robotGeom(n, s){ const w = ROBOT.w * ROBOT_S; return { w, h: w * ROBOT.ar, seat: ROBOT.seat }; }
   function robot(parent, x, y, n, s){
     const { w, h } = robotGeom(n, s), F = ROBOT.face;
     const back = add(parent, "div", "md-robot", "left:" + px(x) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
@@ -1245,7 +1257,245 @@ const MDK = (function(){
       faceT = setTimeout(()=> face(null), 1400);
     }
     function hold(kind){ clearTimeout(faceT); face(kind); }
-    return { back, front, spots, w, h, settle, link, respawn, react, hold, look, face, gaze, blink, robot: true };
+    /* [roam] review 2026-10-08 ("bring the robo mop with cube, follow a little circular mischief path, and from which ever
+       path it covers show a clean floor effect there - apply this effect throughout the game"; it moves now - the
+       2026-10-05 "no movement, only the eyes" is lifted for this). roam(o) takes it once round a little loop on the
+       floor and home again, its cube riding on the lid: it heads off sideways (o.dir 1 right / -1 left), swings round
+       in front of where it stood - a little bigger there, nearer - and comes back to its spot (where the floor in front
+       is too shallow: round behind it). It glides: no hops, no tilts (review 2026-10-07). Its eyes
+       lead the way (the mischief), then a blink at the child. The cubes on it can't be picked up meanwhile (_busy);
+       still() resolves once it is home. o.bounds {l, r, floor, b}: the robot's box stays between l and r and above b,
+       its footprint below the floor line. Reduced motion: it stays put.
+       Then (review 2026-10-09: "remove the clean floor effect and circular path of robo mop in the whole game, leave only
+       last game screen"): only P4 (CLASSROOM_FIT, the last game screen) calls roam(); T2 / T3 / G1-G3 no longer loop, take
+       a victory lap or clean the floor as they drive in (follow() has no caller now). Then the same day ("remove the robo mop this
+       white clean effect throughout the game and the circular motion also"): P4 neither - roam() and follow() have no caller.
+       Left in place, unused. */
+    const FOOT = { cy: .31, rx: .49, ry: .3 };                              // its base's oval on the floor, from the art: centre .31h above its bottom
+    let trail = null, roaming = Promise.resolve();
+    const HOME_BODY = { l: x, r: x + w, t: y, b: y + h }; let body = HOME_BODY;  // its box now (drive keeps it current)
+    // the cleaned floor (CSS [roam]): two canvases at the bottom of the scene - .base, the union of every footprint it has
+    // passed over (a soft gloss that stays) and .wet, the mop's strands (wet while it moves, drying away after). They cover
+    // the whole stage (the robot may stand past the scene's own box - G1-G4 put it in the room left of it), in the
+    // scene's px (X0, Y0: the stage's corner); .base at half resolution - it is blurred anyway (light on small tablets)
+    function trailInit(){
+      if(trail) return trail;
+      const pr = parent.getBoundingClientRect(), kp = pr.width / (parent.offsetWidth || 1) || 1;
+      // the whole visible screen ([drive-in]: P4's robot drives in over the side band - elsewhere the stage clips the rest)
+      const st = document.getElementById("stage"), s0 = st ? st.getBoundingClientRect() : pr;
+      const sr = { left: Math.min(0, s0.left), top: Math.min(0, s0.top), width: Math.max(innerWidth, s0.right) - Math.min(0, s0.left), height: Math.max(innerHeight, s0.bottom) - Math.min(0, s0.top) };
+      const X0 = (sr.left - pr.left) / kp, Y0 = (sr.top - pr.top) / kp, W = sr.width / kp, H = sr.height / kp, dpr = kp * (window.devicePixelRatio || 1);
+      const mk = (cls, k)=>{ const c = document.createElement("canvas"); c.className = "rb-trail " + cls;
+        c.style.cssText = "left:" + px(X0) + ";top:" + px(Y0) + ";width:" + px(W) + ";height:" + px(H);
+        c.width = Math.ceil(W * k); c.height = Math.ceil(H * k); parent.insertBefore(c, parent.firstChild);
+        const g = c.getContext("2d"); g.setTransform(k, 0, 0, k, -X0 * k, -Y0 * k); return { c, g, k }; };
+      trail = { base: mk("base", Math.max(.5, Math.min(1, dpr) * .6)), wet: mk("wet", Math.min(1.5, dpr)), X0, Y0, W, H, last: null, feet: [], bb: null, dryT: 0 };
+      return trail;
+    }
+    // the floor under it at offset (dx, dy), depth scale q, comes up clean
+    function clean(dx, dy, q){
+      const T = trailInit(), cx = x + w / 2 + dx, cy = y + h + dy - FOOT.cy * h * q, rx = FOOT.rx * w * q, ry = FOOT.ry * h * q;
+      { const g = T.base.g; g.save(); g.translate(cx, cy); g.scale(1, ry / rx);   // (a soft-edged footprint - review 2026-10-09: the mopped
+        const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx);                  //  sheen: glossy in its middle, fading to its rim)
+        gr.addColorStop(0, "rgba(255,255,255,.9)"); gr.addColorStop(.6, "rgba(255,255,255,.7)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, Math.PI * 2); g.fill(); g.restore(); }
+      const L = T.last;
+      if(L && Math.hypot(cx - L.x, cy - L.y) > .5){                         // the mop's strands, from where it was to here
+        const vx = cx - L.x, vy = cy - L.y, n = Math.hypot(vx, vy), nx = -vy / n, ny = vx / n, g = T.wet.g;
+        g.lineCap = "round";
+        for(let j = -4; j <= 4; j++){ const f = j / 4, ox = nx * f * rx * .82, oy = ny * f * ry * .82;
+          g.strokeStyle = "rgba(255,255,255," + (j % 2 ? .55 : .95) + ")"; g.lineWidth = j % 2 ? 1.4 : 2.4;
+          g.beginPath(); g.moveTo(L.x + ox, L.y + oy); g.lineTo(cx + ox, cy + oy); g.stroke(); }
+      }
+      T.last = { x: cx, y: cy };
+      if(T.minX != null && cx < T.minX + rx * .6) return;                    // (outside the card while it drives in: clipped, no twinkles there)
+      T.feet.push({ x: cx, y: cy, rx, ry });
+      const b = T.bb; T.bb = b ? { l: Math.min(b.l, cx - rx), t: Math.min(b.t, cy - ry), r: Math.max(b.r, cx + rx), b: Math.max(b.b, cy + ry) }
+                           : { l: cx - rx, t: cy - ry, r: cx + rx, b: cy + ry };
+    }
+    /* a twinkle on the clean floor - somewhere on the footprint f (else one it has passed). Review 2026-10-09 ("find out the
+       issues in the twinkle effect"), measured on P4's drive and fixed: a white star on the white sheen did not show (a gold
+       star with a white heart now, CSS .rb-spark); it only popped once (it flickers now - bright, dim, brighter, dim, bright,
+       gone - as it turns); it was 10-22px everywhere (sized with how near its footprint is now, as the robot and the path are:
+       its q, from the footprint's size; never under .45, or far ones vanish); half of those during the drive were born under
+       the robot, which is drawn over them (never inside its box now); and some fell off the stage, where no clean floor is
+       drawn (never there now). Up to 6 tries for a spot that is clear; none - no twinkle. */
+    function sparkle(f, delay){
+      const T = trail; if(!T || !T.feet.length) return;
+      const p = f || T.feet[Math.floor(Math.random() * T.feet.length)], q = Math.max(.45, p.rx / (FOOT.rx * w)), z = (20 + Math.random() * 10) * q;
+      for(let k = 0; k < 6; k++){
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * .75, sx = p.x + Math.cos(a) * r * p.rx, sy = p.y + Math.sin(a) * r * p.ry;
+        if(sx - z / 2 < T.X0 || sx + z / 2 > T.X0 + T.W || sy - z / 2 < T.Y0 || sy + z / 2 > T.Y0 + T.H) continue;   // off the stage
+        const B = body; if(sx + z / 2 > B.l && sx - z / 2 < B.r && sy + z / 2 > B.t && sy - z / 2 < B.b) continue;   // under the robot
+        const e = add(parent, "i", "rb-spark", "left:" + px(sx - z / 2) + ";top:" + px(sy - z / 2) + ";width:" + px(z) + ";height:" + px(z));
+        e.animate([{ opacity: 0, scale: .2, rotate: "0deg" }, { opacity: 1, scale: 1, rotate: "18deg", offset: .16 },
+                   { opacity: .25, scale: .68, rotate: "30deg", offset: .3 }, { opacity: 1, scale: 1.12, rotate: "46deg", offset: .46 },
+                   { opacity: .3, scale: .74, rotate: "58deg", offset: .62 }, { opacity: .95, scale: .96, rotate: "72deg", offset: .78 },
+                   { opacity: 0, scale: .2, rotate: "90deg" }], { duration: 1150, delay: delay || 0, fill: "both" }).onfinish = ()=> e.remove();
+        return;
+      }
+    }
+    // it has stopped: the strands dry away, the gloss settles, a shine sweeps over the cleaned floor and a few twinkles
+    // dry(fade) (drive): the twinkles run along the path from its start to its end, and once the shine has passed the whole
+    // clean path fades away and its canvases go
+    function dry(fade){
+      const T = trail; if(!T) return;
+      T.wet.c.classList.remove("on"); T.base.c.classList.remove("on"); T.last = null;
+      clearTimeout(T.dryT); T.dryT = setTimeout(()=>{ if(!T.wet.c.classList.contains("on")) T.wet.g.clearRect(T.X0, T.Y0, T.W, T.H); }, 2400);
+      if(fade){
+        // the wave: evenly by DISTANCE along the path (by footprint count it bunched where the robot went slowly - far away)
+        const Fs = T.feet, n = Fs.length, cum = [0];
+        for(let i = 1; i < n; i++) cum.push(cum[i - 1] + Math.hypot(Fs[i].x - Fs[i - 1].x, Fs[i].y - Fs[i - 1].y));
+        const D = cum[n - 1] || 1, K = Math.min(32, n);
+        for(let j = 0, i = 0; j < K; j++){ const d = (j + Math.random() * .8) / K * D; while(i < n - 1 && cum[i] < d) i++; sparkle(Fs[i], 200 + j * 55); }
+        setTimeout(()=>{ if(trail === T) trail = null;
+          [T.base.c, T.wet.c].forEach(c =>{ c.animate([{ opacity: getComputedStyle(c).opacity }, { opacity: 0 }], { duration: 1500, easing: "ease-in-out", fill: "forwards" })
+            .onfinish = ()=> c.remove(); }); }, 2200);
+      } else for(let j = 0; j < 6; j++) sparkle(null, 150 + j * 210);
+      const b = T.bb; if(!b) return;
+      const l = Math.max(T.X0, Math.floor(b.l)), t = Math.max(T.Y0, Math.floor(b.t)), bw = Math.min(T.X0 + T.W, Math.ceil(b.r)) - l, bh = Math.min(T.Y0 + T.H, Math.ceil(b.b)) - t;
+      if(bw < 4 || bh < 4) return;
+      const m = document.createElement("canvas"), kb = T.base.k; m.width = Math.ceil(bw * kb); m.height = Math.ceil(bh * kb);   // (the mask: the cleaned shape)
+      m.getContext("2d").drawImage(T.base.c, (l - T.X0) * kb, (t - T.Y0) * kb, bw * kb, bh * kb, 0, 0, m.width, m.height);
+      const s = add(parent, "i", "rb-shine", "left:" + px(l) + ";top:" + px(t) + ";width:" + px(bw) + ";height:" + px(bh));
+      s.style.webkitMaskImage = s.style.maskImage = "url(" + m.toDataURL() + ")";
+      s.animate([{ backgroundPosition: "100% 0", opacity: 1 }, { backgroundPosition: "0% 0", opacity: 1, offset: .85 }, { backgroundPosition: "0% 0", opacity: 0 }],
+                { duration: 1300, delay: 250, easing: "cubic-bezier(.4,0,.3,1)", fill: "both" }).onfinish = ()=> s.remove();
+    }
+    function wetOn(){ const T = trailInit(); clearTimeout(T.dryT); T.wet.c.classList.add("on"); T.base.c.classList.add("on"); }
+    // where its parts go at offset (dx, dy), depth scale q (about its bottom centre, as CSS .md-robot's transform-origin)
+    function carry(dx, dy, q){
+      back.style.translate = front.style.translate = px(dx) + " " + px(dy); back.style.scale = q === 1 ? "" : q.toFixed(4);
+      const sx = x + w / 2 + dx + (ROBOT.seat[0] - .5) * w * q, sy = y + h + dy - (1 - ROBOT.seat[1]) * h * q;   // the seat, scaled with it
+      const cx = sx - s / 2, cy = sy - s * q / 2 - s / 2;                   // the cube's box: its foot on the seat, scaled about its centre
+      blocks.forEach(b =>{ const ride = !b._placed && !b.classList.contains("lift") && !b.classList.contains("moving");
+        if(ride) setPos(b, { x: cx, y: cy }); b.style.scale = ride && q !== 1 ? q.toFixed(4) : ""; });   // (one taken off it keeps its own scale)
+      aura.style.translate = px(cx - seat.x) + " " + px(cy - seat.y); aura.style.scale = q === 1 ? "" : q.toFixed(4);
+    }
+    function roam(o){
+      o = o || {};
+      const go = async ()=>{
+        if(reduce() || !back.isConnected) return;
+        const B = o.bounds || {}, dir = o.dir < 0 ? -1 : 1, MS = o.ms || 2800, DQ = .06;
+        let RX = (o.rx || .55) * w, RY = (o.ry || .26) * w;                 // (a loop wider than its own footprint, so the cleaned path shows round it)
+        if(B.l != null) RX = Math.min(RX, x - B.l);
+        if(B.r != null) RX = Math.min(RX, B.r - (x + w));
+        const down = B.b != null ? (B.b - (y + h * (1 + DQ))) / 2 : RY;     // the floor in front of it ...
+        const up = B.floor != null ? (y + h - FOOT.cy * h - FOOT.ry * h - B.floor) / 2 : RY;   // ... and behind (its footprint stays on the floor)
+        const fwd = down >= Math.min(RY, up) * .9;                           // in front where there is the room for it
+        RY = Math.min(RY, fwd ? down : up);
+        RX = Math.max(0, RX); RY = Math.max(0, RY);
+        if(RX < .06 * w && RY < .06 * w) return;                              // no room for a loop here
+        const sgn = fwd ? 1 : -1;
+        const riders = blocks.filter(b => !b._placed); riders.forEach(b => b._busy = true);
+        wetOn();
+        const t0 = performance.now(); let lastSp = 0, prev = { x: 0, y: 0 };
+        await new Promise(res =>{
+          (function step(t){
+            if(!back.isConnected) return res();
+            const u = Math.min(1, (t - t0) / MS), e = .5 - .5 * Math.cos(Math.PI * u), th = 2 * Math.PI * e;
+            // (depth: a little bigger as it comes nearer - never smaller going back, review 2026-10-08 "do not reduce the sizes")
+            const dx = dir * RX * Math.sin(th), dy = sgn * RY * (1 - Math.cos(th)), q = 1 + DQ * (RY ? Math.max(0, dy) / (2 * RY) : 0);
+            carry(dx, dy, q); clean(dx, dy, q);
+            const vx = dx - prev.x, vy = dy - prev.y, sp = Math.hypot(vx, vy); prev = { x: dx, y: dy };
+            if(sp > .2) gaze({ x: Math.max(-1, Math.min(1, vx / sp * 1.1)), y: Math.max(-.6, Math.min(.6, vy / sp * .6)) }, 140);   // eyes on the way ahead
+            if(t - lastSp > 120 && trail && trail.feet.length > 8){ lastSp = t; sparkle(trail.feet[trail.feet.length - 8]); }   // twinkles just behind it
+            if(u < 1) requestAnimationFrame(step); else res();
+          })(t0);
+        });
+        carry(0, 0, 1);
+        blocks.forEach(b =>{ if(!b._placed && !b.classList.contains("lift") && !b.classList.contains("moving")) setPos(b, b._home); });
+        riders.forEach(b => b._busy = false);
+        dry(); gaze(null); blink();
+      };
+      roaming = roaming.then(go, go);
+      return roaming;
+    }
+    /* follow(clip): the clean trail behind it while something else moves it (T2 / T3's drive in - robotIn animates its
+       `translate`); clip {l, t, r, b, rad}: the card's inner box it drives in through, in scene px (the trail is clipped
+       to it for good); returns stop() - then it dries */
+    function follow(clip){
+      const T = trailInit();
+      if(clip){ T.base.c.style.clipPath = T.wet.c.style.clipPath = "inset(" + [clip.t - T.Y0, T.X0 + T.W - clip.r, T.Y0 + T.H - clip.b, clip.l - T.X0].map(v => px(Math.max(0, v))).join(" ") + " round " + px(clip.rad || 0) + ")";
+        T.minX = clip.l; }
+      let on = true; wetOn();
+      (function f(){ if(!on || !back.isConnected) return;
+        const t = getComputedStyle(back).translate, m = t && t !== "none" ? t.split(" ").map(parseFloat) : [0, 0];
+        clean(m[0] || 0, m[1] || 0, 1); requestAnimationFrame(f); })();
+      return ()=>{ if(on){ on = false; dry(); } };
+    }
+    /* drive(path, o) - review 2026-10-09 (P4: "i want robo mop to follow this path, gradually smaller to bigger as he comes
+       closer as per the law of physics; this path will leave behind a clean floor effect just like an ad of Lizol, then leave
+       a sparkling glow effect and gone smoothly"). path: [dx, dy] points the robot's CENTRE passes, as offsets from its
+       centre at home (the last one [0, 0]) - one smooth curve through them (Catmull-Rom). Its size is the ground plane's
+       perspective: q = (cy - horizon) / (home cy - horizon), the horizon o.far px above its home centre - twice as far
+       from the horizon, twice as big - and its BASE (not its centre) stands on that floor point, scaled about it. It runs
+       at an even speed over the GROUND (a screen step at size q is 1/q as long on the floor), so it is small and slow far
+       away and quicker as it nears, setting off gently and braking into its spot (o.ms the whole drive, after o.delay).
+       Its eyes lead the way. The floor it covers comes up clean (clean(): a soft glossy sheen + the mop's wet strands,
+       sized with it), a few twinkles just behind it; home, dry(true): the shine sweeps the clean path, the twinkles run
+       along it, and it fades away. The cubes on it can't be taken meanwhile. Reduced motion: it is simply home. */
+    function drive(path, o){
+      o = o || {};
+      const go = async ()=>{
+        if(reduce() || !back.isConnected || !path || path.length < 2) return;
+        const HX = x + w / 2, HY = y + h / 2, FAR = o.far || 3 * h;
+        const qOf = cy => Math.max(.12, (cy - (HY - FAR)) / FAR);
+        const P = path.map(([dx, dy])=> [HX + dx, HY + dy]), pts = [];
+        for(let i = 0; i < P.length - 1; i++){                              // the curve, densely sampled
+          const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+          for(let k = 0; k < 20; k++){ const t = k / 20, t2 = t * t, t3 = t2 * t;
+            pts.push([0, 1].map(d => .5 * (2 * p1[d] + (p2[d] - p0[d]) * t + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2 + (3 * p1[d] - p0[d] - 3 * p2[d] + p3[d]) * t3))); }
+        }
+        pts.push(P[P.length - 1].slice());
+        const cum = [0];                                                     // its ground distance along the curve
+        for(let i = 1; i < pts.length; i++){ const a = pts[i - 1], b = pts[i]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]) / qOf((a[1] + b[1]) / 2)); }
+        /* [steady] o.speed (review 2026-10-09: "the robo mop entry animation was really fast" - at 3.2s, eased in and out, it
+           covered most of the path in a dash, peaking near twice the speed of the 6.5s drive the review had seen): a steady
+           pace over the ground instead - it eases in (a sine ramp over the first 20% of the time), keeps o.speed (robot
+           widths a second, at its home size) and eases into its spot (the last 30%); the drive's time follows from the
+           path's length. Without o.speed: o.ms, eased in and out as before. */
+        const RA = .2, RB = .3, RAREA = 1 - RA / 2 - RB / 2, STEADY = o.speed > 0;
+        const L = cum[cum.length - 1], MS = STEADY ? 1000 * L / (w * o.speed * RAREA) : o.ms || 6000;
+        const ease = u => !STEADY ? (u < .5 ? 2 * u * u : 1 - Math.pow(2 - 2 * u, 2) / 2)
+          : u < RA ? (u / 2 - RA / (2 * Math.PI) * Math.sin(Math.PI * u / RA)) / RAREA
+          : u > 1 - RB ? 1 - ((1 - u) / 2 - RB / (2 * Math.PI) * Math.sin(Math.PI * (1 - u) / RB)) / RAREA
+          : (RA / 2 + u - RA) / RAREA;
+        const at = d =>{ let lo = 0, hi = cum.length - 1; while(hi - lo > 1){ const m = (lo + hi) >> 1; if(cum[m] < d) lo = m; else hi = m; }
+          const f = cum[hi] > cum[lo] ? (d - cum[lo]) / (cum[hi] - cum[lo]) : 0;
+          return [pts[lo][0] + (pts[hi][0] - pts[lo][0]) * f, pts[lo][1] + (pts[hi][1] - pts[lo][1]) * f]; };
+        const place = (c, wet)=>{ const q = qOf(c[1]), dx = c[0] - HX, dy = c[1] + h * q / 2 - (y + h);   // its base below its centre
+          carry(dx, dy, q); if(wet) clean(dx, dy, q);
+          body = { l: HX + dx - w * q / 2, r: HX + dx + w * q / 2, t: y + h + dy - h * q, b: y + h + dy }; };
+        // a footprint just clear behind it - a robot's length back along its path (its own footprint is under it)
+        const behind = ()=>{ const Fs = trail ? trail.feet : []; if(Fs.length < 2) return null; const a = Fs[Fs.length - 1];
+          for(let i = Fs.length - 2; i >= 0; i--) if(Math.hypot(Fs[i].x - a.x, Fs[i].y - a.y) > a.rx * 1.7) return Fs[i];
+          return null; };
+        const riders = blocks.filter(b => !b._placed); riders.forEach(b => b._busy = true);
+        place(P[0], false);                                                  // at the start (off the stage) before a frame is drawn
+        await wait(o.delay || 0); if(!back.isConnected) return;
+        wetOn();
+        const t0 = performance.now(); let lastSp = 0, prev = P[0];
+        await new Promise(res =>{
+          (function step(t){
+            if(!back.isConnected) return res();
+            const u = Math.max(0, Math.min(1, (t - t0) / MS)), e = ease(u);   // sets off gently, brakes into its spot
+            const c = at(e * L); place(c, true);
+            const vx = c[0] - prev[0], vy = c[1] - prev[1], sp = Math.hypot(vx, vy); prev = c;
+            if(sp > .3) gaze({ x: Math.max(-1, Math.min(1, vx / sp * 1.1)), y: Math.max(-.6, Math.min(.6, vy / sp * .6)) }, 140);   // eyes on the way ahead
+            if(t - lastSp > 110){ const f = behind(); if(f){ lastSp = t; sparkle(f); } }   // twinkles just behind it
+            if(u < 1) requestAnimationFrame(step); else res();
+          })(t0);
+        });
+        carry(0, 0, 1); body = HOME_BODY;
+        blocks.forEach(b =>{ if(!b._placed && !b.classList.contains("lift") && !b.classList.contains("moving")) setPos(b, b._home); });
+        riders.forEach(b => b._busy = false);
+        dry(true); gaze(null); blink();
+      };
+      roaming = roaming.then(go, go);
+      return roaming;
+    }
+    return { back, front, spots, w, h, settle, link, respawn, react, hold, look, face, gaze, blink, roam, follow, drive, still: ()=> roaming, robot: true };
   }
   /* ---- the painting (T3, review 2026-09-30): a framed crayon painting of a man hauling a stack of blue cubes, on the wall
      where the rack was, shown as supplied (no cord, nothing laid over it). ITS cubes are the ones the child takes. "the
@@ -1658,8 +1908,16 @@ const MDK = (function(){
      Review 2026-10-06: "the cubes should look of the same size length and breadth and size in all game screen" + "zoom
      in so that assets looks bigger ... along with the cubes should also look bigger": T2's size on every screen. Every
      measuring slide asks for exactly CUBE (MEASURE_ASK / COMPARE_MEASURED used to cap at 88, MATCH_ROWS at 76), so the
-     counts are what fits at 74px: the tall screens (T3 door, G2 almirah, G3 fridge, ~400px high) hold 5. */
-  const CUBE = 74;
+     counts are what fits at 74px: the tall screens (T3 door, G2 almirah, G3 fridge, ~400px high) hold 5.
+     Review 2026-10-08 ("the size of cube will remain as shown in image 1 throughout the game" - image 1 = G2, the
+     almirah, 7 blocks): 53 on every measuring screen - T2, T3, G1-G3, G4, P1 and P4's measuring view (its room strips,
+     data.sc, 53 too). The PPT's counts fit at 53 everywhere but the door (9 needs ~43): the user chose the door at 7.
+     Not this size: the match-the-following cards (P2 / P3 - their equal cards hold ~29) and the landing's cube row.
+     ...then, the same review: "do not reduce the sizes of any elements plz" + "if number of cubes changes thats fine": 53
+     everywhere, every object kept at (at least) its size - the COUNTS changed instead: T2 table 9, T3 door 7, G1 bed 12,
+     G2 almirah 7, G2b pillow 5, G3 fridge 7, G4 mats 8 / 9, P1 chairs 6 / 7 (the door 371px, was 386 - 8 do not fit; the
+     longer mat 477, was 505 - 9 / 10 do not fit side by side). P4's room strips (data.sc 54) are already this size. */
+  const CUBE = 53;
   function plate(parent, text, cx, y, w, rise){
     w = w || 230; const h = Math.round(w / BADGE_AR);
     const p = add(parent, "div", "md-plate" + (rise ? " rise" : ""), "left:" + px(cx - w / 2) + ";top:" + px(y) + ";width:" + px(w) + ";height:" + px(h));
@@ -1784,6 +2042,139 @@ const MDK = (function(){
          { boxShadow: b + "0 0 0 0 rgba(0,177,50,0), 0 0 0 0 rgba(0,177,50,0)" }];
     return el.animate(kf, { duration: 1100, iterations: reduce() ? 1 : 3, easing: "ease-in-out" });
   }
+  /* [bulb] the hint light, everywhere a cube is lit up as a hint (review 2026-10-08: "remove that glow effect and put bulb
+     effect, so that the cubes will not pop out ... do this throughout the game ... a good light bulb effect liked by kids").
+     It switches on like a diya being lit (review 2026-10-09: "power up, then dim, then up", then "...with a टिमटिमाना
+     (twinkling) effect"): it POWERS UP to full, then its light TWINKLES - up and down, never quite the same twice, as a
+     diya's flame - for as long as it stays on; in a row each cube twinkles at its own pace, like a string of fairy
+     lights. The cube turns into see-through resin with a light inside (below - the photo the review sent); its own dark
+     shadow fades while it is lit (a light casts none); the light it throws comes out round it and twinkles with it:
+     a warm golden-orange glow on the cube itself (over its neighbours), .md-bulb-pool on the floor under it,
+     .md-bulb-halo behind it. No star on it.
+     It never changes size or place. On Web Animations, not a class: a class's `animation` would restart the cube's own
+     fade-in when it comes off. opts.delay: ms before it switches on; opts.pulseAt: a document.timeline time for the
+     twinkle to start (bulbRow: once the whole row has powered up). Returns { off() } - a soft fade out. Reduced motion:
+     steady, at full. */
+  // the twinkle: the light's level (1 full .. 0 dim) through one flicker of a diya's flame - irregular on purpose
+  // (review 2026-10-09 "the light is too much, hurting the eyes": gentle dips - a soft flicker, never a strobe)
+  // (review 2026-10-09 "still very harsh to the eyes - not warm lights": a candle, not a strobe - a slow breath with a few
+  //  small flickers, about two changes a second at most, the dips shallow)
+  // (then "the टिमटिमाना effect is gone": it had become too shallow and too slow to see - a diya's flicker you can see again,
+  //  ~1.8 s round, its dips to about half, the glow on the cube itself, so no glare)
+  const TWINKLE = [[0, 1], [.14, .5], [.26, .95], [.4, .62], [.55, 1], [.68, .45], [.84, .9], [1, 1]];
+  // the switch: blue and yellow cross-faded show a muddy green half-way, so the swap happens under a quick warm-white flash
+  // (a light catching) - its level through the power-up / the switch-off
+  const FLASH_ON = [{ opacity: 0 }, { opacity: .35, offset: .25 }, { opacity: .35, offset: .45 }, { opacity: 0 }];
+  const FLASH_OFF = [{ opacity: 0 }, { opacity: .3, offset: .25 }, { opacity: .3, offset: .45 }, { opacity: 0 }];
+  function bulb(el, opts){
+    if(!el) return { off(){} };
+    if(el._bulb) el._bulb.off(true);
+    if(el._bulbTidy) el._bulbTidy();                                       // (one still fading out: put away at once - else it would
+                                                                           //  restore its picture and its place under the new light)
+    // (a single cube - counted, ~0.65-1s each - powers up and flickers quicker, so it twinkles within its count)
+    const o = opts || {}, R = reduce(), D = o.delay || 0, ROW = o.pulseAt != null, RAMP = ROW ? 260 : 160;
+    const CYCLE = (ROW ? 2000 : 1600) * (.85 + Math.random() * .3);       // (each its own pace)
+    const own = (f => f && f !== "none")(getComputedStyle(el).filter);     // (its own soft shadow - MDK.cube's drop-shadow)
+    /* THE CUBE BECOMES A LAMP. Light laid over the blue cube can't glow - light on blue mixes to white or olive: it showed
+       as a white spot in a blue cube (review 2026-10-08: "this is still bad"); and an opaque lit cube read as paint
+       ("very solid", twice). The review's photo: a resin cube lamp - see-through resin, its light low in the middle and
+       rising through it, the edges carrying the light, a pool of light on the table. So while it is lit the blue goes
+       and two layers rendered from the cube itself (tools/gen_cube_lit.py) take its place: .md-bulb, the resin (clear at
+       the walls - the floor shows through - deeper yellow inside, its back edges faintly seen through it, the edges
+       lit) - steady; and over it .md-bulb-light, the light inside (screened onto the resin: it only adds light) - the
+       part that twinkles. The blue: the cube's own picture moves onto .md-bulb-blue, under them, and fades out as the
+       light comes on (through see-through resin it went grey-green) - back on the cube itself when the light goes off.
+       F: a soft warm glow at its edge, with the light; its dark shadow (sh) fading out. */
+    /* THE GLOW (review 2026-10-09: "analyse yourself if the glow is really evidently visible - and the टिमटिमाना effect is
+       gone"): it was not - a pale haze behind the cubes, so round a cube in a row its blue neighbours hid it but for two
+       slivers. Now it is ON the cube: two warm golden-orange drop-shadows that hug its rounded shape - a tight bright
+       one (g1) and a short soft one (g2) - and the cube is raised over its neighbours while it is lit (z0 back after),
+       so the glow shows all round it, on the floor and over the next cubes' edges. Tight, so the blocks stay crisp;
+       a clear warm colour, so it can be seen; it twinkles with the light inside, the cube a touch brighter at the top. */
+    // (review 2026-10-09, the picture of glowing orange jelly cubes - "use these cubes throughout for the effect": round each
+    //  a thin bright cream-yellow outline, then a warm golden glow - g1 the outline, g2 the glow)
+    const F = (bri, g1, g2, sh)=> "brightness(" + bri + ") drop-shadow(0 0 " + px(1.3 * gk) + " rgba(255,244,172," + g1 + ")) drop-shadow(0 0 " + px(2 * gk) + " rgba(255,238,156," + g1 + "))" +
+      " drop-shadow(0 0 " + px(8 * gk) + " rgba(255,170,40," + g2 + "))" +
+      (own ? " drop-shadow(0 3px 3px rgba(12,46,92," + sh + "))" : "");
+    const s = el.offsetWidth, p = pos(el), host = el.parentNode, z = parseInt(getComputedStyle(el).zIndex, 10) || 3;
+    const z0 = el.style.zIndex; el.style.zIndex = z + 1;                   // (over its neighbours while it is lit)
+    const gk = Math.max(.5, Math.min(1.2, s / CUBE));                      // (the glow in proportion to the cube: P2 / P3's small ones too)
+    const bg0 = el.style.backgroundImage, blue = bg0 ? add(el, "i", "md-bulb-blue") : null;
+    if(blue){ blue.style.backgroundImage = bg0; blue.style.backgroundSize = el.style.backgroundSize; blue.style.backgroundPosition = el.style.backgroundPosition;
+      el.style.backgroundImage = "none"; }                                    // (the same picture, now a layer that can fade)
+    const shell = add(el, "i", "md-bulb"), light = add(el, "i", "md-bulb-light");
+    const flash = blue ? add(el, "i", "md-bulb-flash") : null;              // (the cube's own shape, in warm white - CSS)
+    if(flash){ flash.style.backgroundImage = bg0; flash.style.backgroundSize = blue.style.backgroundSize; flash.style.backgroundPosition = blue.style.backgroundPosition; }
+    // the light coming out besides: a pool on the floor under it and a soft glow behind it (both behind the cubes)
+    const box = "left:" + px(p.x) + ";top:" + px(p.y) + ";width:" + px(s) + ";height:" + px(s) + ";z-index:";
+    const pool = host ? add(host, "i", "md-bulb-pool", "left:" + px(p.x - s * .45) + ";top:" + px(p.y + s * .55) + ";width:" + px(s * 1.9) + ";height:" + px(s * .8) + ";z-index:" + Math.max(0, z - 1)) : null;
+    const halo = host ? add(host, "i", "md-bulb-halo", box + Math.max(0, z - 1) + ";--k:" + gk.toFixed(3)) : null;
+    // every part: [element, off, its look at light level L (0 dim .. 1 full)]
+    // (review 2026-10-09 "the light is too much, hurting the eyes", then "too lime, can't see much on the skin-coloured
+    //  floor - I want warm yellow light, twinkling": warm gold, never white - so it can be seen by its colour without
+    //  glare - and a twinkle you can see: the light inside .3 .. .85, the amber glow round it .3 .. .8)
+    // ("still very harsh - not warm lights": soft and steady, a gentle glow round it - the light inside .7 .. .8, the glow
+    //  round it ~.55 .. .7: the twinkle is felt more than flashed)
+    // (then "reduce the glow, make the colour more evident - I can't really see the blocks": the haze round them cut back -
+    //  a tight warm edge glow and a faint halo; the colour is the cube's own, so the blocks stay crisp)
+    // (and then "is the glow really visible? the टिमटिमाना is gone": the glow on the cube itself, .5 .. .95 / .2 .. .7, and
+    //  the light inside .25 .. .9 - a flicker you can see)
+    // (up = the picture: the orange jelly cube, its bold cream outline, its full glow; the twinkle is mostly the glow
+    //  breathing and the cube a touch brighter - a light inside strong enough to flicker visibly turned it yellow)
+    // (then "see yourself - the dim light then टिमटिमाना effect is not fixed", measured on G2b: while lit, a cube's body
+    //  changed by only 12-15 of 255 - brightness .93 .. 1.04, the light inside up to .22 - the twinkle was only in the thin
+    //  glow, which a row's neighbours hide. Now the BODY breathes: brightness .6 + .5 L - the twinkle's dips (L ~.45) a deep, low amber
+    //  (~.83), its peaks (L 1) a bright gold (1.1); at .8 + .3 L it still only swung ~28 of 255 -
+    //  brightness keeps its colour, so it never turns yellow - the light inside .06 .. .36, the glow round it .2 .. 1)
+    const parts = [[el, { filter: F(1, 0, 0, .22) }, L => ({ filter: F(.6 + .5 * L, .9 + .1 * L, .15 + .85 * L, 0) })],
+                   blue && [blue, { opacity: 1 }, ()=> ({ opacity: 0 })],         // the blue gives way to the resin
+                   [shell, { opacity: 0 }, ()=> ({ opacity: 1 })],                // the resin: steady while it is lit
+                   [light, { opacity: 0 }, L => ({ opacity: .06 + .3 * L })],     // the light inside: rising with the twinkle
+                   pool && [pool, { opacity: 0, scale: .8 }, L => ({ opacity: .05 + .75 * L, scale: .88 + .12 * L })],
+                   halo && [halo, { opacity: 0, scale: .9 }, L => ({ opacity: .05 + .95 * L, scale: .93 + .1 * L })]].filter(Boolean);
+    const anims = [], keep = a =>{ anims.push(a); return a; }; let done = false;
+    if(R) parts.forEach(([t, k0, at])=> keep(t.animate([k0, at(1)], { duration: 150, delay: D, fill: "both" })));
+    else {
+      // power up to full (the swap under the flash) ... then the twinkle (until off)
+      // (blue and yellow never at once - half-way they made a grey-green: the blue goes in the first half, the resin and
+      //  its light come in the second, the soft flash bridging the two)
+      const swapIn = (t, k0, k1)=> t === blue ? [k0, Object.assign({}, k1, { offset: .5 }), k1]
+                               : t === shell || t === light ? [k0, Object.assign({}, k0, { offset: .45 }), k1] : [k0, k1];
+      parts.forEach(([t, k0, at])=> keep(t.animate(swapIn(t, k0, at(1)), { duration: RAMP, delay: D, fill: "both", easing: "ease-out" })));
+      if(flash) keep(flash.animate(FLASH_ON, { duration: RAMP * 1.4, delay: D, fill: "both" }));
+      const t0 = o.pulseAt != null ? o.pulseAt : document.timeline.currentTime + D + RAMP;
+      parts.forEach(([t, , at])=>{ keep(t.animate(TWINKLE.map(([off, L])=> Object.assign(at(L), { offset: off, easing: "ease-in-out" })),
+        { duration: CYCLE, iterations: Infinity })).startTime = t0; });
+    }
+    const h = { off(now){
+      if(done) return; done = true; if(el._bulb === h) el._bulb = null;
+      const cur = parts.map(([t, k0])=>{ const cs = getComputedStyle(t), c = {}; Object.keys(k0).forEach(k => c[k] = cs[k]); return c; });
+      anims.forEach(a => a.cancel());
+      let tidied = false;
+      const tidy = ()=>{ if(tidied) return; tidied = true; if(el._bulbTidy === tidy) el._bulbTidy = null;
+        if(blue){ el.style.backgroundImage = bg0; blue.remove(); }          // (its picture back on itself, in the same frame)
+        el.style.zIndex = z0;                                               // (back among its neighbours)
+        shell.remove(); light.remove(); if(flash) flash.remove(); if(pool) pool.remove(); if(halo) halo.remove(); };
+      el._bulbTidy = tidy;
+      if(now || R){ tidy(); return; }
+      let fo = null;                                                         // a soft fade to off (the cube's own: no fill - it ends on its CSS look)
+      parts.forEach(([t, k0], i)=>{ const c = cur[i]; if(c.filter === "none") c.filter = k0.filter;
+        const kf = t === blue ? [c, Object.assign({}, c, { offset: .5 }), k0]                 // (the resin out first, then the blue back)
+                 : t === shell || t === light ? [c, Object.assign({}, k0, { offset: .5 }), k0] : [c, k0];
+        const a = t.animate(kf, { duration: 320, easing: "ease-out", fill: t === el ? "none" : "forwards" }); if(t === el) fo = a; });
+      if(flash) flash.animate(FLASH_OFF, { duration: 320, fill: "forwards" });   // (the swap back to blue under the flash)
+      fo.finished.then(tidy, tidy);
+    } };
+    el._bulb = h;
+    return h;
+  }
+  /* a row of cubes lit like a string of fairy lights: they power up one after another (gap ms apart), then the whole row
+     twinkles - each cube at its own pace - for hold ms, then all off */
+  function bulbRow(els, hold, gap){
+    const g = gap == null ? 80 : gap, lead = Math.max(0, els.length - 1) * g + 200, at = document.timeline.currentTime + lead;
+    const hs = els.map((b, k)=> bulb(b, { delay: k * g, pulseAt: at }));
+    return new Promise(r => setTimeout(()=>{ hs.forEach(h => h.off()); r(); }, lead + (hold || 2000)));
+  }
   /* the child's measuring turn, shared by every slide where the child lays the blocks: drag each next block from the
      box onto the next tile. A drop on the next tile snaps flush (onHit(n, tile) - may return a Promise, e.g. a counting
      VO); anywhere else - a gap, an overlap, off the row - it bounces back to the box. The hint sheet's Drag & Drop
@@ -1873,7 +2264,7 @@ const MDK = (function(){
   }
   /* pointer -> scene px (the stage is scaled by --scale) */
   function local(scene, ev){ const r = scene.getBoundingClientRect(), k = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; }
-  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, robot, robotGeom, ground, nightWindow, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, slipBox, riseBox, arrow, pose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow };
+  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, robot, robotGeom, ground, nightWindow, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, slipBox, riseBox, arrow, pose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow, bulb, bulbRow, countBeat, COUNT_MS };
 })();
 
 const SlideModules = {
@@ -1979,10 +2370,21 @@ const SlideModules = {
         const bottom = cR0 ? (cR0.bottom - sR.top) / kS - 10 - 8 : avail, navL = (navR.left - sR.left) / kS, navRt = (navR.right - sR.left) / kS;
         // the game's cube (MDK.CUBE) - but N of them stand as tall as the door, so here it is as big as the height allows.
         // The rack's badge pops over the rack, so the floor band under the door (FLOOR) no longer holds a plate.
-        const FLOOR = PAINTING || ROBOT ? 4 : PLATE_H;                               // (4, was 24: more room for the door's 9 cubes - review 2026-10-06)
+        // review 2026-10-08 "i still dont see the changes shift a little more upper": 18 (was 4) - the door's foot stands 14px
+        // higher (more floor shows), the door ~3% shorter (its 9 cubes ~43px, were 44): its top cannot rise further (see LIFT)
+        // Then (2026-10-08, again "shift the door a little more upper"): 34 - its foot (and the floor line) 16px higher still,
+        // the door ~4% shorter (its cubes ~5% smaller, as they follow its height); its top stays under the heading where it was
+        const FLOOR = PAINTING || ROBOT ? 34 : PLATE_H;
         S = Math.min(K.CUBE, (bottom - 6 - FLOOR) * (f1 - f0) / N); OH = N * S / (f1 - f0); OW = OH / ar;
         const gW = OW + 14 + S + 40;
         OX = Math.min(W - gW - 12, Math.max(navRt + 24, W * 0.62 - gW / 2)); OY = bottom - FLOOR - OH;
+        /* review 2026-10-08 ("the door is too much at the bottom, shift it little upper along with the floor so that
+           everything remains same just the floor will be little more visible"): the door, its column, the dashed lines and
+           the floor line (floorY = A0, below) rise LIFT px together, into the free room under the heading - nothing changes
+           size; the floor shows LIFT px deeper and the robot stands on it as before. 16: the most that keeps the top dashed
+           line clear of the heading's "ई" (26 nearly touched it; the stage scales as one, so the gap is the same on every screen).
+           Then "shift a little more upper": 20 - as high as its top can go; the rest comes from FLOOR (above) */
+        const LIFT = 20; OY -= LIFT;
         /* [t3-left] review 2026-10-05: "place the dotted lines and cubes on the left side of the door - there is a lot of
            vacant space on the left". The column (and its digits, on its left now) stands left of the door; the door moves
            right by the column + its gap, into the room the column had on its right - so the group keeps its place and the
@@ -2016,7 +2418,13 @@ const SlideModules = {
            cube in front of the floor line where the floor is that deep (T2); on T3's shallow floor, at its front edge */
         const inner = cRb ? (cRb.bottom - sR.top) / kS - 10 : avail;
         const foot = Math.min(inner - 6, floorY + Math.max(S * 0.9, (inner - floorY) * 0.5));
-        boxAt = { x: Math.max(0, mr + 4), y: foot - g.h };
+        /* review 2026-10-08 ("shift the robo mop a little more right ..."; "about halfway"): half way from beside Swifty to
+           beside the blocks (left of the row's start on T2; left of the column's digits on T3), never under आगे */
+        const xFar = Math.max(0, mr + 4), s0 = slotXY(0), xNear = s0.x - (AX === "y" ? 30 + 16 : 24) - g.w;
+        let x = xNear > xFar ? (xFar + xNear) / 2 : xFar;
+        const nL = (navR.left - sR.left) / kS, nR = (navR.right - sR.left) / kS;
+        if(x + g.w > nL - 16 && x < nR + 16) x = Math.max(xFar, nL - 16 - g.w);
+        boxAt = { x, y: foot - g.h };
       }
       scene.style.height = px(avail);
       if(card){ const cR = card.getBoundingClientRect(); card.style.setProperty("--floor-top", px((sR.top - cR.top) / kS - 10 + floorY - 10)); }   // (inside the 10px border)
@@ -2098,7 +2506,7 @@ const SlideModules = {
           await new Promise(res =>{
             (function step(t){
               if(!alive()) return res();
-              const u = Math.min(1, (t - t0) / SPIN);
+              const u = Math.max(0, Math.min(1, (t - t0) / SPIN));          // (rAF's first stamp can be a hair before t0: no NaN blur)
               const bl = u < CUT ? BLUR * Math.pow(u / CUT, 1.6) : BLUR * Math.pow(1 - (u - CUT) / (1 - CUT), 1.4);   // the smear, peaking at the swap
               gb.setAttribute("stdDeviation", bl.toFixed(2) + " " + (bl * .08).toFixed(2));
               if(u < CUT){ const q = u / CUT; side.style.transform = "scale(" + (1 - .04 * q) + "," + (1 + .09 * q) + ")"; }   // toward the front view's proportions
@@ -2164,7 +2572,10 @@ const SlideModules = {
             .then(()=>{ if(!alive()) return; K.pose("cheer"); try{ confettiCannon(); }catch(e){} });
           return;
         }
-        setSwMood("happy"); K.pose("cheer"); try{ confettiCannon(); }catch(e){}
+        /* review 2026-10-08 ("the box with the correct number of blocks, like 9 blocks, will come before the confetti"):
+           the confetti waits for the "N ब्लॉक्स" box - it bursts once the box has risen (with the stars' spin), not as the
+           last block lands */
+        setSwMood("happy"); K.pose("cheer");
         let pop = null;
         play(audioFor(slide, "conclude") || null, ()=>{ if(pop) pop(); if(alive()) setNavActive(true); });
         pop = K.atVoice(d.count_at, ()=>{
@@ -2182,7 +2593,7 @@ const SlideModules = {
             if(lt && !reduce) lt.animate([{ filter: "brightness(1)" }, { filter: "brightness(1.9)", offset: .3 }, { filter: "brightness(1)" }], { duration: 900, easing: "ease-out" });
             plateEl = K.riseBox(scene, txt, cx, A0 - 2, w, 76, { x: cx, y: A0 - 4 });
           }
-          setTimeout(()=>{ if(alive()) cheer(); }, reduce ? 0 : box.robot ? 1100 : 600);   // ~its peak: it stands, the stars spin (the robot's box: once it has settled, a pop)
+          setTimeout(()=>{ if(!alive()) return; cheer(); try{ confettiCannon(); }catch(e){} }, reduce ? 0 : box.robot ? 1100 : 600);   // ~its peak: it stands, the stars spin (the robot's box: once it has settled, a pop) - then the confetti
         });
       }
       state.replayAudio = ()=>{
@@ -2204,6 +2615,7 @@ const SlideModules = {
           K.show(lines.end, true); await say("explain_b"); guard(); K.unpulse(lines.end);
           await robotIn(); guard(); if(box.look && rbParts) box.look(true);   // [robot_enter] in only now, then watching
           K.pose("guide"); await say("demo"); guard();
+          if(box.still) await box.still(); guard();
           for(let k = 0; k < DEMO; k++){                                     // एक... दो...
             await handDrag(blocks[k], slotXY(k)); guard();
             blocks[k]._placed = true; blocks[k].classList.add("placed"); drop(blocks[k]); K.okFlash(blocks[k]); placeMark(slotXY(k), k + 1);
@@ -2336,7 +2748,8 @@ const SlideModules = {
         const boxW = hold(S).w + 12; OX = (W - OW) / 2; OY = H - OPT_H - 22 - OH;
         const GAP = Math.max(40, Math.min(70, OX + ROOM_L - boxW));
         A0 = OY + OH * f1; A1 = OY + OH * f0; const CX = OX - 14 - S; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });   // [g-left]
-        lines = K.endLines(scene, "y", A0, A1, CX - 10, OX + OW * 0.4);      // [short lines] the column + the object's left side
+        // data.line_in: how far the lines reach into the object, a fraction of its width (G2, review 2026-10-08: "shorten the dotted lines")
+        lines = K.endLines(scene, "y", A0, A1, CX - 10, OX + OW * (d.line_in != null ? d.line_in : 0.4));   // [short lines] the column + the object's left side
         const bh = hold(S).h; boxAt = { x: OX - GAP - boxW, y: A0 - bh + S * 0.3 };
       }
       /* [robot] review 2026-10-05: "reposition the robot on the floor with correct shadow - it looks like it is in between the
@@ -2345,12 +2758,17 @@ const SlideModules = {
          that shows below the floor line (the backdrop's --horizon, as set below), at least 0.9 of a cube in front of it.
          Only if it would then run into the answers' row (centred, ~200px cards 30px apart) does it stop just above it. */
       if(ROBOT){ const g = hold(S);
-        const x = Math.min(-ROOM_L + 24, (AX === "y" ? OX - 14 - S - 24 : OX - 40) - g.w);   // [g-left] left of the column
+        /* review 2026-10-08 ("shift the robo mop a little more right so that drag and drop of cube is not a lot of distance";
+           the user chose "about halfway"): half way from the far left (where it stood) to beside the blocks - left of the
+           column, its digits' side kept clear (G2 / G3), or left of the row's start (G1 / G2b) */
+        const xFar = -ROOM_L + 24, xNear = (AX === "y" ? OX - 14 - S - 30 - 16 : OX - 40) - g.w;
+        const x = Math.max(Math.min(xFar, xNear), Math.min((xFar + xNear) / 2, xNear));   // [g-left] left of the column
         const hz = d.bg ? (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6) : OY + OH;   // where the wall meets the floor
         let base = Math.min(H - 12, hz + Math.max(S * 0.9, (H - hz) * 0.5));
         const nO = d.options.length, optL = W / 2 - (nO * 200 + (nO - 1) * 30) / 2, optT = H - OPT_H + 8;
         if(x + g.w > optL - 12 && base > optT - 6) base = Math.max(hz + 14, optT - 6);
-        boxAt = { x, y: base - g.h }; }
+        boxAt = { x, y: base - g.h };
+      }
       const obj = K.add(scene, "img", "md-obj", "left:" + px(OX) + ";top:" + px(OY) + ";width:" + px(OW) + ";height:" + px(OH)); obj.src = d.obj.src; obj.alt = "";
       if(!K.ground(scene, OX, OY, OW, OH, d.obj.feet, d.obj.ground_depth))   // [ground] its feet on the floor, else the old ellipse
         K.add(scene, "div", "md-shadow", "left:" + px(OX + OW * .04) + ";top:" + px(OY + OH - 14) + ";width:" + px(OW * .92));
@@ -2425,28 +2843,26 @@ const SlideModules = {
          as it is counted aloud; 3 on a digit under each block, then the hand on the right option */
       const laid = ()=> blocks.filter(b => b._placed).sort((a, b)=> AX === "x" ? K.pos(a).x - K.pos(b).x : K.pos(b).y - K.pos(a).y);
       const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      /* the blocks' glow: a white rim + a gold glow round each cube's own shape, swelling a little (the kit's hint glow,
-         MDK.softGlow, in the counting gold - mdGlow's yellow alone hardly shows on the peach floor) */
-      const GLOW_OFF = "drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 0 rgba(255,184,0,0))",
-            GLOW_ON = "drop-shadow(0 0 3px rgba(255,255,255,.95)) drop-shadow(0 0 12px rgba(255,184,0,1))";
-      const glowBlock = b =>{ const cs = getComputedStyle(b), f = cs.filter, base = f && f !== "none" ? f + " " : "", sc = parseFloat(cs.scale) || 1;
-        b.animate([{ filter: base + GLOW_OFF, scale: String(sc) }, { filter: base + GLOW_ON, scale: String(sc * 1.04) }, { filter: base + GLOW_OFF, scale: String(sc) }],
-                  { duration: 900, iterations: reduce ? 1 : 3, easing: "ease-in-out" }); };
+      // the blocks lit up (review 2026-10-08: the bulb effect, MDK.bulb - it replaces the gold glow that swelled each cube)
       let digits = null, nudged = false;
       async function deckWrong(){
-        if(wrong === 1){ laid().forEach(glowBlock); await say("try_again"); }
+        if(wrong === 1){ K.bulbRow(laid(), 2000); await say("try_again"); }  // a string of lights: on one after another, then two swells
         else if(wrong === 2){ const bs = laid();
           for(let k = 0; k < bs.length; k++){ if(!alive()) return;
-            bs[k].classList.add("mq-counting"); await sayNum(k + 1); bs[k].classList.remove("mq-counting"); } }
+            const lit = K.bulb(bs[k]); await K.countBeat(()=> sayNum(k + 1)); lit.off(); } }   // each one on while it is counted (the counting beat)
         else {
+          lockWrong();                                                       // the wrong options off, then the digits + the hand
           if(!digits){ digits = [];
-            for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.wait(140); }
+            for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.countBeat(); }   // (the counting beat - was 140ms)
             await K.wait(350); }
           nudged = true; if(alive() && !state.locked) placeNudge(right);
         }
       }
+      // the wrong options locked - faded, untappable - from the 3rd wrong answer on (QA checklist 2026-10-05; and with the
+      // deck's lines too - review 2026-10-08: "in 3rd wrong attempt disable all the wrong options throughout the game")
+      const lockWrong = ()=> optEls.forEach(x =>{ if(x !== right){ x.classList.add("faded", "locked"); x.disabled = true; } });
       function lockToRight(){
-        optEls.forEach(x =>{ if(x !== right){ x.classList.add("faded", "locked"); x.disabled = true; } });
+        lockWrong();
         right.classList.add("hint-on"); K.softGlow(right);
         setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right); }, 300);
       }
@@ -2590,14 +3006,16 @@ const SlideModules = {
         recordResult(slide, wrong === 0 && !revealed);
         const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "compare_correct";
         GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrong === 0 && !revealed, first_try: wrong === 0, attempts: wrong + 1, latency_ms: Date.now() - state.slideStart });
-        if(!revealed){ sfxCorrect(); try{ confettiCannon(); }catch(e2){} setSwMood("happy"); }
+        // review 2026-10-08 ("the box with the correct number of blocks will come before the confetti"): the count boxes pop
+        // at once (0 / 0.3s), the confetti once both are in
+        if(!revealed){ sfxCorrect(); setSwMood("happy"); setTimeout(()=>{ if(alive()) try{ confettiCannon(); }catch(e2){} }, reduce ? 0 : (els.length - 1) * 300 + 450); }
         els.forEach((o, i)=> setTimeout(()=>{
           if(!alive()) return; const txt = devNumeral(o.it.n) + " " + unit;
           if(d.count_box === "card"){                                       // G4: the reference game's answer card (CSS [count-card])
             const c = K.add(scene, "div", "cm-count" + (o === e ? " ok" : ""), "left:" + px(o.plateAt.cx) + ";top:" + px(o.plateAt.y - 22));   // (nearer its row than the badge)
             c.textContent = txt; if(reduce){ c.style.opacity = 1; c.style.scale = 1; } else requestAnimationFrame(()=> c.classList.add("in"));
           } else K.plate(scene, txt, o.plateAt.cx, o.plateAt.y, PW);
-        }, 250 + i * 350));
+        }, i * 300));
         // [deck] after the hand nudge the deck asks for "the SFX used for the correct response": data.nudge_sfx_only (G4 -
         // the user chose "SFX only, as written") - the SFX and no correct VO; else (P1, review 2026-10-08 "last VO is still
         // missing in this") the whole correct response, its VO too
@@ -2609,18 +3027,22 @@ const SlideModules = {
           await K.wait(250);
           for(const o of els) for(let k = 0; k < o.blocks.length; k++){
             if(!alive() || state.locked) return;
-            const b = o.blocks[k]; b.classList.add("mq-counting");
+            const b = o.blocks[k], lit = K.bulb(b);                          // [bulb] on while it is counted
             digits.push(K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right"));
-            await sayNum(k + 1); b.classList.remove("mq-counting");
+            await K.countBeat(()=> sayNum(k + 1)); lit.off();               // (the counting beat)
           }
           if(!alive() || state.locked) return;
           busy = false; setSwMood("point"); await say("reask");             // only the question again (no tap during it - VoLock)
           return;
         }
         stopAudio();                                                         // (the re-asked question, if still going)
+        if(wrong >= 3) lockWrong();
         nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.hit); }, 300);
         busy = false; setSwMood("point");
       }
+      // the wrong one(s) locked - dimmed, untappable - from the 3rd wrong answer on (QA checklist 2026-10-05; and with the
+      // deck's lines too - review 2026-10-08: "in 3rd wrong attempt disable all the wrong options throughout the game")
+      const lockWrong = ()=> els.forEach(o =>{ if(o !== right){ o.locked = true; [o.img, o.rider].concat(o.blocks).forEach(x =>{ if(x) x.classList.add("cm-dim", "cm-locked"); }); } });
       async function onWrong(e){
         wrong++; busy = true;
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: false, attempt: wrong, score: 0 }); }catch(e2){}
@@ -2634,7 +3056,7 @@ const SlideModules = {
         if(wrong === 1){ await K.wait(250); await say("try_again"); }
         else if(wrong === 2){ await K.wait(250); await say("hint"); }
         else {
-          els.forEach(o =>{ if(o !== right){ o.locked = true; [o.img, o.rider].concat(o.blocks).forEach(x =>{ if(x) x.classList.add("cm-dim", "cm-locked"); }); } });
+          lockWrong();
           K.softGlow(right.img, true); setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.hit); }, 300);
           await K.wait(250); await say("nudge");
         }
@@ -2717,7 +3139,12 @@ const SlideModules = {
       // it.span [f0, f1] (axis "y"): the part of the picture's height the blocks measure (default all of it) - review
       // 2026-10-07 "increase the size of monitor just a little": the monitor's 1 block is its screen (0 - .826), the stand below
       const spanOf = it => it.span ? it.span[1] - it.span[0] : 1;
-      const coef = it => it.axis === "x" ? { wc: it.n, hc: it.n * it.ar + 1 } : { wc: it.n / (it.ar * spanOf(it)) + 1.2, hc: it.n / spanOf(it) };
+      // it.seat (axis "x"): where the blocks rest, a fraction down the picture - the bench (P2, review 2026-10-09 "the cubes in
+      // front part of the bench"): .25, on the front of its seat (its top surface runs back to front over the picture's top
+      // quarter), not floating above the picture's top edge (default 0). The group is one block taller than the picture only
+      // where the blocks stand above it.
+      const seatOf = it => it.axis === "x" && it.seat ? it.seat : 0;
+      const coef = it => it.axis === "x" ? { wc: it.n, hc: it.n * it.ar + Math.max(0, 1 - it.n * it.ar * seatOf(it)) } : { wc: it.n / (it.ar * spanOf(it)) + 1.2, hc: it.n / spanOf(it) };
       const rowH = (H - 2 * G) / 3;
       const S_rows = Math.min(...items.map(it =>{ const c = coef(it); return Math.min((LW - 2 * PAD - 2 * ENDS) / c.wc, (rowH - 2 * PAD - ENDS) / c.hc); }));
       const SLOT = BH + 18, cardH = H - SLOT - 6;
@@ -2771,21 +3198,23 @@ const SlideModules = {
         const gw = LINES && it.axis !== "x" ? S + 10 + it.n * S / (it.ar * spanOf(it)) : c.wc * S, gh = c.hc * S;
         const gx = P.x + (P.w - gw) / 2, gy = ROWS ? P.y + (P.h - gh) / 2 + ENDS / 2 : LINES ? P.y + (P.h - gh) / 2 : P.y + P.h - PAD - gh;
         let ox, oy, ow, oh;
-        if(it.axis === "x"){ ow = it.n * S; oh = ow * it.ar; ox = gx; oy = gy + S; }
+        if(it.axis === "x"){ ow = it.n * S; oh = ow * it.ar; ox = gx; oy = gy + Math.max(0, S - oh * seatOf(it)); }
         else { oh = it.n * S / spanOf(it); ow = oh / it.ar; ox = gx + S + 10; oy = gy; }
         const m0 = it.axis === "x" ? 0 : oy + oh * (it.span ? it.span[0] : 0), m1 = m0 + it.n * S;   // the measured span (y)
         e.img = K.add(scene, "img", "md-obj mr-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh));
         e.img.src = it.src; e.img.alt = "";
         e.tiles = [];
         for(let k = 0; k < it.n; k++){
-          const t = it.axis === "x" ? { x: ox + k * S, y: oy - S } : { x: gx, y: m1 - (k + 1) * S };
+          const t = it.axis === "x" ? { x: ox + k * S, y: oy + oh * seatOf(it) - S } : { x: gx, y: m1 - (k + 1) * S };
           const b = K.cube(scene, shade++, t.x, t.y, S); b.classList.add("placed", "mr-cube"); b.style.zIndex = 4; e.blocks.push(b); e.tiles.push(t);
         }
         // the measured span's two ends, dashed (as the game's measuring slides)
         // (review 2026-10-06 "decrease the length of dotted lines": they ran the blocks' and the whole object's length and
         //  past both, nearly card edge to card edge - now the blocks plus a short reach into the object, 4px over)
+        // data.no_ends (P2, review 2026-10-08 "remove pink dotted lines from this play screen"): no end lines
         const TK = 4, IN = it.axis === "x" ? Math.min(oh, S * .45) : Math.min(ow, S * .45);
-        if(it.axis === "x"){ [ox, ox + it.n * S].forEach(x => K.add(scene, "i", "mr-end v", "left:" + px(x - 3) + ";top:" + px(oy - S - TK) + ";height:" + px(S + IN + TK))); }
+        if(d.no_ends){}
+        else if(it.axis === "x"){ [ox, ox + it.n * S].forEach(x => K.add(scene, "i", "mr-end v", "left:" + px(x - 3) + ";top:" + px(oy + oh * seatOf(it) - S - TK) + ";height:" + px(S + IN + TK))); }
         else { [m1, m0].forEach(y => K.add(scene, "i", "mr-end h", "left:" + px(gx - TK) + ";top:" + px(y - 3) + ";width:" + px(S + 10 + IN + TK))); }
         e.side = it.axis === "x" ? "above" : "left";
         if(LINES){ e.dot = { x: P.x + P.w, y: P.y + P.h / 2 }; e.dotEl = K.add(scene, "i", "mr-dot l", "left:" + px(e.dot.x - DOT / 2) + ";top:" + px(e.dot.y - DOT / 2)); }
@@ -2835,8 +3264,8 @@ const SlideModules = {
           if(count) count.forEach(x => x.remove()); count = []; count._e = e;
           for(let k = 0; k < e.blocks.length; k++){
             if(!alive()) return;
-            e.blocks[k].classList.add("mr-counting"); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));
-            await (PPT ? K.wait(reduce ? 300 : 650) : sayNum(k + 1)); e.blocks[k].classList.remove("mr-counting");
+            const lit = K.bulb(e.blocks[k]); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));   // [bulb] on while it is counted
+            await K.countBeat(PPT ? null : ()=> sayNum(k + 1)); lit.off();   // (the counting beat - P3 was 650ms)
           }
         } else {                                                             // 3 on: the hand on its right box
           const rb = rightBox(e);
@@ -3143,16 +3572,15 @@ const SlideModules = {
         it._sp = K.add(room, "div", "cf-space", "left:" + px(s.x) + ";top:" + px(s.y) + ";width:" + px(w) + ";height:" + px(h));
         it._anchor = K.add(room, "div", "md-anchor", "left:" + px(s.x + w / 2 - 1) + ";top:" + px(s.y + h / 2 - 10));   // the hint hand's target
         /* data.dims (review 2026-10-07, the reviewer's sketch: a plain space with "<- 8 blocks ->" along its side): no strip
-           of ghost blocks - a double-headed arrow the measured side long (above a length, left of a height), its label on
-           it (a length) or beside it, stacked (a height); both turn green when the object is in */
+           of ghost blocks - a double-headed arrow along the measured side, its label on it (a length) or stacked on it (a
+           height); both fade once the object is in (it covers the space) */
         if(d.dims){
-          // (review 2026-10-07 "the 8 blocks label shouldn't collide with the dotted box": a length's arrow stands clear of its
-          //  space by more than half its label's height - 28 in the full room, where the labels are bigger)
-          const DG = 16, DGH = FULL ? 30 : 16;
-          it._strip = it.axis === "y" ? K.add(room, "div", "cf-dim v", "left:" + px(s.x - DG) + ";top:" + px(s.y) + ";height:" + px(h))
-                                      : K.add(room, "div", "cf-dim h", "left:" + px(s.x) + ";top:" + px(s.y - DGH) + ";width:" + px(w));
-          it._lb = it.axis === "y" ? K.add(room, "div", "cf-label dim narrow", "left:" + px(s.x - DG - 8) + ";top:" + px(s.y + h / 2))
-                                   : K.add(room, "div", "cf-label dim", "left:" + px(s.x + w / 2) + ";top:" + px(s.y - DGH));
+          // (review 2026-10-08 "show the written part and arrow lines inside the dotted boxes": the arrow runs through the
+          //  space's middle, inset from its dashed edge by DI; the label sits on the arrow, centred in the space)
+          const DI = FULL ? 16 : 10;
+          it._strip = it.axis === "y" ? K.add(room, "div", "cf-dim v", "left:" + px(s.x + w / 2) + ";top:" + px(s.y + DI) + ";height:" + px(h - 2 * DI))
+                                      : K.add(room, "div", "cf-dim h", "left:" + px(s.x + DI) + ";top:" + px(s.y + h / 2) + ";width:" + px(w - 2 * DI));
+          it._lb = K.add(room, "div", "cf-label dim" + (it.axis === "y" ? " narrow" : ""), "left:" + px(s.x + w / 2) + ";top:" + px(s.y + h / 2));
           it._lb.innerHTML = it.axis === "y" ? "<b></b><i></i>" : "<b></b>";
           if(it.axis === "y"){ it._lb.querySelector("b").textContent = devNumeral(it.n); it._lb.querySelector("i").textContent = it.n === 1 ? "ब्लॉक" : unit; }
           else it._lb.querySelector("b").textContent = devNumeral(it.n) + " " + (it.n === 1 ? "ब्लॉक" : unit);
@@ -3200,12 +3628,55 @@ const SlideModules = {
       }
       /* ---- the game ---- */
       let phase = "pick", first = true, cur = null, run = null, wrongs = 0, placedN = 0, idleT = 0, pending = null, anyRev = false;
+      /* [drive] the reviewer's path for the robot's entrance (review 2026-10-09, traced from the screenshot onto the 1333 x 750
+         stage - its home centre 666.8, 641.2): in at the top left, far away and off the stage, round a loop on the left, down
+         the left side and along the front into its spot. MDK.robot drive() makes it small far away and big near. */
+      const DRIVE_PATH = [[-220, 30], [-135, 38], [-55, 35], [29, 52], [104, 91], [150, 139], [170, 197], [173, 252], [138, 323], [100, 393],
+        [29, 388], [-39, 365], [-80, 286], [-68, 220], [-13, 195], [71, 208], [163, 262], [230, 318], [244, 360], [218, 393], [163, 413],
+        [104, 430], [54, 460], [12, 504], [-9, 559], [20, 617], [79, 645], [180, 653], [255, 647], [365, 628], [490, 619], [604, 620], [666.8, 641.2]];
+      /* [waves] review 2026-10-09 ("make the path of the robo mop a little better, like waves - for a better UX"): the traced
+         path's loop crossed itself (a tangled trail) and its turns were tight. The route in waves: in from the screen's top-left
+         corner (x0, y0) along the top, down the free floor left of the object, round into the front and a calm glide into its
+         spot (hx, hy) - a smooth curve - with a sine sway along it: round waves, each WAVE_LEN px of floor (~0.75 s at its
+         pace), WAVE_AMP px to each side (smaller far away, as the robot is), calm at the start (they grow as it leaves the
+         wall) and at the end (the last stretch is straight). It never runs into the object or its slots (boxes), off the
+         stage's left edge or up the wall: where the sway would, it is reduced there. rw / rh: the robot's size at home; its
+         size elsewhere is drive()'s perspective (horizon 850 px above its home). Returns the points drive() runs through. */
+      const WAVE_AMP = 85, WAVE_LEN = 640;
+      function wavePath(x0, y0, hx, hy, rw, rh, boxes){
+        const qOf = cy => Math.max(.12, (cy - (hy - 850)) / 850), PAD = 22, FLOOR = H * .083 + 4;   // (the [floor]'s skirting line)
+        const bx = boxes.map(b => ({ l: b.x - PAD, t: b.y - PAD, r: b.x + b.w + PAD, b: b.y + b.h + PAD }));
+        const laneR = y =>{ const q = qOf(y), t = y - rh * q / 2, b = y + rh * q / 2; let r = 440;   // its centre's limit, right
+          bx.forEach(o =>{ if(b > o.t && t < o.b) r = Math.min(r, o.l - rw * q / 2); }); return r - 8; };
+        const laneL = y => rw * qOf(y) / 2 + 14;                             // ... and left (the stage's edge)
+        let yF = 600;                                                        // the front: just below the object, on the floor
+        for(let i = 0; i < 6; i++){ const q = qOf(yF); yF = Math.min(H - rh * q / 2 - 14, Math.max(...bx.map(o => o.b)) + rh * q / 2 + 8); }
+        const yM = (y0 + yF) / 2, LX = (laneL(yM) + Math.min(laneR(yM), laneR(y0 + 90), laneR(yF - 90))) / 2;   // the free floor's middle
+        const C = [[x0, y0], [LX - 60, y0 + 30], [LX, y0 + 120], [LX, yF - 120], [LX + 110, yF], [hx - 170, yF], [hx - 60, hy + (yF - hy) * .25], [hx, hy]];
+        const base = [];                                                     // the route: a Catmull-Rom curve through C, densely
+        for(let i = 0; i < C.length - 1; i++){ const p0 = C[Math.max(0, i - 1)], p1 = C[i], p2 = C[i + 1], p3 = C[Math.min(C.length - 1, i + 2)];
+          for(let k = 0; k < 40; k++){ const t = k / 40, t2 = t * t, t3 = t2 * t;
+            base.push([0, 1].map(j => .5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t3))); } }
+        base.push(C[C.length - 1].slice());
+        const sg = [0];                                                      // its length on the floor (far away a px is more floor)
+        for(let i = 1; i < base.length; i++){ const a = base[i - 1], b = base[i]; sg.push(sg[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]) / qOf((a[1] + b[1]) / 2)); }
+        const Lb = sg[sg.length - 1], ss = (a, b, v)=>{ const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+        return base.map((p, i)=>{
+          const a = base[Math.max(0, i - 1)], b = base[Math.min(base.length - 1, i + 1)], tl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+          const nx = -(b[1] - a[1]) / tl, ny = (b[0] - a[0]) / tl;           // across the route
+          const env = ss(0, 300, sg[i]) * (1 - ss(Lb - 580, Lb - 200, sg[i])) * ss(y0 + 10, y0 + 170, p[1]);
+          let off = WAVE_AMP * qOf(p[1]) * env * Math.sin(2 * Math.PI * sg[i] / WAVE_LEN + Math.PI);
+          for(let k = 0; k < 12; k++){ const x = p[0] + nx * off, y = p[1] + ny * off, q = qOf(y);
+            if((x - rw * q / 2 >= 14 && y - rh * q / 2 >= FLOOR && x <= laneR(y)) || (x > 450 && y > yF - 40)) break; off *= .8; }
+          return [p[0] + nx * off, p[1] + ny * off];
+        }).filter((p, i, all)=> i % 8 === 0 || i === all.length - 1);
+      }
       const voFor = it => first && it && (DECK || it.id === d.vo_object);   // [deck] the first object, whichever
       function armIdle(){ clearTimeout(idleT); if(DECK) return; idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
         const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, IDLE_MS); }
       function toPick(idle){
         phase = "pick"; cur = null; setHead(slide.prompt_hi || ""); scene.classList.remove("cf-measuring", "cf-placing");
-        items.forEach(it =>{ it._t.disabled = !!it._done; }); if(idle) armIdle();
+        items.forEach(it =>{ it._t.disabled = !!it._done; it._t.classList.remove("cf-cur"); }); if(idle) armIdle();
         if(pending){ const q = pending; pending = null; pick(q); }            // a tap made while the room came back
       }
       function pick(it){
@@ -3242,6 +3713,8 @@ const SlideModules = {
           K.add(layer, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
           K.add(layer, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
         }
+        // [floor] review 2026-10-09: its soft shadow on the measuring view's floor (CSS [floor]) - it stands, it does not float
+        K.add(layer, "div", "cf-floorshadow", "left:" + px(ox - ow * .02) + ";top:" + px(oy + oh - 14) + ";width:" + px(ow * 1.04) + ";height:28px");
         const img = K.add(layer, "img", "md-obj", "left:" + px(ox) + ";top:" + px(oy) + ";width:" + px(ow) + ";height:" + px(oh)); img.src = it.src; img.alt = "";
         // [juice] it lifts off its tray tile and flies here, growing (its tile's picture is where it starts)
         const ti = it._t.querySelector("img");
@@ -3253,20 +3726,73 @@ const SlideModules = {
         const gap = Math.round(S * .16), bx = (W - (M * S + (M - 1) * gap)) / 2, by = SH ? TY + TH * SHELF.floor - S
                  : FULL ? Math.min(TY + (TH - S) / 2, Math.max(oy + oh + 28, TY - S * .4))   // (review 2026-10-07 "the cubes are really below - shift them up": nearer the object, never on it)
                  : TY + (TH - S) / 2;
-        // [deck] "A block appears at the source place": the blocks stacked on one spot, centred, the next one on top
-        const blocks = []; for(let j = 0; j < M; j++){ const b = K.cube(layer, j, DECK ? (W - S) / 2 : bx + j * (S + gap), by, S); b._z = DECK ? 3 + j : 3; b.style.zIndex = b._z; blocks.push(b); }
+        /* [deck] "A block appears at the source place" - the robot mop (review 2026-10-08 "here also bring the robo mop with
+           cube", as on the other measuring screens, MDK.robot): it stands centred where the block was, the block on its lid;
+           once one is taken the next rises out of it (one more than the row needs - one left on it), a block not flush
+           vanishes and a new one rises on the lid, its face answers the child's drops. Each time the view opens it drives in along the reviewer's path ([drive] below),
+           cleaning the floor. Without the deck: the old row of blocks under the object. */
+        let blocks = [], box = null;
+        if(DECK){
+          /* [near] review 2026-10-09 ("reduce the distance between the robo mop and the bench - the drag and drop takes a lot of
+             time ... the same in all the last game screens"): it stood at the foot of the view, by the tray, far from the
+             object - every block a long drag. Now it stands right under the object, centred, its lid's cube a small gap below
+             the object's foot - the same place for all four (review 2026-10-09: "make it stop at the same position as it is
+             stopping in the bench game screen"; it had stood beside the column for the almirah and the chair) */
+          const g = K.robotGeom(N + 1, S), NEAR = 18;
+          const rx = W / 2 - g.seat[0] * g.w, ry = oy + oh + NEAR + S - g.seat[1] * g.h;
+          box = K.robot(layer, rx, ry, N + 1, S);
+          blocks = box.spots.map((p, j)=>{ const b = K.cube(layer, j, p.x, p.y, S, p.rot); b._z = p.z; b.style.zIndex = b._z; return b; });
+          box.link(blocks);
+        } else for(let j = 0; j < M; j++){ const b = K.cube(layer, j, bx + j * (S + gap), by, S); b._z = 3; b.style.zIndex = b._z; blocks.push(b); }
         run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: K.hand(layer, S),
           idleMs: 0, showTiles: false, hints: DECK ? null : { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },
           ghostAt: DECK ? Infinity : undefined,                              // [deck] a block not flush just goes back
+          respawn: box ? box.respawn : undefined,                             // [robot] ... vanishes, and a new one rises on its lid
+          onHit: ()=>{ if(box){ box.react("happy"); box.settle(); } },
+          onWrong: ()=>{ if(box) box.react("sad"); },
+          onGrab: ()=>{ if(box) box.look(false); },
           onAll: ()=> setTimeout(()=> measured(it, layer), 650) });
         run.start();
+        // [drive] each time the view opens ([all four], below): along DRIVE_PATH, squeezed to 82% of its width toward
+        // its home so the loop stays on the stage (the reviewer drew it past the stage's left edge, on a wide window); its
+        // horizon 850px above its home centre - about a quarter of its size at the top left.
+        // [drive-in] review 2026-10-09 (a red circle at the screen's top-left corner: "the mop should enter from here"): it
+        // came in off the stage along its very top edge, clipped - unseen for its first ~2s, then popping in at the stage's
+        // edge. Now it drives in from the VISIBLE screen's left edge (peeking in), at the circle's height (11% down), and joins
+        // the reviewer's path where it turns down the left side (its 5th point); on a screen wider than the stage that
+        // corner is on the side band, so the stage stops clipping while the view is up (CSS [drive-in])
+        // ([all four] review 2026-10-09: "add the same robo mop animation in all four elements" - it drives in for every object,
+        //  not only the first one picked)
+        if(box && box.drive){
+          const sR = scene.getBoundingClientRect(), kV = sR.width / (scene.offsetWidth || 1) || 1;
+          const visL = Math.min(0, -sR.left / kV);                                                                 // the visible screen's left edge
+          const hx = parseFloat(box.back.style.left) + box.w / 2, hy = parseFloat(box.back.style.top) + box.h / 2;   // its home centre
+          // (11% down the STAGE - the red circle's height on the reviewer's screen, just below the [floor]'s skirting line; on a
+          //  4:3 screen 11% of the visible height fell on the band above the stage, on the wall)
+          const y0 = H * .11, q0 = Math.max(.12, (y0 - (hy - 850)) / 850);                                        // (its size there, as drive() makes it)
+          const x0 = visL - box.w * q0 * .35;                                                                      // peeking in at the edge (it fades in there)
+          // [waves] the route in waves (wavePath, above), clear of the object and its slots; data.drive_path "traced": the
+          // reviewer's traced path as before ([near]: as drawn, along the front to its point nearest home, then into it)
+          let path;
+          if(d.drive_path === "traced"){ const abs = DRIVE_PATH.map(([px_, py_])=> [666.8 + (px_ - 666.8) * .82, py_]);
+            let cut = 25; for(let i = 26; i < abs.length - 1; i++) if(Math.hypot(abs[i][0] - hx, abs[i][1] - hy) < Math.hypot(abs[cut][0] - hx, abs[cut][1] - hy)) cut = i;
+            path = [[x0, y0]].concat(abs.slice(4, cut + 1), [[hx, hy]]); }
+          else path = wavePath(x0, y0, hx, hy, box.w, box.h, [{ x: ox, y: oy, w: ow, h: oh }].concat(slots.map(e => K.pos(e)).map(p => ({ x: p.x, y: p.y, w: S, h: S }))));
+          // ([quick] review 2026-10-09: with the drive on all four, a cube could be taken only ~7s after each tap - it was cut to
+          //  3.2s, then "the entry animation was really fast". [steady]: a steady 4.2 robot widths a second - the 6.5s drive's
+          //  average pace on the stage (3.15, eased in and out), never as fast as its peak (5.7; 3.2s peaked at ~10).
+          //  [calm] review 2026-10-09, of the [waves] route at that pace: "the entry is really fast". No loop, so the route
+          //  was ~8-10 robot widths, not ~15 - at the same pace the whole entrance took 2.6-3.1s (as short as the 3.2s drive
+          //  turned down before), a wave every ~0.75s. On it the robot drives at 2.2: home ~4.9-5.9s after it sets off (as the
+          //  ~4.7-5.4s of the drive before the waves), a slow sway every ~1.5s. The traced path keeps 4.2)
+          box.drive(path.map(([px_, py_])=> [px_ - hx, py_ - hy]), { far: 850, speed: d.drive_path === "traced" ? 4.2 : 2.2, delay: 300 }); }
       }
       function measured(it, layer){
         if(!alive() || cur !== it) return;
         run.stop(); phase = "place";
         setHead("अब " + it.name_hi + " के लिए सही जगह चुनिए।");
         if(voFor(it)) say(voRole("place", it));
-        layer.querySelectorAll(".md-block:not(.placed)").forEach(b => b.classList.add("cf-spare"));
+        layer.querySelectorAll(".md-block:not(.placed):not(.rb-top)").forEach(b => b.classList.add("cf-spare"));   // ([robot] the one on its lid stays)
         /* the blocks stay on it a moment; then the classroom comes back and the object, still measured, moves to the tray */
         setTimeout(()=>{ if(!alive() || cur !== it) return;
           // [juice] the object with its blocks on it flies down onto the tray as one (the card starts where they stand)
@@ -3276,18 +3802,24 @@ const SlideModules = {
           if(from && !reduce) layer.querySelectorAll(".md-obj, .md-block.placed").forEach(x => x.style.visibility = "hidden");
           layer.classList.add("out"); setTimeout(()=> layer.remove(), 450);
           scene.classList.remove("cf-measuring"); scene.classList.add("cf-placing");
+          it._t.classList.add("cf-cur");                                     // [boxes] its box is the one on; the others dim
           makeCard(it, from);
         }, 1100);
       }
       /* the measured object in the tray: its picture with its blocks, dragged as one */
       function makeCard(it, from){
-        const N = it.n, avH = SH ? TH * .95 : TH - 22, avW = 460 * Z;
+        /* [boxes] review 2026-10-09 ("bring back all the option boxes as they were, and only enable this bench box to place
+           it in the correct position"): the tray's boxes stay up while the object is placed - the others dimmed and off
+           (CSS [boxes]), its own box on (.cf-cur) - and the measured object (its picture with its blocks) waits IN its box,
+           where the box's picture was; a wrong drop sends it back there */
+        const bxR = rectIn(it._t), picR = rectIn(it._t.querySelector("img"));
+        const N = it.n, avH = picR.h, avW = bxR.w * .86;
         let s2, cw, ch, bl = [], ob;
         if(it.axis === "y"){ s2 = Math.min(avH / N, avW / (1 + N / it.ar)); const oh = N * s2, ow = oh / it.ar; cw = s2 + 6 + ow; ch = oh;
           for(let k = 0; k < N; k++) bl.push({ x: 0, y: oh - (k + 1) * s2 }); ob = { x: s2 + 6, y: 0, w: ow, h: oh }; }
         else { const st = it.sit || 0; s2 = Math.min(avW / N, avH / (1 + N * it.ar * (1 - st))); const ow = N * s2, oh = ow * it.ar; cw = ow; ch = s2 + oh * (1 - st);
           for(let k = 0; k < N; k++) bl.push({ x: k * s2, y: 0 }); ob = { x: 0, y: s2 - st * oh, w: ow, h: oh }; }   // (it.sit: the row on its front edge)
-        const home = { x: (W - cw) / 2, y: SH ? TY + TH * SHELF.floor - ch : TY + (TH - ch) / 2 };   // [shelf] on its floor
+        const home = { x: bxR.x + (bxR.w - cw) / 2, y: picR.y + (picR.h - ch) / 2 };                // [boxes] in its box
         const c = K.add(scene, "div", "cf-card", "left:" + px(home.x) + ";top:" + px(home.y) + ";width:" + px(cw) + ";height:" + px(ch));
         const img = K.add(c, "img", "md-obj", "left:" + px(ob.x) + ";top:" + px(ob.y) + ";width:" + px(ob.w) + ";height:" + px(ob.h)); img.src = it.src; img.alt = "";
         bl.forEach((p, k)=>{ const b = K.cube(c, k, p.x, p.y, s2); b.classList.add("placed"); });
@@ -3438,7 +3970,7 @@ const SlideModules = {
     // 2026-09-30: "for the hint part follow the excel sheet, not the slides"): every wrong tap - the tapped picture
     // shakes and returns; #1 - nothing else shown (VO: audio.try_again, via mountTapOptions); #2 - after a moment the
     // right picture glows softly (VO: audio.hint); #3 - the engine shows the answer (audio.reveal) and the hand taps it
-    // (o.tap: its leg), then on. Right = SFX + confetti only: the deck's "Correct Response: SFX" (review 2026-10-08 -
+    // (o.tap: the middle of its top), then on. Right = SFX + confetti only: the deck's "Correct Response: SFX" (review 2026-10-08 -
     // the right option's own praise clip, "शाबाश! आपने सही चुना।" vo_ok_mcq2, is gone).
     // data.wrong_cue:"deck" (review 2026-10-08: "follow this instruction VO when selected wrong option as in the ppt" -
     // the deck's page 2 "Incorrect: Pulsate/hand nudge on the long table and play VO: यह टेबल ज्यादा लंबी है।"): every
@@ -3453,7 +3985,7 @@ const SlideModules = {
         optionRenderer: (o)=>{ const cell = document.createElement("div"); cell.className = "ord-pick";
           if(o.correct === true) cell.dataset.right = "1";
           /* the picture carries the kit's object outline (recipe 21, `ol ol-alpha`: green on the right answer); o.tap =
-             [x, y] of the picture = where the hand taps it (T1: the long table's front leg), outside .pk-in so the pulse
+             [x, y] of the picture = where the hand taps it (T1: the middle of the long table's top, [0.5, 0.2] - review 2026-10-08 "the hand nudge tap should come at the center of the table"; was its front leg), outside .pk-in so the pulse
              never moves it */
           const tap = o.tap ? `<i class="pk-tap" style="left:${o.tap[0] * 100}%;top:${o.tap[1] * 100}%"></i>` : "";
           /* [T1 ground] o.feet = the picture's four feet [x centre, y bottom, width] as fractions of it, measured from its
@@ -4030,6 +4562,8 @@ const ASSET_SIZES = {
   "assets/btn-play-round-waiting.svg": 2655,
   "assets/btn-play-round.svg": 2645,
   "assets/cls_shelf.webp": 41810,
+  "assets/cube_orange.webp": 3608,
+  "assets/cube_orange_light.webp": 4126,
   "assets/cubes_blue_row.webp": 44710,
   "assets/end_screen.webp": 33634,
   "assets/floor_planks.svg": 1405,
@@ -4066,8 +4600,8 @@ const ASSET_SIZES = {
   "assets/obj_blackboard.webp": 32152,
   "assets/obj_blackboard_p2.webp": 24796,
   "assets/obj_chair.webp": 71148,
-  "assets/obj_chair_short.webp": 86918,
-  "assets/obj_chair_tall.webp": 89764,
+  "assets/obj_chair_short.webp": 99792,
+  "assets/obj_chair_tall.webp": 102212,
   "assets/obj_charpai.webp": 86194,
   "assets/obj_door.webp": 27900,
   "assets/obj_fridge.webp": 42888,
@@ -4121,10 +4655,13 @@ const ASSET_SIZES = {
   "assets/toybox_front.webp": 23106,
   "assets/voiceover/sfx_celebrate.ogg": 8344,
   "assets/voiceover/vo_demo_start.ogg": 7652,
-  "assets/voiceover/vo_landing.ogg": 32354,
+  "assets/voiceover/vo_landing.ogg": 28093,
   "assets/voiceover/vo_match_instr.ogg": 11850,
   "assets/voiceover/vo_match_ok.ogg": 18568,
   "assets/voiceover/vo_num_1.ogg": 2617,
+  "assets/voiceover/vo_num_10.ogg": 3275,
+  "assets/voiceover/vo_num_11.ogg": 3252,
+  "assets/voiceover/vo_num_12.ogg": 3348,
   "assets/voiceover/vo_num_2.ogg": 2795,
   "assets/voiceover/vo_num_3.ogg": 2880,
   "assets/voiceover/vo_num_4.ogg": 3047,
@@ -4145,27 +4682,27 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p2_ask.ogg": 17889,
   "assets/voiceover/vo_p2_fb.ogg": 8670,
   "assets/voiceover/vo_p3_child.ogg": 18404,
-  "assets/voiceover/vo_p3_done.ogg": 13699,
+  "assets/voiceover/vo_p3_done.ogg": 14735,
   "assets/voiceover/vo_p3_explain_a.ogg": 15992,
   "assets/voiceover/vo_p3_explain_b.ogg": 14732,
   "assets/voiceover/vo_p3_head.ogg": 21299,
   "assets/voiceover/vo_p4_child.ogg": 21277,
-  "assets/voiceover/vo_p4_done.ogg": 15122,
+  "assets/voiceover/vo_p4_done.ogg": 16350,
   "assets/voiceover/vo_p4_explain_a.ogg": 17725,
   "assets/voiceover/vo_p4_explain_b.ogg": 6652,
   "assets/voiceover/vo_p4_head.ogg": 27364,
   "assets/voiceover/vo_p5_ask.ogg": 12413,
   "assets/voiceover/vo_p5_instr.ogg": 10976,
-  "assets/voiceover/vo_p5_ok.ogg": 13477,
+  "assets/voiceover/vo_p5_ok.ogg": 15037,
   "assets/voiceover/vo_p6_ask.ogg": 13954,
   "assets/voiceover/vo_p6_instr.ogg": 11475,
   "assets/voiceover/vo_p6_ok.ogg": 13819,
   "assets/voiceover/vo_p6b_ask.ogg": 12300,
   "assets/voiceover/vo_p6b_instr.ogg": 9893,
-  "assets/voiceover/vo_p6b_ok.ogg": 13117,
+  "assets/voiceover/vo_p6b_ok.ogg": 15090,
   "assets/voiceover/vo_p7_ask.ogg": 13102,
   "assets/voiceover/vo_p7_instr.ogg": 9760,
-  "assets/voiceover/vo_p7_ok.ogg": 13383,
+  "assets/voiceover/vo_p7_ok.ogg": 14982,
   "assets/voiceover/vo_p8_ask.ogg": 14441,
   "assets/voiceover/vo_p8_ok.ogg": 12448,
   "assets/voiceover/vo_p8_reask.ogg": 13209,
@@ -4179,7 +4716,7 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_rule_b.ogg": 8243,
   "assets/voiceover/vo_rule_c.ogg": 10176,
   "assets/voiceover/vo_try_again.ogg": 9659,
-  "assets/voiceover/vo_well_done.ogg": 15199
+  "assets/voiceover/vo_well_done.ogg": 15585
 };
 /* @asset-sizes:end */
 const Assets = (function(){
@@ -4233,7 +4770,11 @@ const Assets = (function(){
     const abort = ()=>{ try{ if(ctl) ctl.abort(); }catch(e){} end(null); };   // stalled / too long: counts as done
     const arm = ()=>{ clearTimeout(stallT); stallT = setTimeout(abort, STALL_MS); };
     capT = setTimeout(abort, it.tag <= CRIT ? CRIT_CAP_MS : CAP_MS); arm();
-    fetch(it.src, ctl ? { signal: ctl.signal } : undefined).then(r =>{
+    /* cache "no-cache" (review 2026-10-09 "can't see" - a re-coloured chair still showed its old blue cushion): every file
+       is checked with the server before a stored copy is used - a 304 when it is unchanged, the new file when it changed.
+       With no caching rules from the server (a local python server) a browser could reuse a days-old picture for hours,
+       and the pictures on screen load from that same cache. Vercel already asks browsers to check every time. */
+    fetch(it.src, Object.assign({ cache: "no-cache" }, ctl ? { signal: ctl.signal } : {})).then(r =>{
       if(!r.ok) throw new Error("HTTP " + r.status);
       const len = +r.headers.get("content-length");
       if(len > 0 && !r.headers.get("content-encoding")) it.size = len;
@@ -4276,6 +4817,8 @@ const Assets = (function(){
     const d = s.data || {}, out = [], img = f => out.push("assets/" + f + "." + IMG_EXT);
     if(d.bg && d.bg !== "softboard") img("bg_" + d.bg);                            // #stage[data-bg] (style.css; the softboard is CSS only)
     if((s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK") && !d.keep_holder) ["robot_body", "robot_screen", "robot_side"].forEach(img);   // [robot] MDK.robot
+    if(s.type === "CLASSROOM_FIT" && d.wrong_cue === "deck") ["robot_body", "robot_screen", "robot_face_happy"].forEach(img);   // [robot] its measuring view's source place
+    if(s.type === "MEASURE_ASK" || s.type === "COMPARE_MEASURED" || s.type === "MATCH_ROWS") ["cube_orange", "cube_orange_light"].forEach(img);   // [bulb] MDK.bulb's lit cube
     if(s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK" || s.type === "COMPARE_MEASURED"){
       if(s.type === "COMPARE_MEASURED" || d.keep_holder) (HOLDER[d.holder] || ["toybox_back", "toybox_front"]).forEach(img);   // MDK.toybox / basket / holder / painting
       img("badge_result"); out.push("assets/badge_star.svg");                       // MDK.plate
@@ -4708,7 +5251,10 @@ function boot(){
        2.45-3.66 | आज हम सीखेंगे 4.69-5.85 | किसी चीज़ की लंबाई कैसे मापते हैं 6.36-9.2). So the intro (title ~6.1s, then
        the cubes ~2.7s) now runs on ~4.3s past the greeting; the play button still pops once it is all done
        ("sg-intro-done"), and its watchdog waits 18s (was 15s) so it never cuts the intro short. */
-    const T_WORD = 4.69;
+    /* review 2026-10-08 ("match exactly from ppt"): the deck's own greeting is back - "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम
+       सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।" (the 2026-09-28 render, 7.5s; silencedetect -35dB: नमस्ते दोस्त 0.29-1.25 | मैं हूँ
+       स्विफ्टी 1.62-2.81 | आज हम सीखेंगे 3.18-4.36 | किसी चीज की लंबाई कैसे मापते हैं 4.67-7.13): "आज" at 3.18s */
+    const T_WORD = 3.18;
     const PULL = 0.6, HOLD = 0.15;                             // stretch, then a short hold at full stretch (tightened 2026-09-29: the
                                                                // whole first screen must stay short - 15 slides follow)
     const PAST_NIB = 5;                                        // stage px: ल's left edge is pulled this far PAST the pencil nib tip.
