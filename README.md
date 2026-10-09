@@ -404,6 +404,42 @@ Tagged `QA checklist 2026-10-05` in `app.js` / `style.css`.
   on the right tap (0 / 0.3s, were 0.25 / 0.6s), the confetti after them (0.75s); the correct SFX stays on the tap.
   Measured in Chrome: T2 box 4.12s -> confetti 5.22s; T3 4.27s -> 5.37s; G4 / P1 boxes 0.02 + 0.3s -> confetti 0.76s.
 
+## The VO manifest from the updated deck, and as a spreadsheet (2026-10-09) — `VO_MANIFEST.md`, `VO_MANIFEST.xlsx`, `tools/vo_manifest_xlsx.py`
+- The user's updated deck, `MTG2A04_L02_S01_review.pptx` (received 2026-10-09, kept in this folder), now has the game's
+  block counts on every screen. `VO_MANIFEST.md` was regenerated from it: 46 clips say the deck's line (44 exactly, 2 cut
+  at the deck's own break); 2 need re-recording, P4's almirah pair (the deck now says अलमारी, the clips say छोटी अलमारी,
+  and so does the card's `name_hi`); the 3 transition cards are not in the deck.
+- Not changed, flagged to the user: on P4 the new deck has every object speak its VO1 / VO2, but the game speaks for the
+  first object picked only (CLASSROOM_FIT `voFor`). The deck's options are pillow 4 / 5 / 6 (the game's 4 / 5 / 7) and
+  fridge 6 / 7 / 8 (the game's 5 / 6 / 7).
+- "i want it in a spreadsheet": `VO_MANIFEST.xlsx` is made from `VO_MANIFEST.md` by `python tools/vo_manifest_xlsx.py`
+  (openpyxl); re-run it after any change to the manifest. Its sheets: VO by screen (play order, each screen's notes as
+  grey rows), Clip list (the 64 files once each, where each is used, its status), and Notes. Neither the deck nor the
+  spreadsheet is deployed (`.vercelignore`: `*.pptx`, `*.xlsx`).
+
+## The counting hints at a medium pace (2026-10-09) — app.js `MDK.countBeat` (`COUNT_MS`, `COUNT_LEAD`)
+- Review, of G1's 3rd wrong answer (a digit under each block, one by one): "it's too slow - I don't want it too slow or
+  fast, medium paced - fix it throughout the game". The counting beat was 850ms (raised from 140ms, "really fast",
+  earlier the same day). Every hint that counts block by block uses it: G1-G3 wrong 2 (each block lit as it is said)
+  and wrong 3 (the digits), G4 / P1 wrong 1 (both objects counted aloud), P2 / P3 wrong 2 (the digits).
+- Now 600ms a number (~1.7 a second). Measured on vo_num_1..12: each word starts .28-.30s into its clip and lasts
+  .26-.49s (दस ends at .76s), so a spoken number now starts .22s in (`COUNT_LEAD`, set while the clip loads - the
+  default playback start position): the word lands on the beat and the longest ends .54s later, before the next one.
+- Measured in Chrome: G1 wrong 2 - 1…12 said every 607ms (578-622), none cut; wrong 3 - the 12 digits every 603ms, 6.6s
+  in all (was 10.2s); G4 - 1…8 then 1…9 every 609ms; P1 - 1…6 then 1…7 every 607ms; every number started at its word.
+
+## T3: the "7 ब्लॉक्स" box on the wall (2026-10-09) — app.js `MDK.wallBox`, `[wall-box]`, CSS `.md-count.wall`
+- Review, a circle on the empty wall left of the door's cube column: "can we replace the 7 blocks box from below the door
+  to on the wall as shown? how will you do this better". The result box rose out of the light under the door
+  (`MDK.riseBox`) and stood over the door's lower panels, against the column.
+- Now it stands on the free wall: centred between the card's left edge and the column's digits, and between the top of
+  the scene (under the heading) and the robot's cube (its glow included) - worked out from the layout, so it holds at
+  every screen size - and `MDK.wallBox` brings it OUT OF THE COLUMN: small, behind the cubes at the column's middle, it
+  glides onto the wall in a gentle arc, growing, a little past its size, and settles (950 ms) - the box reads as the
+  7 cubes' label. The same white answer box as everywhere, with a soft shadow on the wall; still on the VO's number word,
+  the confetti after it (T2's box still slips out from under the tabletop). Checked in Chrome at 1500 × 720 and
+  1945 × 897: T3 played through, the box clear of the heading, the column, its digits, the robot and →.
+
 ## P4: the wave entrance at a calm pace (2026-10-09) — app.js `[calm]`
 - Review, of the [waves] entrance: "the entry is really fast - diagnose the error and fix it, apply the same in all
   endgame elements". Not a fault in the motion: the [waves] route has no loop, so it is ~8-10 robot widths, not ~15,

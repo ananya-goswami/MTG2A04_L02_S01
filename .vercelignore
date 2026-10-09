@@ -8,6 +8,8 @@ card.json
 *.py
 *.bak
 *.orig
+*.pptx
+*.xlsx
 *~
 backup/
 .DS_Store

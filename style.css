@@ -1976,7 +1976,7 @@ body.is-start .sg-sky{
 /* the hand's anchor (the answer shown after the last wrong tap) = the tap point on the right table (the middle of its top, card options[].tap)
    (data: options[].tap = [x, y], fractions of the picture). placeNudge puts the fingertip 8px under its target's
    lower edge, so this 2px dot sits 10px above it. */
-.pk-tables .pk-tap{position:absolute;width:2px;height:2px;margin:-10px 0 0 -1px;pointer-events:none;}
+.pk-tables .pk-tap,.cm .cm-tap{position:absolute;width:2px;height:2px;margin:-10px 0 0 -1px;pointer-events:none;}
 .pk-tables .opt-cell.faded .pk-pic{opacity:.45;transition:opacity .3s;}
 /* [T1 ground] (review 2026-10-05: "these tables don't feel like they are placed on the floor"). The one flat navy ellipse
    sat under the FRONT feet only, while the tables are drawn in perspective - the back feet stand ~20% of the picture
@@ -2257,6 +2257,7 @@ body.is-start .sg-sky{
   padding:0 18px;white-space:nowrap;background:#fff;border:2.69px solid #D5D8DF;border-radius:16px;box-shadow:0 4px 0 #D9D9D9;
   font-family:var(--font-hi);font-weight:800;line-height:1;color:#012F76;}
 .md-count.cheer{animation:mdCountCheer .5s cubic-bezier(.3,1.6,.5,1);}
+.md-count.wall{box-shadow:0 4px 0 #D9D9D9,0 12px 20px rgba(70,45,20,.16);}   /* [wall-box] T3: on the wall, a soft shadow under it (app.js MDK.wallBox) */
 @keyframes mdCountCheer{0%{scale:1;}45%{scale:1.08;}100%{scale:1;}}
 @media (prefers-reduced-motion:reduce){ .md-count.cheer{animation:none;} }
 .md-plate-img{position:absolute;inset:0;width:100%;height:100%;}
@@ -2669,6 +2670,8 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
 @media (prefers-reduced-motion:reduce){ .nav-btn.active,.stage .nav-btn.active{animation:none;} }
 /* ...and on a 2-option comparison the wrong one (its picture, rider and blocks) is locked: faded, untappable */
 .cm .cm-locked{opacity:.45 !important;filter:saturate(.4) !important;}
+/* the blocks while the hand taps the right object (app.js rowsOut) - after .cm-locked so it wins on the locked one too */
+.cm .md-block.cm-gone{opacity:0 !important;visibility:hidden;}
 /* [landing measure] review 2026-10-05: the landing's dashed end lines behave as the game's (.md-line.show.pulse): drawn
    from the top down in .5s (mdDrawV), then the glow pulse (mdLineGlow's shape and tempo, in the line's own pink) - the
    start line first, the end line 250ms after it (--d, app.js). Two pulses each, so they are still before the play

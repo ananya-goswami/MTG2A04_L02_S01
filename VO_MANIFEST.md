@@ -1,24 +1,36 @@
 # VO manifest — MTG2A04_L02_S01 · लंबाई मापना (ब्लॉक से नापें!)
 
 Every voiceover the game plays, in the order a child meets it: the exact line, its file in `assets/voiceover/`, when it
-plays and where it comes from. Checked 2026-10-08:
+plays and where it comes from.
 
-- **Against the PPT** — `MTG2A04_L02_S01_review.pptx` (24 Sep 2026), slides 3–17 = pages 1–14. Of the 50 lines the deck
-  writes, 43 match character for character, 2 differ only by a comma or full stop where the deck's sentence is cut into
-  two clips, and 5 are the deck's line with a different block count: on 2026-10-08 every screen moved to one 53px cube
-  ("the size of cube will remain as shown in image 1 throughout the game" + "do not reduce the sizes of any elements" +
-  "if number of cubes changes thats fine"), so the objects keep their size and their counts changed: table 9, door 7,
-  bed 12, pillow 5, fridge 7, mats 8 / 9, chairs 6 / 7, classroom 11 / 7 / 6 / 9 (the almirah stays 7);
-  and on P3 the bottle 4 and the TV 6 ("zoom in the bottle and tv"; boxes 6 / 5 / 4).
-- **Against the recordings** — all 51 sentence clips were transcribed (Whisper) and compared with their lines: each says what
-  is written here, its number included. The 12 counting words (एक … बारह) are single words too short to transcribe reliably:
-  एक … नौ are the original 28 Sep renders, दस / ग्यारह / बारह were rendered 2026-10-08 in the same voice and loudness.
+**Generated from the updated deck** `MTG2A04_L02_S01_review.pptx` (the copy in this folder, received 2026-10-09; slides
+3–17 = pages 1–14) and checked on 2026-10-09 against the game: its line list in index.html, and all 51 sentence clips,
+transcribed with faster-whisper. The deck's block counts are now the game's own on every screen, so every line keeps the
+game's numbers: table 9, door 7, bed 12, almirah 7, pillow 5, fridge 7; mats 8 / 9; chairs 6 / 7; P2 7 / 5 / 3; P3 window 5,
+bottle 4, TV 6; classroom 6 / 9 / 11 / 7.
+
+- **46 clips say the deck's line.** 44 match it character for character; 2 are a deck sentence cut into two clips at its
+  own break.
+- **2 clips need re-recording**: the classroom's almirah pair. The new deck calls it अलमारी, but the clips still say
+  छोटी अलमारी, the 24 Sep deck's name (see P4).
+- **3 clips are not in the deck**: the transition cards between the phases.
+- **The 12 counting clips (एक … बारह) are the deck's counting VO**, which for the bed now runs to बारह in the deck itself.
+  These single words are too short to transcribe reliably. एक … नौ are the original 28 Sep renders; दस, ग्यारह and बारह
+  were rendered 2026-10-08 in the same voice and loudness.
+
+What changed since the 24 Sep deck:
+
+- The five praise lines with a count (table, door, bed, pillow, fridge) now carry the game's counts, so the clips are the
+  deck's lines exactly.
+- The classroom page now writes out all four objects' two lines; before, only the bench's were written.
+- The classroom page now has each object "repeat the same process" and drops "game continues without any VO". The game
+  still speaks for the first object only (see P4).
 
 **64 files: 63 voiceover clips + 1 sound effect.** Every file is used, and every line the game asks for has its file.
 
 Source column — **PPT, exact**: the deck's line as written. **PPT, exact words (split point)**: the deck's sentence cut into two clips at its
 own break. **PPT counting**: the deck's "एक… दो… तीन…" counting, one clip per number. **Not in the PPT**: the transition
-cards between the phases. **Derived**: not written in the deck, follows its pattern (the classroom).
+cards between the phases. **Re-record**: the deck's line; the clip does not say it yet.
 
 ## Title screen — PPT page 1 (slide 3)
 
@@ -55,7 +67,7 @@ Correct answer: **the sound effect only, no voiceover** (the deck: "Correct Resp
 | `vo_rule_c` | और एक-दूसरे के ऊपर न रखें। | VO3: a block is set down overlapping | 2.7s | PPT, exact |
 | `vo_p3_child` | अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है। | The child-action VO: the child's turn starts | 4.8s | PPT, exact |
 | `vo_num_3` `vo_num_4` `vo_num_5` `vo_num_6` `vo_num_7` `vo_num_8` `vo_num_9` | तीन · चार · पाँच · छह · सात · आठ · नौ | Each block the child lays, counted aloud (blocks 3–9) | ~1.0s each | PPT counting |
-| `vo_p3_done` | शाबाश! यह टेबल 9 ब्लॉक्स लंबी है। | On completion; the "9 ब्लॉक्स" badge pops on the number | 4.1s | PPT line, count changed (one 53px cube - see below) — the PPT: "शाबाश! यह टेबल 6 ब्लॉक्स लंबी है।" |
+| `vo_p3_done` | शाबाश! यह टेबल 9 ब्लॉक्स लंबी है। | On completion; the "9 ब्लॉक्स" badge pops on the number | 4.1s | PPT, exact |
 
 A wrong drop (gap / overlap) bounces back and the ghost drag shows — no voiceover.
 
@@ -73,7 +85,7 @@ A wrong drop (gap / overlap) bounces back and the ghost drag shows — no voiceo
 | `vo_rule_c` | और एक-दूसरे के ऊपर न रखें। | VO3: a block is set down overlapping | 2.7s | PPT, exact |
 | `vo_p4_child` | अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है। | The child-action VO: the child's turn starts | 5.1s | PPT, exact |
 | `vo_num_3` `vo_num_4` `vo_num_5` `vo_num_6` `vo_num_7` | तीन · चार · पाँच · छह · सात | Each block the child lays, counted aloud (blocks 3–7) | ~1.0s each | PPT counting |
-| `vo_p4_done` | शाबाश! यह दरवाजा 7 ब्लॉक्स लंबा है। | On completion; the "7 ब्लॉक्स" badge pops on the number | 4.4s | PPT line, count changed (one 53px cube - see below) — the PPT: "शाबाश! यह दरवाजा 9 ब्लॉक्स लंबा है।" |
+| `vo_p4_done` | शाबाश! यह दरवाजा 7 ब्लॉक्स लंबा है। | On completion; on the number, the "7 ब्लॉक्स" box comes out onto the wall beside the door | 4.4s | PPT, exact |
 
 A wrong drop (gap / overlap) bounces back and the ghost drag shows — no voiceover.
 
@@ -89,7 +101,7 @@ A wrong drop (gap / overlap) bounces back and the ghost drag shows — no voiceo
 |---|---|---|---|---|
 | `vo_p5_instr` | पलंग की लंबाई ब्लॉक से मापिए। | On entry (the VO is the instruction OST) | 2.7s | PPT, exact |
 | `vo_p5_ask` | अब बताइए, पलंग की लंबाई कितनी है? | After the last block is laid (the OST becomes the question) | 3.3s | PPT, exact |
-| `vo_p5_ok` | शाबाश! पलंग की लंबाई 12 ब्लॉक्स है। | Correct answer (with the SFX and confetti) | 4.1s | PPT line, count changed (one 53px cube - see below) — the PPT: "शाबाश! पलंग की लंबाई 8 ब्लॉक्स है।" |
+| `vo_p5_ok` | शाबाश! पलंग की लंबाई 12 ब्लॉक्स है। | Correct answer (with the SFX and confetti) | 4.1s | PPT, exact |
 | `vo_try_again` | ब्लॉक्स को एक बार फिर गिनिए। | Wrong answer 1: the option wiggles, the laid blocks glow | 2.6s | PPT, exact |
 | `vo_num_1` `vo_num_2` `vo_num_3` `vo_num_4` `vo_num_5` `vo_num_6` `vo_num_7` `vo_num_8` `vo_num_9` `vo_num_10` `vo_num_11` `vo_num_12` | एक … बारह | Wrong answer 2: each block lights up in turn as it is counted | ~1.0s each | PPT counting |
 
@@ -113,7 +125,7 @@ Wrong answer 3: counting digits beside each block, then the hand on the right op
 |---|---|---|---|---|
 | `vo_p6b_instr` | तकिये की लंबाई ब्लॉक से मापिए। | On entry (the VO is the instruction OST) | 2.7s | PPT, exact |
 | `vo_p6b_ask` | अब बताइए, तकिये की लंबाई कितनी है? | After the last block is laid (the OST becomes the question) | 3.3s | PPT, exact |
-| `vo_p6b_ok` | शाबाश! तकिये की लंबाई 5 ब्लॉक्स है। | Correct answer (with the SFX and confetti) | 4.2s | PPT line, count changed (one 53px cube - see below) — the PPT: "शाबाश! तकिये की लंबाई 3 ब्लॉक्स है।" |
+| `vo_p6b_ok` | शाबाश! तकिये की लंबाई 5 ब्लॉक्स है। | Correct answer (with the SFX and confetti) | 4.2s | PPT, exact |
 | `vo_try_again` | ब्लॉक्स को एक बार फिर गिनिए। | Wrong answer 1: the option wiggles, the laid blocks glow | 2.6s | PPT, exact |
 | `vo_num_1` `vo_num_2` `vo_num_3` `vo_num_4` `vo_num_5` | एक … पाँच | Wrong answer 2: each block lights up in turn as it is counted | ~1.0s each | PPT counting |
 
@@ -125,7 +137,7 @@ Wrong answer 3: counting digits below each block, then the hand on the right opt
 |---|---|---|---|---|
 | `vo_p7_instr` | फ्रिज की लंबाई ब्लॉक से मापिए। | On entry (the VO is the instruction OST) | 2.7s | PPT, exact |
 | `vo_p7_ask` | अब बताइए, फ्रिज की लंबाई कितनी है? | After the last block is laid (the OST becomes the question) | 3.3s | PPT, exact |
-| `vo_p7_ok` | शाबाश! फ्रिज की लंबाई 7 ब्लॉक्स है। | Correct answer (with the SFX and confetti) | 4.2s | PPT line, count changed (one 53px cube - see below) — the PPT: "शाबाश! फ्रिज की लंबाई 6 ब्लॉक्स है।" |
+| `vo_p7_ok` | शाबाश! फ्रिज की लंबाई 7 ब्लॉक्स है। | Correct answer (with the SFX and confetti) | 4.2s | PPT, exact |
 | `vo_try_again` | ब्लॉक्स को एक बार फिर गिनिए। | Wrong answer 1: the option wiggles, the laid blocks glow | 2.6s | PPT, exact |
 | `vo_num_1` `vo_num_2` `vo_num_3` `vo_num_4` `vo_num_5` `vo_num_6` `vo_num_7` | एक … सात | Wrong answer 2: each block lights up in turn as it is counted | ~1.0s each | PPT counting |
 
@@ -173,16 +185,24 @@ A right pair: the connection locks + a positive SFX — no voiceover. Wrong 1: t
 | Clip | Line | When it plays | Length | Source |
 |---|---|---|---|---|
 | `vo_p13_intro` | आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए। | On entry | 8.3s | PPT, exact |
-| `vo_p13_measure` | बेंच को ब्लॉक से मापिए। | First object picked is the bench: as it is measured | 2.3s | PPT, exact |
-| `vo_p13_place` | अब बेंच के लिए सही जगह चुनिए। | First object picked is the bench: once it is measured | 2.7s | PPT, exact |
-| `vo_p13_measure_almirah` | छोटी अलमारी को ब्लॉक से मापिए। | First object picked is the small almirah: as it is measured | 2.9s | Derived — the deck's bench line, for this object |
-| `vo_p13_place_almirah` | अब छोटी अलमारी के लिए सही जगह चुनिए। | First object picked is the small almirah: once it is measured | 3.4s | Derived — the deck's bench line, for this object |
-| `vo_p13_measure_chair` | कुर्सी को ब्लॉक से मापिए। | First object picked is the chair: as it is measured | 2.3s | Derived — the deck's bench line, for this object |
-| `vo_p13_place_chair` | अब कुर्सी के लिए सही जगह चुनिए। | First object picked is the chair: once it is measured | 2.8s | Derived — the deck's bench line, for this object |
-| `vo_p13_measure_board` | ब्लैकबोर्ड को ब्लॉक से मापिए। | First object picked is the blackboard: as it is measured | 2.6s | Derived — the deck's bench line, for this object |
-| `vo_p13_place_board` | अब ब्लैकबोर्ड के लिए सही जगह चुनिए। | First object picked is the blackboard: once it is measured | 3.0s | Derived — the deck's bench line, for this object |
+| `vo_p13_measure` | बेंच को ब्लॉक से मापिए। | VO1: the bench is picked and enlarged for measuring | 2.3s | PPT, exact |
+| `vo_p13_place` | अब बेंच के लिए सही जगह चुनिए। | VO2: the bench is measured and the classroom comes back | 2.7s | PPT, exact |
+| `vo_p13_measure_almirah` | अलमारी को ब्लॉक से मापिए। | VO1: the almirah is picked and enlarged for measuring | 2.9s (current clip) | **Re-record** — PPT, exact; the clip says "छोटी अलमारी को ब्लॉक से मापिए।" |
+| `vo_p13_place_almirah` | अब अलमारी के लिए सही जगह चुनिए। | VO2: the almirah is measured and the classroom comes back | 3.4s (current clip) | **Re-record** — PPT, exact; the clip says "अब छोटी अलमारी के लिए सही जगह चुनिए।" |
+| `vo_p13_measure_chair` | कुर्सी को ब्लॉक से मापिए। | VO1: the chair is picked and enlarged for measuring | 2.3s | PPT, exact |
+| `vo_p13_place_chair` | अब कुर्सी के लिए सही जगह चुनिए। | VO2: the chair is measured and the classroom comes back | 2.8s | PPT, exact |
+| `vo_p13_measure_board` | ब्लैकबोर्ड को ब्लॉक से मापिए। | VO1: the blackboard is picked and enlarged for measuring | 2.6s | PPT, exact |
+| `vo_p13_place_board` | अब ब्लैकबोर्ड के लिए सही जगह चुनिए। | VO2: the blackboard is measured and the classroom comes back | 3.0s | PPT, exact |
 
-Blocks: bench 11, small almirah 7, chair 6, blackboard 9 (the PPT's example: 6 / 5 / 8 / 4 - the counts follow the 53px cube; the spaces in the room keep their size). The deck gives the bench as its example; the child may pick any object first, so each object has its pair of lines and only the first object picked speaks. After that the game runs without voiceover (the deck: "game continues without any VO"). A right fit: the correct SFX only; a wrong space: the object goes back to the tray — no voiceover, no hints.
+**Where the game differs from the new deck:** only the first object picked speaks. The new deck gives each object its own
+VO1 and VO2, has the child "repeat the same process" for each, and no longer says "game continues without any VO". The game
+still follows the 24 Sep deck: the first object picked (any of the four) speaks its two lines, and the other three are
+silent. To follow the new deck, every object would speak its pair; all eight clips already exist.
+
+Blocks: bench 11, almirah 7, chair 6, blackboard 9. These are the deck's four spaces, 6 / 9 / 11 / 7, written inside the
+spaces with no blocks shown, as the deck says. A right fit plays the correct SFX only. A wrong space shakes, and the object
+goes back to its box in the tray, with no voiceover and no hints. When all four are in, the confetti plays with its SFX and
+the finished room holds for a moment (the deck's "Game Completion").
 
 ## End screen — PPT page 14 (slide 17)
 
@@ -209,6 +229,10 @@ Blocks: bench 11, small almirah 7, chair 6, blackboard 9 (the PPT's example: 6 /
 | `vo_num_12` | बारह | 1.2s |
 
 `vo_num_10` … `vo_num_12` (दस, ग्यारह, बारह) are for the bed's 12 blocks (G1, wrong answer 2).
+
+In the hints that count block by block the numbers are said on a 600ms beat, each clip started 0.22s in (past its silent
+lead-in, so the word lands on the beat). Each word starts ~0.28s into its clip and lasts 0.26–0.49s; a re-recorded number
+must keep its word under ~0.5s, or the next number cuts its end.
 
 ## How the clips are made
 

@@ -344,6 +344,77 @@ function _tone(freqs, type, dur, vol){ const c = _ac(); if(!c) return; const t0 
     const t = t0 + i*(dur/freqs.length); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur/freqs.length); o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur/freqs.length); }); }
 const sfxTap       = ()=> _tone([520], "sine", 0.09, 0.09);
+/* the robot mop's drive sound (review 2026-10-09: "can we have an SFX of the robo mop's entry - keeping everything in mind"):
+   synthesised live in Web Audio, not a file, so it follows the drive frame by frame (MDK.robot drive() calls update()):
+   a soft motor - a low sawtooth through a low-pass and a sine an octave up, with a slow wobble - and its brushes -
+   band-passed noise with a fast rotor flutter. The physics: its loudness is the perspective scale q (amplitude ~
+   1/distance: faint far away, fuller close by); the motor's pitch and the brushes follow its pace over the ground (up as it
+   sets off, steady while it cruises, down as it brakes); a touch of Doppler while it comes closer (q growing); and it pans
+   with where it is across the stage. Its level sits well under the VO (measured ~-31 dBFS RMS at its home size, the VO ~-20, the BGM bed ~-35) and
+   it dips under any VO (isPlaying, as the BGM ducks), so the instruction stays clear; in the background it falls silent.
+   Web Audio's gain also holds on iOS, where a media element's .volume is ignored.
+   arrive(): it winds down and parks with a happy beep-boop; sparkle(n, gap, delay): soft glassy tings with the clean
+   floor's twinkle wave; stop(): gone at once (the slide left). No Web Audio: null - the drive is simply silent. */
+function robotDriveSfx(){
+  const c = _ac(); if(!c || !c.createOscillator) return null;
+  try{
+    const VOL = .16, nodes = [], t0 = c.currentTime;   // (.07 measured -38 dBFS near - under the BGM bed, lost on a tablet: +7 dB)
+    const out = c.createGain(); out.gain.value = 0;
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if(pan){ out.connect(pan); pan.connect(c.destination); } else out.connect(c.destination);
+    const osc = (type, f)=>{ const o = c.createOscillator(); o.type = type; o.frequency.value = f; nodes.push(o); return o; };
+    const gain = v =>{ const g = c.createGain(); g.gain.value = v; return g; };
+    // the motor
+    const motor = osc("sawtooth", 80), oct = osc("sine", 160), lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 550; lp.Q.value = .6;
+    const mg = gain(.55), og = gain(.3); motor.connect(lp); lp.connect(mg); mg.connect(out); oct.connect(og); og.connect(out);
+    const wob = osc("sine", 5.5), wg = gain(1.4), wg2 = gain(2.8); wob.connect(wg); wg.connect(motor.frequency); wob.connect(wg2); wg2.connect(oct.frequency);
+    // the brushes
+    const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = nb.getChannelData(0);
+    for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource(); noise.buffer = nb; noise.loop = true; nodes.push(noise);
+    const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2400; bp.Q.value = .7;
+    const ng = gain(.06); noise.connect(bp); bp.connect(ng); ng.connect(out);
+    const flut = osc("sine", 11), fg = gain(.03); flut.connect(fg); fg.connect(ng.gain);
+    nodes.forEach(n => n.start(t0));
+    let on = true, lastQ = null, lastT = 0, hidden = document.hidden;
+    const vis = ()=>{ hidden = document.hidden; if(hidden) out.gain.setTargetAtTime(0, c.currentTime, .05); };
+    document.addEventListener("visibilitychange", vis);
+    const end = (fade, after)=>{
+      if(!on) return; on = false; document.removeEventListener("visibilitychange", vis);
+      const t = c.currentTime; out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value, t); out.gain.setTargetAtTime(0, t, fade);
+      nodes.forEach(n =>{ try{ n.stop(t + fade * 6); }catch(e){} });
+      setTimeout(()=>{ try{ out.disconnect(); }catch(e){} }, fade * 6000 + 200);
+      if(after) after(t);
+    };
+    const blip = (t, f1, f2, dur, vol, type)=>{ const o = c.createOscillator(), g = c.createGain(); o.type = type || "triangle";
+      o.frequency.setValueAtTime(f1, t); o.frequency.linearRampToValueAtTime(f2, t + dur * .7);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + .02); };
+    return {
+      // q: its perspective size (1 at home); pace: its speed over the ground, 0..1; x: across the stage, -1 (left) .. 1
+      update(q, pace, x, now){
+        if(!on || hidden) return; const t = c.currentTime;
+        let dop = 1;
+        if(lastQ != null && now > lastT){ const dq = (q - lastQ) / ((now - lastT) / 1000); dop = 1 + Math.max(-.04, Math.min(.04, dq * .05)); }
+        lastQ = q; lastT = now;
+        const f = (70 + 50 * pace) * dop;
+        motor.frequency.setTargetAtTime(f, t, .06); oct.frequency.setTargetAtTime(f * 2, t, .06);
+        lp.frequency.setTargetAtTime(420 + 520 * pace, t, .08);
+        ng.gain.setTargetAtTime(.025 + .07 * pace, t, .08);
+        out.gain.setTargetAtTime(VOL * Math.max(.15, q) * (isPlaying ? .45 : 1) * (.6 + .4 * pace), t, .08);
+        if(pan) pan.pan.setTargetAtTime(Math.max(-.85, Math.min(.85, x)), t, .1);
+      },
+      // it winds down, then parks: a happy beep-boop, centred
+      arrive(){ end(.12, t =>{ motor.frequency.setTargetAtTime(50, t, .1); oct.frequency.setTargetAtTime(100, t, .1);
+        blip(t + .32, 880, 1040, .11, .1); blip(t + .46, 1175, 1400, .14, .1); }); },
+      // soft glassy tings, rising, with the clean floor's twinkle wave
+      sparkle(n, gap, delay){ const NOTES = [2093, 2349, 2637, 3136, 3520, 4186], t = c.currentTime + (delay || 0) / 1000;
+        for(let i = 0; i < n; i++){ const f = NOTES[Math.min(NOTES.length - 1, i)], ti = t + i * gap / 1000;
+          blip(ti, f, f, .5, .05, "sine"); blip(ti, f * 2.76, f * 2.76, .25, .011, "sine"); } },
+      stop(){ end(.04); }
+    };
+  }catch(e){ return null; }
+}
 /* ===== QA checklist 2026-10-05: the STANDARD SFX + background music, as files in assets/sfx/ =====
    sfx_correct / sfx_wrong (correct + incorrect feedback), sfx_confetti (with every confetti burst), sfx_play (the play
    button), sfx_nudge (a soft, encouraging chime with each nudge hand), bgm (the lesson's background track, from the play
@@ -893,9 +964,18 @@ const MDK = (function(){
      in over .45s, so three or four popped at once, 12 in ~1.7s), 650ms (P3), ~1.05-1.2s (waiting out each spoken
      number). 850: the spoken numbers' words end by ~.81s (vo_num_1..12: a .28s lead-in, the word, then silence to
      ~1.05-1.17s), so a said number is never cut - the next one only cuts its silent tail. A plain timer, not wait():
-     the pace carries the count, so reduced motion keeps it. countBeat(say): say the number (if any), then the beat. */
-  const COUNT_MS = 850;
-  const countBeat = say =>{ if(say) say(); return new Promise(r => setTimeout(r, COUNT_MS)); };
+     the pace carries the count, so reduced motion keeps it. countBeat(say): say the number (if any), then the beat.
+     Then (review 2026-10-09, of the 850ms count: "it's too slow - I don't want it too slow or fast, medium paced - fix it
+     throughout the game"): 600ms a number (~1.7 a second), digits and spoken numbers alike. Measured on vo_num_1..12, each
+     word starts .28-.30s into its clip and lasts .26-.49s (दस, the longest, ends at .76s): a spoken number now starts
+     COUNT_LEAD into its clip - set while the clip is still loading, so it STARTS there (the default playback start
+     position) - so the word lands on the beat and even दस ends .54s later, before the next number. */
+  // (then, of the 600: "this was fast too - 1, 2, 3 ..." - so the middle of the two: 850 was too slow, 600 too fast -
+  //  720, ~1.4 numbers a second; with COUNT_LEAD the word still starts on the beat, and दस (.54s) ends before the next)
+  const COUNT_MS = 720, COUNT_LEAD = .22;
+  const countBeat = say =>{
+    if(say){ say(); if(/vo_num_/.test(voEl.getAttribute("data-asset") || "")) try{ voEl.currentTime = COUNT_LEAD; }catch(e){} }
+    return new Promise(r => setTimeout(r, COUNT_MS)); };
   function add(parent, tag, cls, css){ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; parent.appendChild(e); return e; }
   const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
   const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
@@ -1475,12 +1555,16 @@ const MDK = (function(){
         place(P[0], false);                                                  // at the start (off the stage) before a frame is drawn
         await wait(o.delay || 0); if(!back.isConnected) return;
         wetOn();
+        // [sfx] its sound, following it (robotDriveSfx): loudness = its size q, motor = its pace over the ground, pan = where it is
+        const sfx = typeof robotDriveSfx === "function" ? robotDriveSfx() : null, SW = parent.offsetWidth || 1333;
+        const paceAt = u =>{ const a = Math.max(0, u - .004), b = Math.min(1, u + .004); return (ease(b) - ease(a)) / (b - a); }, PACE = paceAt(.5) || 1;
         const t0 = performance.now(); let lastSp = 0, prev = P[0];
         await new Promise(res =>{
           (function step(t){
-            if(!back.isConnected) return res();
+            if(!back.isConnected){ if(sfx) sfx.stop(); return res(); }
             const u = Math.max(0, Math.min(1, (t - t0) / MS)), e = ease(u);   // sets off gently, brakes into its spot
             const c = at(e * L); place(c, true);
+            if(sfx) sfx.update(qOf(c[1]), Math.min(1, paceAt(u) / PACE), (c[0] - SW / 2) / (SW / 2), t);
             const vx = c[0] - prev[0], vy = c[1] - prev[1], sp = Math.hypot(vx, vy); prev = c;
             if(sp > .3) gaze({ x: Math.max(-1, Math.min(1, vx / sp * 1.1)), y: Math.max(-.6, Math.min(.6, vy / sp * .6)) }, 140);   // eyes on the way ahead
             if(t - lastSp > 110){ const f = behind(); if(f){ lastSp = t; sparkle(f); } }   // twinkles just behind it
@@ -1490,6 +1574,7 @@ const MDK = (function(){
         carry(0, 0, 1); body = HOME_BODY;
         blocks.forEach(b =>{ if(!b._placed && !b.classList.contains("lift") && !b.classList.contains("moving")) setPos(b, b._home); });
         riders.forEach(b => b._busy = false);
+        if(sfx){ sfx.arrive(); sfx.sparkle(6, 260, 200); }                  // parks (beep-boop), and the tings with the twinkle wave
         dry(true); gaze(null); blink();
       };
       roaming = roaming.then(go, go);
@@ -2006,6 +2091,20 @@ const MDK = (function(){
     }
     return c;
   }
+  /* wallBox (T3, the door - review 2026-10-09, a circle on the empty wall left of the column: "can we place the 7 blocks
+     box on the wall? how will you do it better"): the box comes OUT OF THE COLUMN onto the wall - small, behind the column's
+     cubes at `from` (z 5: the placed cubes are 6, their digits 11), it glides out in a gentle arc, growing, a little past its
+     size, and settles with its top at `top`, centred on cx - a soft shadow on the wall under it (CSS .md-count.wall) */
+  function wallBox(parent, text, cx, top, w, h, from){
+    const c = countBox(parent, text, cx, top, w, h); c.classList.add("wall"); c.style.zIndex = 5;
+    if(reduce()) return c;
+    const dx = from.x - cx, dy = from.y - (top + h / 2);
+    c.animate([{ translate: px(dx) + " " + px(dy), scale: ".2", opacity: 0, easing: "ease-out" },
+               { translate: px(dx * .86) + " " + px(dy * .86), scale: ".32", opacity: 1, offset: .12, easing: "cubic-bezier(.3,.6,.35,1)" },
+               { translate: px(dx * .08) + " " + px(dy * .08 - h * .22), scale: "1.06", opacity: 1, offset: .7, easing: "ease-in-out" },
+               { translate: "0 0", scale: "1", opacity: 1 }], { duration: 950 });
+    return c;
+  }
   /* a bouncing arrow at (x, y): "down" above a tile, "left" to the right of one */
   function arrow(parent, x, y, dir){ const a = add(parent, "div", "md-arrow " + (dir || "down"), "left:" + px(x - 16) + ";top:" + px(y - 16)); return a; }
   /* the tutorial mascot's pose: "guide" / "cheer" / null = back to the card's own. Review 2026-09-30: "why has Swifty
@@ -2061,6 +2160,7 @@ const MDK = (function(){
   //  small flickers, about two changes a second at most, the dips shallow)
   // (then "the टिमटिमाना effect is gone": it had become too shallow and too slow to see - a diya's flicker you can see again,
   //  ~1.8 s round, its dips to about half, the glow on the cube itself, so no glare)
+  const STEADY_L = .85;                                                    // a steady lamp's level (opts.steady): calm, warm, not glaring
   const TWINKLE = [[0, 1], [.14, .5], [.26, .95], [.4, .62], [.55, 1], [.68, .45], [.84, .9], [1, 1]];
   // the switch: blue and yellow cross-faded show a muddy green half-way, so the swap happens under a quick warm-white flash
   // (a light catching) - its level through the power-up / the switch-off
@@ -2073,7 +2173,15 @@ const MDK = (function(){
                                                                            //  restore its picture and its place under the new light)
     // (a single cube - counted, ~0.65-1s each - powers up and flickers quicker, so it twinkles within its count)
     const o = opts || {}, R = reduce(), D = o.delay || 0, ROW = o.pulseAt != null, RAMP = ROW ? 260 : 160;
-    const CYCLE = (ROW ? 2000 : 1600) * (.85 + Math.random() * .3);       // (each its own pace)
+    /* opts.steady (review 2026-10-09: "when 1, 2, 3 ... and the टिमटिमाना are happening my focus goes from the counting to the
+       twinkle - remove it only while counting, throughout the game"): no twinkle - it powers up (its warm flash marks the
+       cube being counted now) and holds a calm, even glow (STEADY_L) until it is switched off. While counting, the only
+       change on the screen is the next cube and its number; the steady lit row shows how many so far. The 1st wrong's
+       row (no counting) still twinkles. */
+    const STEADY = !!o.steady, TOP = STEADY ? STEADY_L : 1;
+    // (review 2026-10-09 "reduce the number of times it twinkles just a little, in both wrong attempts": each round of
+    //  its three dips ~35% longer - 2.7s in a row (was 2.0), 2.2s counted (was 1.6) - about a quarter fewer flickers)
+    const CYCLE = (ROW ? 2700 : 2200) * (.85 + Math.random() * .3);       // (each its own pace)
     const own = (f => f && f !== "none")(getComputedStyle(el).filter);     // (its own soft shadow - MDK.cube's drop-shadow)
     /* THE CUBE BECOMES A LAMP. Light laid over the blue cube can't glow - light on blue mixes to white or olive: it showed
        as a white spot in a blue cube (review 2026-10-08: "this is still bad"); and an opaque lit cube read as paint
@@ -2140,11 +2248,11 @@ const MDK = (function(){
       //  its light come in the second, the soft flash bridging the two)
       const swapIn = (t, k0, k1)=> t === blue ? [k0, Object.assign({}, k1, { offset: .5 }), k1]
                                : t === shell || t === light ? [k0, Object.assign({}, k0, { offset: .45 }), k1] : [k0, k1];
-      parts.forEach(([t, k0, at])=> keep(t.animate(swapIn(t, k0, at(1)), { duration: RAMP, delay: D, fill: "both", easing: "ease-out" })));
+      parts.forEach(([t, k0, at])=> keep(t.animate(swapIn(t, k0, at(TOP)), { duration: RAMP, delay: D, fill: "both", easing: "ease-out" })));
       if(flash) keep(flash.animate(FLASH_ON, { duration: RAMP * 1.4, delay: D, fill: "both" }));
       const t0 = o.pulseAt != null ? o.pulseAt : document.timeline.currentTime + D + RAMP;
-      parts.forEach(([t, , at])=>{ keep(t.animate(TWINKLE.map(([off, L])=> Object.assign(at(L), { offset: off, easing: "ease-in-out" })),
-        { duration: CYCLE, iterations: Infinity })).startTime = t0; });
+      if(!STEADY) parts.forEach(([t, , at])=>{ keep(t.animate(TWINKLE.map(([off, L])=> Object.assign(at(L), { offset: off, easing: "ease-in-out" })),
+        { duration: CYCLE, iterations: Infinity })).startTime = t0; });   // (steady: it stays as the power-up left it)
     }
     const h = { off(now){
       if(done) return; done = true; if(el._bulb === h) el._bulb = null;
@@ -2264,7 +2372,7 @@ const MDK = (function(){
   }
   /* pointer -> scene px (the stage is scaled by --scale) */
   function local(scene, ev){ const r = scene.getBoundingClientRect(), k = r.width / (scene.offsetWidth || 1); return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; }
-  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, robot, robotGeom, ground, nightWindow, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, slipBox, riseBox, arrow, pose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow, bulb, bulbRow, countBeat, COUNT_MS };
+  return { STRIP, FLAG_LOW, px, wait, add, pos, setPos, cube, hand, glide, land, okFlash, knock, toybox, toyboxGeom, basket, basketGeom, holder, holderGeom, robot, robotGeom, ground, nightWindow, wallPainting, paintingGeom, endLines, show, unpulse, digit, mark, freeSpot, plate, boxPlate, slipBox, riseBox, wallBox, arrow, pose, atVoice, BADGE_AR, CUBE, local, reduce, childMeasure, shake, softGlow, bulb, bulbRow, countBeat, COUNT_MS };
 })();
 
 const SlideModules = {
@@ -2588,10 +2696,16 @@ const SlideModules = {
             const apron = OY + OH * .39, top = apron + 6;                     // (obj_table_measure.webp: top + apron solid to 0.39 of it, the back legs 0.163..0.833 apart)
             const h = Math.max(48, Math.min(72, OY + OH * .8 - top)), w = Math.min(220, OW * .6);
             plateEl = K.slipBox(scene, txt, (A0 + A1) / 2, top, w, h, apron - 2);
-          } else {                                                           // [robot] T3: out of the light under the door
-            const lt = scene.querySelector(".md-doorlight"), w = Math.min(220, OW * .92), cx = OX + OW / 2;
-            if(lt && !reduce) lt.animate([{ filter: "brightness(1)" }, { filter: "brightness(1.9)", offset: .3 }, { filter: "brightness(1)" }], { duration: 900, easing: "ease-out" });
-            plateEl = K.riseBox(scene, txt, cx, A0 - 2, w, 76, { x: cx, y: A0 - 4 });
+          } else {                                                           // [robot] T3: out of the column, onto the wall
+            /* [wall-box] review 2026-10-09: it rose out of the light under the door (MDK.riseBox) and stood over the door's
+               foot, against the column. Now it stands on the free wall left of the column - centred between the card's left
+               edge and the column's digits, and between the top of the scene (under the heading) and the robot's cube (its
+               glow included) - and comes out of the column's middle (MDK.wallBox): the "7 ब्लॉक्स" is the 7 cubes' label */
+            const sR2 = scene.getBoundingClientRect(), kk = sR2.width / (scene.offsetWidth || 1) || 1, c0 = slotXY(0).x;
+            const wallL = card ? (card.getBoundingClientRect().left - sR2.left) / kk + 10 + 24 : 24, wallR = c0 - 30 - 28;   // (the digits stand 30px left of the column)
+            const rbTop = boxAt.y - 34, h = 80, w = Math.min(240, wallR - wallL - 20), cx = (wallL + wallR) / 2;
+            const cy = Math.min((8 + rbTop) / 2, rbTop - 18 - h / 2);
+            plateEl = K.wallBox(scene, txt, cx, cy - h / 2, w, h, { x: c0 + S / 2, y: (A0 + A1) / 2 });
           }
           setTimeout(()=>{ if(!alive()) return; cheer(); try{ confettiCannon(); }catch(e){} }, reduce ? 0 : box.robot ? 1100 : 600);   // ~its peak: it stands, the stars spin (the robot's box: once it has settled, a pop) - then the confetti
         });
@@ -2847,9 +2961,13 @@ const SlideModules = {
       let digits = null, nudged = false;
       async function deckWrong(){
         if(wrong === 1){ K.bulbRow(laid(), 2000); await say("try_again"); }  // a string of lights: on one after another, then two swells
-        else if(wrong === 2){ const bs = laid();
-          for(let k = 0; k < bs.length; k++){ if(!alive()) return;
-            const lit = K.bulb(bs[k]); await K.countBeat(()=> sayNum(k + 1)); lit.off(); } }   // each one on while it is counted (the counting beat)
+        else if(wrong === 2){ const bs = laid(), lits = [];
+          // each one lit as it is counted and KEPT lit - 1, then 1 + 2, then 1 + 2 + 3 ... - and all of them off once the
+          // count is done (review 2026-10-09: "glow on the 1st cube, then on the 1st and 2nd both, and so on; after the
+          // counting is complete the colour disappears - the same throughout the game"); one at a time before
+          try{ for(let k = 0; k < bs.length; k++){ if(!alive()) return;
+            lits.push(K.bulb(bs[k], { steady: true })); await K.countBeat(()=> sayNum(k + 1)); } }   // (the counting beat; steady - no twinkle while counting)
+          finally{ lits.forEach(l => l.off()); } }
         else {
           lockWrong();                                                       // the wrong options off, then the digits + the hand
           if(!digits){ digits = [];
@@ -2988,6 +3106,10 @@ const SlideModules = {
           ? "left:" + px(ox - 8) + ";top:" + px(oy - 8) + ";width:" + px(g.w + 16) + ";height:" + px(g.h + 8 + S + 16)
           : "left:" + px(ox - 8) + ";top:" + px(Math.min(oy, base - it.n * S) - 8) + ";width:" + px(g.w + CG + S + 16) + ";height:" + px(Math.max(g.h, it.n * S) + 16));
         e.hit.setAttribute("role", "button");
+        // [deck] where the hand taps it (review 2026-10-09: "tap on the mat", then the chairs "here also"; as P4's .pk-tap):
+        // a chair's seat (its rider's item.seat - mid-cushion), a mat's centre
+        const tp = it.seat || { cx: .5, y: .5 };
+        e.tap = K.add(scene, "i", "cm-tap", "left:" + px(ox + g.w * (tp.cx != null ? tp.cx : .5)) + ";top:" + px(oy + g.h * tp.y));
         e.plateAt = AX === "x" ? { cx: ox + g.w / 2, y: base + 8 + S + NUM } : { cx: ox + g.w + CG + S + 36 + PW / 2, y: base - it.n * S / 2 - PH / 2 };
         x += gw(g) + GAP;
         return e;
@@ -2996,10 +3118,26 @@ const SlideModules = {
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const DECK = d.wrong_cue === "deck";                                   // the deck's own wrong-answer lines (above)
       const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      let wrong = 0, busy = true, nudged = false, digits = [];
+      let wrong = 0, busy = true, nudged = false, digits = [], rowsGone = false;
+      const dropDigits = ()=>{ digits.forEach(n =>{ n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, fill: "forwards" }); setTimeout(()=> n.remove(), 300); }); digits = []; };
+      /* [deck] the hand nudge (review 2026-10-09, G4: "when hand nudge comes disappear the boxes and number so that the
+         hand nudge come on the mat not on the cube"; P1: "correct the hand nudge here also"): both rows / columns of blocks
+         and their digits fade out and the hand taps the right OBJECT itself (e.tap); the blocks come back with the correct
+         answer (its counts are of them).
+         .cm-gone holds them out past .cm-locked's !important opacity (the 3rd wrong answer) */
+      function rowsOut(){
+        if(rowsGone) return; rowsGone = true; dropDigits();
+        els.forEach(o => o.blocks.forEach(b =>{ b._out = b.animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduce ? 0 : 250, fill: "forwards" }); }));
+        setTimeout(()=>{ if(rowsGone) els.forEach(o => o.blocks.forEach(b => b.classList.add("cm-gone"))); }, reduce ? 0 : 260);
+      }
+      function rowsIn(){
+        if(!rowsGone) return; rowsGone = false;
+        els.forEach(o => o.blocks.forEach(b =>{ b.classList.remove("cm-gone"); if(b._out){ b._out.cancel(); b._out = null; }
+          if(!reduce) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300 }); }));
+      }
       function onRight(e, revealed){
         state.locked = true; busy = true; stopNudge(); clearTimeout(idleT);
-        digits.forEach(n =>{ n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, fill: "forwards" }); setTimeout(()=> n.remove(), 300); }); digits = [];   // [deck] the counts below take their place
+        dropDigits(); rowsIn();                                              // [deck] the counts below take the digits' place
         e.img.classList.add("cm-right"); els.forEach(o =>{ if(o !== e){ o.img.classList.add("cm-dim"); if(o.rider) o.rider.classList.add("cm-dim"); } });
         e.blocks.forEach(b => b.classList.add("glow"));
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrong + 1, score: wrong === 0 ? 1 : 0 }); }catch(e2){}
@@ -3025,11 +3163,15 @@ const SlideModules = {
       async function deckWrong(){
         if(wrong === 1){
           await K.wait(250);
-          for(const o of els) for(let k = 0; k < o.blocks.length; k++){
-            if(!alive() || state.locked) return;
-            const b = o.blocks[k], lit = K.bulb(b);                          // [bulb] on while it is counted
-            digits.push(K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right"));
-            await K.countBeat(()=> sayNum(k + 1)); lit.off();               // (the counting beat)
+          // each row's own count: its blocks lit as they are counted and kept lit (1, then 1 + 2, ...), all off once that
+          // row is counted (review 2026-10-09, as G1-G3's 2nd wrong)
+          for(const o of els){ const lits = [];
+            try{ for(let k = 0; k < o.blocks.length; k++){
+              if(!alive() || state.locked) return;
+              const b = o.blocks[k]; lits.push(K.bulb(b, { steady: true }));  // [bulb] lit as it is counted, and kept lit - steady, no twinkle
+              digits.push(K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right"));
+              await K.countBeat(()=> sayNum(k + 1));                        // (the counting beat)
+            } } finally{ lits.forEach(l => l.off()); }
           }
           if(!alive() || state.locked) return;
           busy = false; setSwMood("point"); await say("reask");             // only the question again (no tap during it - VoLock)
@@ -3037,7 +3179,8 @@ const SlideModules = {
         }
         stopAudio();                                                         // (the re-asked question, if still going)
         if(wrong >= 3) lockWrong();
-        nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.hit); }, 300);
+        rowsOut();                                                           // the hand on the object, not its blocks (above)
+        nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.tap); }, 300);
         busy = false; setSwMood("point");
       }
       // the wrong one(s) locked - dimmed, untappable - from the 3rd wrong answer on (QA checklist 2026-10-05; and with the
@@ -3262,11 +3405,12 @@ const SlideModules = {
         if(m === 1) await say("try_again");                                   // 1: bounced back
         else if(m === 2){                                                    // 2: its blocks counted, one by one, digits on
           if(count) count.forEach(x => x.remove()); count = []; count._e = e;
-          for(let k = 0; k < e.blocks.length; k++){
+          const lits = [];                                                   // lit as counted and kept lit, all off at the end (review 2026-10-09)
+          try{ for(let k = 0; k < e.blocks.length; k++){
             if(!alive()) return;
-            const lit = K.bulb(e.blocks[k]); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));   // [bulb] on while it is counted
-            await K.countBeat(PPT ? null : ()=> sayNum(k + 1)); lit.off();   // (the counting beat - P3 was 650ms)
-          }
+            lits.push(K.bulb(e.blocks[k], { steady: true })); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));
+            await K.countBeat(PPT ? null : ()=> sayNum(k + 1));              // (the counting beat - P3 was 650ms)
+          } } finally{ lits.forEach(l => l.off()); }
         } else {                                                             // 3 on: the hand on its right box
           const rb = rightBox(e);
           if(rb && PPT) tapHand(rb._dot);                                    // [ppt_hints] the hand alone, on the box's dot
