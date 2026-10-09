@@ -4415,6 +4415,16 @@ function afterConfetti(fn){
 /* onscreen headline per gate (display only; distinct from any narration). Eligibility = phase IN this map. */
 const PHASE_GATE_TITLE = { tutorial:"चलिए, शुरू करते हैं!", guided:"चलिए, साथ में करें!", practice:"अब आपकी बारी!" };   // QA checklist 2026-10-05: the headlines are exactly the lines Swiftie speaks (each VO is now that line alone), so the text appears only as she says it
 const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", practice:"vo_pt_practice" };
+/* the gate (its phase) shown just before slide i, or null: where its phase begins - or, CARD.phase_gate_at { phase: slide
+   id }, just before that slide instead (review 2026-10-09: "चलिए साथ में करें ... Papad wali mats hai na usse pahle le aao
+   usko" - guided: G4. G1-G3 stay guided - their look, nudge timing and analytics unchanged - and follow T3 directly) */
+function gateBefore(i){
+  const s = CARD.slides[i], prev = CARD.slides[i - 1], at = CARD.phase_gate_at || {};
+  if(!s || s.type === "CELEBRATION" || s.type === "PHASE_TRANSITION") return null;
+  const moved = Object.keys(at).find(p => at[p] === s.id);
+  if(moved) return PHASE_GATE_TITLE[moved] ? moved : null;
+  return PHASE_GATE_TITLE[s.phase] && !at[s.phase] && (!prev || prev.phase !== s.phase) ? s.phase : null;
+}
 /* [peek-2] The clip's own length, and the CSS duck-down that follows it. Both are contracts
    with assets/gif/peeking.webp and @keyframes pgDuck — if either is re-cut, change it here too. */
 const ANIM_ASSETS = ["loader.webp", "new_landing_swiftee_anim.webp", "peeking.webp", "sw_head_celebrate_anim.webp", "sw_head_hint_anim.webp", "sw_head_tryagain_anim.webp", "sw_lg_celebrating_anim.webp"];
@@ -4596,12 +4606,11 @@ function completeSlide(success){
   }
   // advance only AFTER the correct-answer confetti has landed (to the gate AND to the next slide alike).
   const fromIdx = state.idx, nextIdx = state.idx + 1;
-  const next = CARD.slides[nextIdx];
-  if(next && next.phase !== slide.phase && next.type !== "CELEBRATION" && next.type !== "PHASE_TRANSITION"
-     && PHASE_GATE_TITLE[next.phase] && !_gatedPhases.has(next.phase)){
-    _gatedPhases.add(next.phase);
+  const gp = gateBefore(nextIdx);
+  if(gp && !_gatedPhases.has(gp)){
+    _gatedPhases.add(gp);
     afterConfetti(()=>{ if(state.idx === fromIdx) Assets.whenSlide(nextIdx, ()=>{                   // [loading] the gate + that slide's files
-      if(state.idx === fromIdx) phaseBlurTransition(()=> mountSlide(nextIdx), next.phase); }, next.phase); });
+      if(state.idx === fromIdx) phaseBlurTransition(()=> mountSlide(nextIdx), gp); }, gp); });
     return;
   }
   afterConfetti(()=>{ if(state.idx === fromIdx) mountSlide(nextIdx); });
@@ -4994,8 +5003,7 @@ const Assets = (function(){
       (t.match(/assets\/[\w\/.\-]+\.(?:webp|png|svg|jpg|gif|ogg|mp3)/g) || []).forEach(src => list.push(src));
       ids.forEach(k =>{ if(t.indexOf('"' + k + '"') >= 0) list.push(vo(k)); });
       slideArt(s).forEach(src => list.push(src));
-      const prev = CARD.slides[i - 1];
-      if(PHASE_GATE_TITLE[s.phase] && (!prev || prev.phase !== s.phase)) gateFiles(s.phase).forEach(src => list.push(src));
+      const gp = gateBefore(i); if(gp) gateFiles(gp).forEach(src => list.push(src));
       perSlide[i] = [...new Set(list)].filter(known);
       perSlide[i].forEach(src => add(src, i));
     });

@@ -309,6 +309,9 @@ Tagged `QA checklist 2026-10-05` in `app.js` / `style.css`.
   carries on); to add one, encode it at the same -33 LUFS and run `tools/gen_asset_sizes.js`.
 - **Phase gates:** each VO is now exactly its headline ("चलिए, शुरू करते हैं!", "चलिए, साथ में करें!", "अब आपकी बारी!"),
   so the text appears only as Swiftie says it.
+  Review 2026-10-09: "चलिए, साथ में करें!" comes just before G4 (the papad mats), not before G1 - the card's
+  `phase_gate_at: { "guided": "G4" }` (`gateBefore()` in `app.js`). G1-G3 stay `guided` (their screen, nudge timing and
+  analytics unchanged) and follow T3 directly; "अब आपकी बारी!" is still before P1.
 - **Next button:** pulses as soon as it turns active.
 - **Idle nudges:** 7s everywhere (`IDLE_MS`; the card's `nudge_timeout_ms` per phase); P2/P3 got one (the hand on the
   next box); a guided question re-asks itself after 7s idle.
