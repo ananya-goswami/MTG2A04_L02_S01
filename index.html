@@ -9,13 +9,13 @@
      request, so without this the very first paint is unstyled. This inline rule
      lands the loader's own colour on the first frame. -->
 <style>html,body{background:#FFFFFF;margin:0;}</style>
-<link rel="stylesheet" href="style.css?v=20261009-171439">
+<link rel="stylesheet" href="style.css?v=20261013-162910">
 <!-- [loading] the landing's own files start downloading with the page, alongside style.css - not only once app.js has
      arrived and asked for them (the boot loader waits for exactly these: app.js Assets, CRIT). http(s) only: on
      file:// a preload of a fetch() fails, and local files need no head start. -->
 <script>(function(){ if(!/^https?:$/.test(location.protocol)) return;
   [["assets/fonts/baloo2-800.woff2", "font", "font/woff2"], ["assets/gif/new_landing_swiftee_anim.webp", "fetch"],
-   ["assets/startnew_bg_plain.webp", "image"], ["assets/background_1st_screen.webp", "image"], ["assets/pencil_purple.webp", "image"]
+   ["assets/startnew_bg_plain.webp", "image"], ["assets/background_1st_screen_nolamp.webp", "image"], ["assets/pencil_purple.webp", "image"]
   ].forEach(function(f){ var l = document.createElement("link"); l.rel = "preload"; l.href = f[0]; l.as = f[1];
     if(f[2]) l.type = f[2]; if(f[1] !== "image") l.crossOrigin = "anonymous"; document.head.appendChild(l); });
 })();</script>
@@ -80,7 +80,7 @@
   <!-- TAP-TO-START — uses provided title-screen art -->
   <div class="start-gate" id="startGate">
     <div class="sg-card">
-      <!-- ambient scene FX over the room art: sun flare in the window, sunlit dust, lamp-bulb flicker (decorative only) -->
+      <!-- ambient scene FX over the room art: sun flare in the window, sunlit dust (decorative only) -->
       <div class="sg-fx" aria-hidden="true">
         <!-- soft lens flare in the window, no sun / no rays: one big hazy disc, a smaller violet disc
              overlapping it, a faint glint and a soft haze lobe. .sg-sun stays as a 0x0 anchor - the
@@ -89,7 +89,6 @@
         <div class="sg-flare2">
           <i class="fl-big"></i><i class="fl-violet"></i><i class="fl-haze"></i><i class="fl-glint"></i>
         </div>
-        <div class="sg-lamp"></div>
         <canvas class="sg-dust" id="sgDust"></canvas>   <!-- sunlit dust: physics particle system, see app.js [landing dust] -->
       </div>
       <img class="sg-mascot" data-src="assets/gif/new_landing_swiftee_anim.webp" alt="Swiftee"
@@ -638,10 +637,14 @@
           },
           {
             "id": "stool",
-            "src": "assets/obj_stool.webp",
+            "src": "assets/obj_stool_v2.webp",
             "n": 3,
             "axis": "y",
-            "ar": 0.8349
+            "ar": 0.5967,
+            "span": [
+              0.2,
+              1
+            ]
           }
         ],
         "boxes": [
@@ -682,14 +685,14 @@
           },
           {
             "id": "watercan",
-            "src": "assets/obj_watercan.webp",
+            "src": "assets/obj_watercan_v2.webp",
             "n": 4,
             "axis": "y",
-            "ar": 1.5967
+            "ar": 1.5017
           },
           {
             "id": "tv",
-            "src": "assets/obj_tv.webp",
+            "src": "assets/obj_tv_v2.webp",
             "n": 6,
             "axis": "x",
             "ar": 0.58
@@ -753,7 +756,7 @@
           },
           {
             "id": "almirah",
-            "name_hi": "छोटी अलमारी",
+            "name_hi": "अलमारी",
             "src": "assets/obj_almirah.webp",
             "ar": 1.5915,
             "n": 7,
@@ -980,14 +983,14 @@
       "obj_blackboard_p2": "assets/obj_blackboard_p2.webp",
       "scene_classroom": "assets/scene_classroom.svg",
       "obj_window": "assets/obj_window.webp",
-      "obj_watercan": "assets/obj_watercan.webp",
-      "obj_tv": "assets/obj_tv.webp",
+      "obj_watercan": "assets/obj_watercan_v2.webp",
+      "obj_tv": "assets/obj_tv_v2.webp",
       "obj_chair": "assets/obj_chair.webp",
       "room_window": "assets/room_window.webp",
       "room_door": "assets/room_door.webp",
       "room_clock": "assets/room_clock.webp",
       "room_flags": "assets/room_flags.webp",
-      "obj_stool": "assets/obj_stool.webp"
+      "obj_stool": "assets/obj_stool_v2.webp"
     },
     "img_ext": "webp",
     "audio_ext": "ogg"
@@ -997,6 +1000,6 @@
 
 <!-- ============ ENGINE ============ -->
 <script src="swiftpal-bridge.js?v=20261009c"></script>   <!-- [QA 01] host bridge: Android / iOS / web - must load before app.js -->
-<script src="app.js?v=20261013-114201"></script>
+<script src="app.js?v=20261013-163226"></script>
 </body>
 </html>

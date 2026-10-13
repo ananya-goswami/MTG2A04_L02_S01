@@ -440,6 +440,31 @@ const sfxConfetti  = ()=> playSfxFile("sfx_confetti", 0.45);
 const sfxPlay      = ()=> playSfxFile("sfx_play", 0.9);
 const sfxNext      = ()=> playSfxFile("sfx_next", 0.9);   // the आगे tap (a disabled आगे fires no click, so no sound)
 const sfxNudge     = ()=> playSfxFile("sfx_nudge", 0.45);
+/* 2026-10-13 ("add a cool sfx with the entry of the cubes on 1st screen"): each landing cube pops in with a bubbly
+   "bloop" - a sine that springs up to its note, plus a soft woody tick as it lands - one step higher per cube
+   (C-major pentatonic), so the row climbs like a little xylophone run; the last cube adds a sparkle on top.
+   Procedural (WebAudio), kept well under the VO; silent until the audio context is unlocked. */
+const CUBE_NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+function sfxCubePop(i, last){
+  const c = _ac(); if(!c || c.state !== "running") return;
+  const t0 = c.currentTime + 0.01, f = CUBE_NOTES[Math.min(i, CUBE_NOTES.length - 1)], out = c.createGain();
+  out.gain.value = 0.9; out.connect(c.destination);
+  const o = c.createOscillator(), g = c.createGain(); o.type = "sine";
+  o.frequency.setValueAtTime(f * 0.55, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.07);   // the spring up
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.26);
+  o.connect(g).connect(out); o.start(t0); o.stop(t0 + 0.28);
+  const h = c.createOscillator(), hg = c.createGain(); h.type = "triangle"; h.frequency.value = f * 2;   // a bright glassy overtone
+  hg.gain.setValueAtTime(0.0001, t0 + 0.05); hg.gain.exponentialRampToValueAtTime(0.045, t0 + 0.065); hg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+  h.connect(hg).connect(out); h.start(t0 + 0.05); h.stop(t0 + 0.24);
+  const tl = t0 + 0.16, k = c.createOscillator(), kg = c.createGain(); k.type = "triangle";      // the woody tick as it sits down
+  k.frequency.setValueAtTime(260, tl); k.frequency.exponentialRampToValueAtTime(120, tl + 0.05);
+  kg.gain.setValueAtTime(0.0001, tl); kg.gain.exponentialRampToValueAtTime(0.11, tl + 0.004); kg.gain.exponentialRampToValueAtTime(0.0001, tl + 0.07);
+  k.connect(kg).connect(out); k.start(tl); k.stop(tl + 0.08);
+  if(last) [1567.98, 2093, 2637].forEach((sf, j)=>{                                            // the sparkle on the last cube
+    const ts = t0 + 0.22 + j * 0.06, so = c.createOscillator(), sg = c.createGain(); so.type = "sine"; so.frequency.value = sf;
+    sg.gain.setValueAtTime(0.0001, ts); sg.gain.exponentialRampToValueAtTime(0.05, ts + 0.01); sg.gain.exponentialRampToValueAtTime(0.0001, ts + 0.3);
+    so.connect(sg).connect(out); so.start(ts); so.stop(ts + 0.32); });
+}
 /* background music: one looping element, started by the play tap (never before it), ducked under every VO clip,
    paused while the app is in the background. bgmFor(phase) picks the track: the practice game has its own. */
 /* 2026-10-07: bgm.ogg is the team's "Standard Background Music 2" (bouncy, seamless 4-min loop; "1" is an 18s lo-fi loop
@@ -560,8 +585,41 @@ function setNavActive(on){
   const btn = $("navBtn");
   btn.disabled = !on;
   btn.classList.toggle("active", on);
+  placeNavClear(btn, on);
   clearTimeout(state.navNudgeTimer);
   if(on) state.navNudgeTimer = setTimeout(nudgeNavBtn, 4500);
+}
+/* [nav clear] 2026-10-13 ("the next button is overlapping with elements behind - this will come as a QA bug"): when the
+   Next button turns active it checks its spot against everything on the slide - the object, the cubes and their digits,
+   the end lines, the count box, the robot, Swiftie, the speaker - and, if it would cover any of it, slides along the bottom
+   to the NEAREST clear spot (inside the card). Nothing clear anywhere: it stays centred. Decorative full-scene layers
+   (backgrounds, the floor, the confetti canvas) are not obstacles - anything over a third of the stage is skipped. */
+function placeNavClear(btn, on){
+  btn.style.left = "";
+  if(!on) return;
+  const stage = btn.offsetParent; if(!stage) return;
+  const sR = stage.getBoundingClientRect(), k = sR.width / (stage.offsetWidth || 1) || 1;
+  const bR = btn.getBoundingClientRect(); if(!bR.width) return;
+  const W = bR.width / k, H = bR.height / k, top = (bR.top - sR.top) / k, cx0 = (bR.left - sR.left) / k + W / 2, PAD = 14;
+  const vis = el =>{ if(el.checkVisibility && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
+    return parseFloat(getComputedStyle(el).opacity) > 0.05; };
+  const host = document.getElementById("slideHost") || stage, big = sR.width * sR.height / 3;
+  const obs = [];
+  const take = el =>{ if(!el || el === btn || btn.contains(el) || !vis(el)) return; const r = el.getBoundingClientRect();
+    if(r.width < 2 || r.height < 2 || r.width * r.height > big) return;
+    obs.push({ l: (r.left - sR.left) / k, t: (r.top - sR.top) / k, r: (r.right - sR.left) / k, b: (r.bottom - sR.top) / k }); };
+  host.querySelectorAll("img, canvas, svg, .md-block, .md-num, .md-line, .md-plate, .md-count, .md-endmark, .rb-in, .cm-count, .mq-opt, button, [class*='-count']").forEach(take);
+  ["swBuddy", "sgVo"].forEach(id => take(document.getElementById(id)));
+  document.querySelectorAll(".tut-vo, .vo-chip, .replay-chip, .mascot-wrap").forEach(take);
+  const card = host.querySelector(".tut-card, .md-stage") || stage, cR = card.getBoundingClientRect();
+  const minX = (cR.left - sR.left) / k + 20 + W / 2, maxX = (cR.right - sR.left) / k - 20 - W / 2;
+  const clear = cx =>{ const l = cx - W / 2 - PAD, r = cx + W / 2 + PAD, t = top - PAD, b = top + H + PAD;
+    return obs.every(o => o.r <= l || o.l >= r || o.b <= t || o.t >= b); };
+  if(clear(cx0)) return;
+  for(let d = 10; d < sR.width / k; d += 10) for(const cx of [cx0 + d, cx0 - d]){
+    if(cx < minX || cx > maxX) continue;
+    if(clear(cx)){ btn.style.left = cx.toFixed(1) + "px"; return; }
+  }
 }
 function nudgeNavBtn(){
   /* [04] QA CHECKLIST: "Nudge hand only ever points at interactive tiles/objects
@@ -972,10 +1030,21 @@ const MDK = (function(){
      position) - so the word lands on the beat and even दस ends .54s later, before the next number. */
   // (then, of the 600: "this was fast too - 1, 2, 3 ..." - so the middle of the two: 850 was too slow, 600 too fast -
   //  720, ~1.4 numbers a second; with COUNT_LEAD the word still starts on the beat, and दस (.54s) ends before the next)
-  const COUNT_MS = 720, COUNT_LEAD = .22;
-  const countBeat = say =>{
-    if(say){ say(); if(/vo_num_/.test(voEl.getAttribute("data-asset") || "")) try{ voEl.currentTime = COUNT_LEAD; }catch(e){} }
-    return new Promise(r => setTimeout(r, COUNT_MS)); };
+  /* 2026-10-13 ("when 2nd wrong option selected, the voiceover 1, 2, 3, 4 is overlapping" + "speed up a little" + "in all 3
+     wrong attempts the speed of the animation should be the same and consistent", throughout the game): the beat skipped
+     COUNT_LEAD into each clip (.28s of silence before the word) - when that seek did not take, the clip played from 0 and
+     the next number cut into the word. vo_num_1..12 are now TRIMMED to the word (30ms before it, 60ms after; levelled to
+     -16 LUFS), so there is no seek: the number plays from its start, and the count moves on only when BOTH the beat is up
+     and the word has ended - a word is never cut, never overlapped. COUNT_MS 720 -> 650 (a little faster). NUM_MS = each
+     trimmed clip's length: a beat is max(COUNT_MS, NUM_MS[n]) - 650ms for 1..9, a little longer for दस / ग्यारह / बारह -
+     and a SILENT count (digits only: the 3rd wrong) keeps the very same per-number timing, so every attempt runs at one pace.
+     countBeat(say, n): say(n) returns the clip's promise (or nothing for a silent beat). */
+  const COUNT_MS = 650, NUM_MS = [618, 509, 492, 668, 648, 487, 632, 509, 553, 728, 805, 777];
+  const beatMs = n => Math.max(COUNT_MS, NUM_MS[n - 1] || 0);
+  const countBeat = (say, n)=>{
+    const t = new Promise(r => setTimeout(r, n ? beatMs(n) : COUNT_MS));
+    const v = say ? say() : null;
+    return v && v.then ? Promise.all([t, v]) : t; };
   function add(parent, tag, cls, css){ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; parent.appendChild(e); return e; }
   const pos = e => ({ x: parseFloat(e.style.left), y: parseFloat(e.style.top) });
   const setPos = (e, p)=>{ e.style.left = px(p.x); e.style.top = px(p.y); };
@@ -2098,11 +2167,13 @@ const MDK = (function(){
   function wallBox(parent, text, cx, top, w, h, from){
     const c = countBox(parent, text, cx, top, w, h); c.classList.add("wall"); c.style.zIndex = 5;
     if(reduce()) return c;
-    const dx = from.x - cx, dy = from.y - (top + h / 2);
-    c.animate([{ translate: px(dx) + " " + px(dy), scale: ".2", opacity: 0, easing: "ease-out" },
-               { translate: px(dx * .86) + " " + px(dy * .86), scale: ".32", opacity: 1, offset: .12, easing: "cubic-bezier(.3,.6,.35,1)" },
-               { translate: px(dx * .08) + " " + px(dy * .08 - h * .22), scale: "1.06", opacity: 1, offset: .7, easing: "ease-in-out" },
-               { translate: "0 0", scale: "1", opacity: 1 }], { duration: 950 });
+    /* 2026-10-13 ("should pop out, not come from right side or left side or any side"): it no longer glides out of the
+       column - it POPS where it stands, from its own centre: small, springs a little past its size, settles */
+    c.style.transformOrigin = "50% 50%";
+    c.animate([{ scale: ".3", opacity: 0, easing: "cubic-bezier(.3,1.6,.5,1)" },
+               { scale: "1.08", opacity: 1, offset: .6, easing: "ease-in-out" },
+               { scale: ".97", opacity: 1, offset: .82, easing: "ease-out" },
+               { scale: "1", opacity: 1 }], { duration: 600 });
     return c;
   }
   /* a bouncing arrow at (x, y): "down" above a tile, "left" to the right of one */
@@ -2322,7 +2393,7 @@ const MDK = (function(){
         ev.preventDefault(); clearTimeout(idleT); cancelGhost(); if(cfg.onGrab) cfg.onGrab();
         if(b._settle) b._settle();                                         // (a holder's block still settling: in its place first)
         const p = local(scene, ev), bp = pos(b);
-        drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false };
+        drag = { b, id: ev.pointerId, ox: p.x - bp.x, oy: p.y - bp.y, sx: p.x, sy: p.y, moved: false, from: { x: bp.x, y: bp.y } };
         try{ b.setPointerCapture(ev.pointerId); }catch(e){}
         lift(b); sfxTap(); if(cfg.showTiles !== false) slots[placed].classList.add("show", "target");
       });
@@ -2337,6 +2408,15 @@ const MDK = (function(){
         const at = pos(b), to = slotXY(placed), slot = slots[placed];
         const hit = dr.moved && Math.abs(at.x - to.x) <= S * 0.6 && Math.abs(at.y - to.y) <= S * 0.6;
         slot.classList.remove("show", "target");
+        /* 2026-10-13 ("if by mistake the cube gets dropped on its initial location only, it should not disappear"): a drop
+           back where it was picked up (within ~one cube of it), or a tap with no drag, is NOT a wrong answer - no buzz, no
+           miss on the hint ladder, no vanish / respawn: it just slides back into its place and waits */
+        const home = !hit && (!dr.moved || Math.hypot(at.x - dr.from.x, at.y - dr.from.y) <= S * 0.9);
+        if(home){
+          drop(b); b.style.zIndex = 30;
+          glide(b, dr.from, reduce() ? 0 : 200, false).then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3; if(live() && !drag) armIdle(); });
+          return;
+        }
         if(hit){                                                            // flush against the last one
           b._placed = true; b.classList.add("placed"); drop(b);
           glide(b, to, reduce() ? 0 : 120, false).then(()=>{ land(b); okFlash(b); });   // correct: it lands (no ✓, no green outline)
@@ -2502,7 +2582,7 @@ const SlideModules = {
         /* review 2026-10-06: "the next button should stay at the bottom center only, as in all screens" - so आगे is never moved
            (the 2026-10-05 navAside / centred-group layout is gone) and the group (digits + column + door) stands as far
            left as it can while clearing आगे: its digits start 16px right of the button. */
-        OX = Math.min(W - OW - 12, navRt + 16 + LEFT) - 60;   // (-60: review 2026-10-06 "shift the door a little more towards left" - the column + lines go with it; agreed: when आगे appears at the end it covers the bottom cube's "1")
+        OX = Math.min(W - OW - 12, navRt + 24 + LEFT);   // 2026-10-13 ("shift the door with cubes just a little so that when next button comes on screen it does not overlap"): the 2026-10-06 -60 is gone - the digits now start 24px right of आगे (its pulse swells ~10px each side), so nothing sits under it
         A0 = OY + OH * f1; A1 = OY + OH * f0;                                // A0 = bottom, A1 = top
         const CX = OX - 14 - S; slotXY = k => ({ x: CX, y: A0 - (k + 1) * S });
         lines = K.endLines(scene, "y", A0, A1, CX - 10, OX + OW * 0.4);      // [short lines] the column + the door's left side
@@ -2639,7 +2719,7 @@ const SlideModules = {
       const hand = K.hand(scene, S);
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
       const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
-      const side = AX === "x" ? "top" : "left";                             // [t3-left] the column is left of the door: its digits on its left
+      const side = AX === "x" ? "above" : "left";   // 2026-10-13 ("place 1, 2, 3 just above the cubes"): was "top" (on the cube's top edge)                             // [t3-left] the column is left of the door: its digits on its left
       const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
       const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : b._z; };
       // a correct block: its number + a green outline on the block itself (review 2026-09-30: "I don't want a tick mark ...
@@ -2703,7 +2783,8 @@ const SlideModules = {
                glow included) - and comes out of the column's middle (MDK.wallBox): the "7 ब्लॉक्स" is the 7 cubes' label */
             const sR2 = scene.getBoundingClientRect(), kk = sR2.width / (scene.offsetWidth || 1) || 1, c0 = slotXY(0).x;
             const wallL = card ? (card.getBoundingClientRect().left - sR2.left) / kk + 10 + 24 : 24, wallR = c0 - 30 - 28;   // (the digits stand 30px left of the column)
-            const rbTop = boxAt.y - 34, h = 80, w = Math.min(240, wallR - wallL - 20), cx = (wallL + wallR) / 2;
+            const rbTop = boxAt.y - 34, h = 80, w = Math.min(240, wallR - wallL - 20);
+            const cx = Math.max((wallL + wallR) / 2, wallR - 40 - w / 2);   // 2026-10-13 ("should be at more center"): toward the card's middle, 40px clear of the digits
             const cy = Math.min((8 + rbTop) / 2, rbTop - 18 - h / 2);
             plateEl = K.wallBox(scene, txt, cx, cy - h / 2, w, h, { x: c0 + S / 2, y: (A0 + A1) / 2 });
           }
@@ -2737,8 +2818,8 @@ const SlideModules = {
             await sayNum(k + 1); guard();
           }
           // the rule: start where the last one ends ...
-          const e0 = slotXY(DEMO), mark = AX === "x" ? K.add(scene, "div", "md-endmark v", "left:" + px(e0.x - 3) + ";top:" + px(e0.y - 10) + ";height:" + px(S + 20))
-                                                     : K.add(scene, "div", "md-endmark h", "left:" + px(e0.x - 10) + ";top:" + px(e0.y + S - 3) + ";width:" + px(S + 20));
+          const e0 = slotXY(DEMO), mark = AX === "x" ? K.add(scene, "div", "md-endmark v", "left:" + px(e0.x - 1.5) + ";top:" + px(e0.y - 10) + ";height:" + px(S + 20))
+                                                     : K.add(scene, "div", "md-endmark h", "left:" + px(e0.x - 10) + ";top:" + px(e0.y + S - 1.5) + ";width:" + px(S + 20));
           await say("rule_a"); guard(); mark.classList.add("out"); setTimeout(()=> mark.remove(), 400);
           // ... no gap ... and not on top of each other
           const g = blocks[DEMO], GAP = S * 0.45;
@@ -2748,23 +2829,29 @@ const SlideModules = {
             const to = AX === "x" ? { x: e0.x + off, y: e0.y } : { x: e0.x, y: e0.y - off };
             if(kind === "over") g.classList.add("over");
             await handDrag(g, to); guard();
-            const bx = AX === "x" ? (kind === "gap" ? { l: e0.x + 2, t: e0.y - 8, w: GAP - 4, h: S + 16 } : { l: e0.x - GAP, t: e0.y - 8, w: GAP, h: S + 16 })
-                                  : (kind === "gap" ? { l: e0.x - 8, t: e0.y + S - GAP + 2, w: S + 16, h: GAP - 4 } : { l: e0.x - 8, t: e0.y + S, w: S + 16, h: GAP });
-            const boxEl = K.add(scene, "div", "md-err", "left:" + px(bx.l) + ";top:" + px(bx.t) + ";width:" + px(bx.w) + ";height:" + px(bx.h));
+            // 2026-10-13 ("the dotted line is exceeding the length of the cubes on both sides"): the box spans exactly the cube's
+            // height (its width, for a column) - it was 8px past it on each side
+            const bx = AX === "x" ? (kind === "gap" ? { l: e0.x, t: e0.y, w: GAP, h: S } : { l: e0.x - GAP, t: e0.y, w: GAP, h: S })
+                                  : (kind === "gap" ? { l: e0.x, t: e0.y + S - GAP, w: S, h: GAP } : { l: e0.x, t: e0.y + S, w: S, h: GAP });   // (2026-10-13: the gap exactly, edge to edge)
+            /* 2026-10-13 ("when cubes are overlapping in explanation animation remove dot dot box"): only the GAP gets the
+               dotted box now; the overlap shows by itself. And no purple ✗ on either ("remove the purple cross completely"). */
+            const boxEl = K.add(scene, "div", "md-err" + (kind === "over" ? " none" : ""), "left:" + px(bx.l) + ";top:" + px(bx.t) + ";width:" + px(bx.w) + ";height:" + px(bx.h));
             /* review 2026-10-05: "the white outline will be on EACH dotted line": the dashes are drawn as SVG - each dash twice,
                a wider white one under the purple one (same dash pattern, round caps), so every dash has its own white edge */
-            { const sw = 4, ins = 3.5, rw = Math.max(1, bx.w - 2 * ins), rh = Math.max(1, bx.h - 2 * ins), r = 8;
-              const rect = 'x="' + ins + '" y="' + ins + '" width="' + rw + '" height="' + rh + '" rx="' + r + '" fill="none" stroke-linecap="round" stroke-dasharray="7 7"';
+            /* 2026-10-13 ("the dotted line box can be in better shape"): on a thin gap the 8px corners and 7px dashes
+               bent it into a lumpy oval. Now a crisp rectangle - small corners (at most a quarter of its short side),
+               thinner strokes, and the dash period fitted to the perimeter so the dashes close evenly all the way round */
+            { const sw = 3, ins = 3, rw = Math.max(1, bx.w - 2 * ins), rh = Math.max(1, bx.h - 2 * ins), r = Math.min(4, Math.min(rw, rh) / 4);
+              const per = 2 * (rw + rh) - (8 - 2 * Math.PI) * r, period = per / Math.max(4, Math.round(per / 9)), dash = period * 0.55;
+              const rect = 'x="' + ins + '" y="' + ins + '" width="' + rw + '" height="' + rh + '" rx="' + r.toFixed(2) + '" fill="none" stroke-linecap="round" stroke-dasharray="' + dash.toFixed(2) + ' ' + (period - dash).toFixed(2) + '" pathLength="' + per.toFixed(2) + '"';
               boxEl.innerHTML = '<svg class="md-err-dash" width="' + bx.w + '" height="' + bx.h + '" viewBox="0 0 ' + bx.w + ' ' + bx.h + '" aria-hidden="true">' +
-                '<rect ' + rect + ' stroke="#FFFFFF" stroke-width="' + (sw + 3.5) + '"/><rect ' + rect + ' stroke="#6D28D9" stroke-width="' + sw + '"/></svg>'; }
-            const sp = K.freeSpot(scene, bx, 22, AX === "x" ? "up" : "left");   // clear of the bubbles, blocks, flag, door ... ([t3-left] the open side)
-            const x = K.mark(scene, sp.x, sp.y, false);
+                '<rect ' + rect + ' stroke="#FFFFFF" stroke-width="' + (sw + 3) + '"/><rect ' + rect + ' stroke="#6D28D9" stroke-width="' + sw + '"/></svg>'; }
             if(!reduce) g.animate([{ rotate: "0deg" }, { rotate: "-6deg" }, { rotate: "6deg" }, { rotate: "-4deg" }, { rotate: "0deg" }], { duration: 600, easing: "ease-in-out" });
             await v; guard(); await K.wait(1000); guard();
-            boxEl.classList.add("out"); x.classList.add("out");
+            boxEl.classList.add("out");
             if(box.respawn){ if(kind === "over") g.classList.remove("over"); await box.respawn(g); }   // [robot] it vanishes, a new one rises on the lid
             else await handDrag(g, g._home);
-            guard(); boxEl.remove(); x.remove();
+            guard(); boxEl.remove();
             if(kind === "over") g.classList.remove("over");
           }
           // the child's turn: the ghost drag shows how while the VO asks
@@ -2966,12 +3053,12 @@ const SlideModules = {
           // count is done (review 2026-10-09: "glow on the 1st cube, then on the 1st and 2nd both, and so on; after the
           // counting is complete the colour disappears - the same throughout the game"); one at a time before
           try{ for(let k = 0; k < bs.length; k++){ if(!alive()) return;
-            lits.push(K.bulb(bs[k], { steady: true })); await K.countBeat(()=> sayNum(k + 1)); } }   // (the counting beat; steady - no twinkle while counting)
+            lits.push(K.bulb(bs[k], { steady: true })); await K.countBeat(()=> sayNum(k + 1), k + 1); } }   // (the counting beat; steady - no twinkle while counting)
           finally{ lits.forEach(l => l.off()); } }
         else {
           lockWrong();                                                       // the wrong options off, then the digits + the hand
           if(!digits){ digits = [];
-            for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.countBeat(); }   // (the counting beat - was 140ms)
+            for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.countBeat(null, k + 1); }   // (the counting beat - was 140ms)
             await K.wait(350); }
           nudged = true; if(alive() && !state.locked) placeNudge(right);
         }
@@ -3170,7 +3257,7 @@ const SlideModules = {
               if(!alive() || state.locked) return;
               const b = o.blocks[k]; lits.push(K.bulb(b, { steady: true }));  // [bulb] lit as it is counted, and kept lit - steady, no twinkle
               digits.push(K.digit(scene, K.pos(b), S, k + 1, AX === "x" ? "bottom" : "right"));
-              await K.countBeat(()=> sayNum(k + 1));                        // (the counting beat)
+              await K.countBeat(()=> sayNum(k + 1), k + 1);                  // (the counting beat)
             } } finally{ lits.forEach(l => l.off()); }
           }
           if(!alive() || state.locked) return;
@@ -3409,11 +3496,11 @@ const SlideModules = {
           try{ for(let k = 0; k < e.blocks.length; k++){
             if(!alive()) return;
             lits.push(K.bulb(e.blocks[k], { steady: true })); count.push(K.digit(scene, e.tiles[k], S, k + 1, e.side));
-            await K.countBeat(PPT ? null : ()=> sayNum(k + 1));              // (the counting beat - P3 was 650ms)
+            await K.countBeat(PPT ? null : ()=> sayNum(k + 1), k + 1);              // (the counting beat - P3 was 650ms)
           } } finally{ lits.forEach(l => l.off()); }
         } else {                                                             // 3 on: the hand on its right box
           const rb = rightBox(e);
-          if(rb && PPT) tapHand(rb._dot);                                    // [ppt_hints] the hand alone, on the box's dot
+          if(rb && PPT) ghostDrag(e, rb);                                    // [ppt_hints] 2026-10-13: the ghost drag (was the hand tapping the box's dot)
           else if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
         }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
@@ -3455,7 +3542,7 @@ const SlideModules = {
       const hover = h =>{ if(hov) hov.el.classList.remove("hover"); hov = h; if(h) h.el.classList.add("hover"); };
       function pick(h){ unpick(); sel = h; h.el.classList.add("sel"); h.dotEl.classList.add("sel"); sfxTap(); }
       function unpick(){ if(live){ live.remove(); live = null; } if(!sel) return; sel.el.classList.remove("sel"); sel.dotEl.classList.remove("sel"); sel = null; }
-      function stopTravel(){ if(travel){ travel.el.getAnimations().forEach(a => a.cancel()); travel.el.remove(); travel = null; } }
+      function stopTravel(){ if(travel){ if(travel._stop) travel._stop(); travel.el.getAnimations().forEach(a => a.cancel()); travel.el.remove(); travel = null; } }
       function clearHelp(){ stopTravel(); stopNudge(); boxes.forEach(x => x.classList.remove("hint")); objs.forEach(o => o.panel.classList.remove("hint")); }
       // the 3rd-rung hand: from the box's dot up to its object's dot, again and again (the move itself, not just "this one").
       // It travels UP so it rests in the band between the rows - the engine's hand rule [QA 12]: never on a label (ending
@@ -3499,7 +3586,29 @@ const SlideModules = {
           requestAnimationFrame(step);
         }, reduce ? 500 : 750);
       });
-      // [ppt_hints] the 3rd rung: the hand's fingertip on the right box's dot, tapping, until the next pair (clearHelp)
+      /* [ppt_hints] the 3rd rung - 2026-10-13 ("in 3rd wrong attempt replace hand nudge with ghost drag in both match the
+         following screens", P2 + P3): the hand shows the move itself - it presses on the object's dot, drags a blue line
+         across to its RIGHT box's ring, holds there a beat, then hand and line fade; again and again until the child's next
+         pair (clearHelp -> stopTravel). Nothing is joined. Reduced motion: the hand waits on the box's ring, the line drawn. */
+      function ghostDrag(e, rb){
+        stopTravel(); travel = K.hand(scene, 0);
+        const a = e.dot, b = rb._dot, ln = mkLine(a, a, "live");
+        let raf = 0; const t0 = performance.now(), CYCLE = 2400;
+        travel._stop = ()=>{ cancelAnimationFrame(raf); ln.remove(); };
+        if(reduce){ travel.on(b); setLine(ln, a, b); return; }
+        const ease = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        const step = now =>{
+          const t = ((now - t0) % CYCLE) / CYCLE;                            // 0-.1 the hand in on the dot, .1-.62 the drag, .62-.84 hold, .84-1 fade
+          const k = t < .1 ? 0 : t < .62 ? ease((t - .1) / .52) : 1;
+          const p = { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+          const o = t < .1 ? t / .1 : t < .84 ? 1 : 1 - (t - .84) / .16;
+          travel.on(p); travel.el.style.opacity = o; travel.el.classList.toggle("press", t >= .08 && t < .84);
+          setLine(ln, a, p); ln.style.opacity = t < .1 ? 0 : o;
+          raf = requestAnimationFrame(step);
+        };
+        raf = requestAnimationFrame(step);
+      }
+      // (the old 3rd rung: the hand's fingertip on the right box's dot, tapping - kept, unused)
       function tapHand(p){
         stopTravel(); travel = K.hand(scene, 0); travel.on(p);
         if(!reduce) travel.el.animate([{ translate: "0 12px" }, { translate: "0 0" }, { translate: "0 12px" }], { duration: 1000, iterations: Infinity, easing: "ease-in-out" });
@@ -3816,11 +3925,19 @@ const SlideModules = {
         }).filter((p, i, all)=> i % 8 === 0 || i === all.length - 1);
       }
       const voFor = it => first && it && (DECK || it.id === d.vo_object);   // [deck] the first object, whichever
-      function armIdle(){ clearTimeout(idleT); if(DECK) return; idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
+      /* [idle pulse] 2026-10-13 ("in main game after 7 sec inactivity pulsate all options"): in the deck's flow (no idle hand)
+         7s with no pick - from the end of the intro VO, or from the return to the tray after a placement - and every object
+         still in the tray pulses, the title screen play button's pulse (ctaPulse), until the child picks one */
+      const IDLE_PULSE_MS = 7000;
+      const stopPulse = ()=> items.forEach(it => it._t.classList.remove("cf-idle-pulse"));
+      function armIdle(){ clearTimeout(idleT);
+        if(DECK){ stopPulse(); idleT = setTimeout(()=>{ if(!alive() || phase !== "pick" || state.locked) return;
+          items.forEach(it =>{ if(!it._done) it._t.classList.add("cf-idle-pulse"); }); }, IDLE_PULSE_MS); return; }
+        idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
         const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, IDLE_MS); }
       function toPick(idle){
         phase = "pick"; cur = null; setHead(slide.prompt_hi || ""); scene.classList.remove("cf-measuring", "cf-placing");
-        items.forEach(it =>{ it._t.disabled = !!it._done; it._t.classList.remove("cf-cur"); }); if(idle) armIdle();
+        items.forEach(it =>{ it._t.disabled = !!it._done; it._t.classList.remove("cf-cur"); }); if(idle || (DECK && !first)) armIdle();
         if(pending){ const q = pending; pending = null; pick(q); }            // a tap made while the room came back
       }
       function pick(it){
@@ -3828,11 +3945,14 @@ const SlideModules = {
            silently though its button looked ready: it is kept, and that object opens the moment the room is back */
         if(phase === "fit" && !it._done && alive()){ pending = it; sfxTap(); return; }
         if(phase !== "pick" || it._done || !alive()) return;
-        clearTimeout(idleT); stopNudge(); sfxTap();
+        clearTimeout(idleT); stopNudge(); stopPulse(); sfxTap();
         cur = it; phase = "measure"; scene.classList.add("cf-measuring");
-        setHead(it.name_hi + " को ब्लॉक से मापिए।");
         measureView(it);
-        if(voFor(it)) say(voRole("measure", it)); else stopAudio();
+        /* 2026-10-13 ("the VO is not playing at the correct time - only after the object lands should it play ... same
+           behaviour overall"): the line (and the heading with it) waits for the object's flight to the centre (560ms) */
+        stopAudio();
+        setTimeout(()=>{ if(!alive() || cur !== it || phase !== "measure") return;
+          setHead(it.name_hi + " को ब्लॉक से मापिए।"); if(voFor(it)) say(voRole("measure", it)); }, reduce ? 0 : 600);
       }
       /* the measuring view: the object big in the centre (a row on top of a long one, a column left of a tall one),
          dashed lines at its ends, the blocks waiting in the tray */
@@ -3934,8 +4054,6 @@ const SlideModules = {
       function measured(it, layer){
         if(!alive() || cur !== it) return;
         run.stop(); phase = "place";
-        setHead("अब " + it.name_hi + " के लिए सही जगह चुनिए।");
-        if(voFor(it)) say(voRole("place", it));
         layer.querySelectorAll(".md-block:not(.placed):not(.rb-top)").forEach(b => b.classList.add("cf-spare"));   // ([robot] the one on its lid stays)
         /* the blocks stay on it a moment; then the classroom comes back and the object, still measured, moves to the tray */
         setTimeout(()=>{ if(!alive() || cur !== it) return;
@@ -3948,6 +4066,11 @@ const SlideModules = {
           scene.classList.remove("cf-measuring"); scene.classList.add("cf-placing");
           it._t.classList.add("cf-cur");                                     // [boxes] its box is the one on; the others dim
           makeCard(it, from);
+          /* 2026-10-13 ("only after the bench comes back into the option box with the cubes should the VO play - अब बेंच के
+             लिए सही जगह चुनिए"): the line and its heading wait for the card's flight into its box (620ms) - they used to
+             start the moment the last block was laid, 1.1s before it even left */
+          setTimeout(()=>{ if(!alive() || cur !== it || phase !== "place") return;
+            setHead("अब " + it.name_hi + " के लिए सही जगह चुनिए।"); if(voFor(it)) say(voRole("place", it)); }, from && !reduce ? 660 : 0);
         }, 1100);
       }
       /* the measured object in the tray: its picture with its blocks, dragged as one */
@@ -4695,7 +4818,7 @@ function conceptTileHTML(c){
    from Safari 18.4). */
 /* @asset-sizes:begin (generated by tools/gen_asset_sizes.js - do not edit by hand) */
 const ASSET_SIZES = {
-  "assets/background_1st_screen.webp": 53190,
+  "assets/background_1st_screen_nolamp.webp": 48838,
   "assets/badge_star.svg": 1444,
   "assets/bg_bedroom.webp": 8108,
   "assets/bg_classroom_v2.webp": 105796,
@@ -4751,12 +4874,12 @@ const ASSET_SIZES = {
   "assets/obj_mat_1.webp": 165508,
   "assets/obj_mat_2.webp": 145580,
   "assets/obj_pillow.webp": 90784,
-  "assets/obj_stool.webp": 45510,
+  "assets/obj_stool_v2.webp": 41410,
   "assets/obj_table_long.webp": 31502,
   "assets/obj_table_measure.webp": 45156,
   "assets/obj_table_short.webp": 21208,
-  "assets/obj_tv.webp": 51630,
-  "assets/obj_watercan.webp": 93936,
+  "assets/obj_tv_v2.webp": 48000,
+  "assets/obj_watercan_v2.webp": 69598,
   "assets/obj_window.webp": 55550,
   "assets/painting_answer.webp": 47420,
   "assets/painting_answer_order.webp": 4014,
@@ -4794,69 +4917,69 @@ const ASSET_SIZES = {
   "assets/sw_head_talking.webp": 37384,
   "assets/sw_head_tryagain.webp": 48836,
   "assets/voiceover/sfx_celebrate.ogg": 8344,
-  "assets/voiceover/vo_demo_start.ogg": 8148,
-  "assets/voiceover/vo_landing.ogg": 28654,
-  "assets/voiceover/vo_match_instr.ogg": 13700,
-  "assets/voiceover/vo_match_ok.ogg": 20611,
-  "assets/voiceover/vo_num_1.ogg": 4173,
-  "assets/voiceover/vo_num_10.ogg": 4332,
-  "assets/voiceover/vo_num_11.ogg": 4469,
-  "assets/voiceover/vo_num_12.ogg": 4636,
-  "assets/voiceover/vo_num_2.ogg": 3995,
-  "assets/voiceover/vo_num_3.ogg": 3489,
-  "assets/voiceover/vo_num_4.ogg": 4235,
-  "assets/voiceover/vo_num_5.ogg": 4470,
-  "assets/voiceover/vo_num_6.ogg": 3335,
-  "assets/voiceover/vo_num_7.ogg": 3908,
-  "assets/voiceover/vo_num_8.ogg": 3542,
-  "assets/voiceover/vo_num_9.ogg": 3750,
-  "assets/voiceover/vo_p13_intro.ogg": 32709,
-  "assets/voiceover/vo_p13_measure.ogg": 9005,
-  "assets/voiceover/vo_p13_measure_almirah.ogg": 10419,
-  "assets/voiceover/vo_p13_measure_board.ogg": 11042,
-  "assets/voiceover/vo_p13_measure_chair.ogg": 9209,
-  "assets/voiceover/vo_p13_place.ogg": 10287,
-  "assets/voiceover/vo_p13_place_almirah.ogg": 11640,
-  "assets/voiceover/vo_p13_place_board.ogg": 12190,
-  "assets/voiceover/vo_p13_place_chair.ogg": 11566,
-  "assets/voiceover/vo_p2_ask.ogg": 17589,
-  "assets/voiceover/vo_p2_fb.ogg": 9448,
-  "assets/voiceover/vo_p3_child.ogg": 19276,
-  "assets/voiceover/vo_p3_done.ogg": 16585,
-  "assets/voiceover/vo_p3_explain_a.ogg": 16323,
-  "assets/voiceover/vo_p3_explain_b.ogg": 15829,
-  "assets/voiceover/vo_p3_head.ogg": 18946,
-  "assets/voiceover/vo_p4_child.ogg": 17433,
-  "assets/voiceover/vo_p4_done.ogg": 17814,
-  "assets/voiceover/vo_p4_explain_a.ogg": 17776,
-  "assets/voiceover/vo_p4_explain_b.ogg": 8009,
-  "assets/voiceover/vo_p4_head.ogg": 25132,
-  "assets/voiceover/vo_p5_ask.ogg": 11680,
-  "assets/voiceover/vo_p5_instr.ogg": 11593,
-  "assets/voiceover/vo_p5_ok.ogg": 16220,
-  "assets/voiceover/vo_p6_ask.ogg": 12486,
-  "assets/voiceover/vo_p6_instr.ogg": 12376,
-  "assets/voiceover/vo_p6_ok.ogg": 16569,
-  "assets/voiceover/vo_p6b_ask.ogg": 12914,
-  "assets/voiceover/vo_p6b_instr.ogg": 11324,
-  "assets/voiceover/vo_p6b_ok.ogg": 15638,
-  "assets/voiceover/vo_p7_ask.ogg": 12423,
-  "assets/voiceover/vo_p7_instr.ogg": 11077,
-  "assets/voiceover/vo_p7_ok.ogg": 16304,
-  "assets/voiceover/vo_p8_ask.ogg": 15162,
-  "assets/voiceover/vo_p8_ok.ogg": 14752,
-  "assets/voiceover/vo_p8_reask.ogg": 12782,
-  "assets/voiceover/vo_p9_ask.ogg": 14515,
-  "assets/voiceover/vo_p9_ok.ogg": 16241,
-  "assets/voiceover/vo_p9_reask.ogg": 12880,
-  "assets/voiceover/vo_pt_guided.ogg": 8110,
-  "assets/voiceover/vo_pt_practice.ogg": 5281,
-  "assets/voiceover/vo_pt_tutorial.ogg": 8010,
-  "assets/voiceover/vo_rule_a.ogg": 22043,
-  "assets/voiceover/vo_rule_b.ogg": 9265,
-  "assets/voiceover/vo_rule_c.ogg": 10147,
-  "assets/voiceover/vo_try_again.ogg": 10387,
-  "assets/voiceover/vo_well_done.ogg": 17739
+  "assets/voiceover/vo_demo_start.ogg": 8560,
+  "assets/voiceover/vo_landing.ogg": 29144,
+  "assets/voiceover/vo_match_instr.ogg": 14012,
+  "assets/voiceover/vo_match_ok.ogg": 21117,
+  "assets/voiceover/vo_num_1.ogg": 2815,
+  "assets/voiceover/vo_num_10.ogg": 3374,
+  "assets/voiceover/vo_num_11.ogg": 3586,
+  "assets/voiceover/vo_num_12.ogg": 3302,
+  "assets/voiceover/vo_num_2.ogg": 2431,
+  "assets/voiceover/vo_num_3.ogg": 2150,
+  "assets/voiceover/vo_num_4.ogg": 2878,
+  "assets/voiceover/vo_num_5.ogg": 3152,
+  "assets/voiceover/vo_num_6.ogg": 2179,
+  "assets/voiceover/vo_num_7.ogg": 2681,
+  "assets/voiceover/vo_num_8.ogg": 2315,
+  "assets/voiceover/vo_num_9.ogg": 2463,
+  "assets/voiceover/vo_p13_intro.ogg": 33326,
+  "assets/voiceover/vo_p13_measure.ogg": 9242,
+  "assets/voiceover/vo_p13_measure_almirah.ogg": 10635,
+  "assets/voiceover/vo_p13_measure_board.ogg": 11388,
+  "assets/voiceover/vo_p13_measure_chair.ogg": 9264,
+  "assets/voiceover/vo_p13_place.ogg": 10469,
+  "assets/voiceover/vo_p13_place_almirah.ogg": 11888,
+  "assets/voiceover/vo_p13_place_board.ogg": 12525,
+  "assets/voiceover/vo_p13_place_chair.ogg": 11775,
+  "assets/voiceover/vo_p2_ask.ogg": 17893,
+  "assets/voiceover/vo_p2_fb.ogg": 9584,
+  "assets/voiceover/vo_p3_child.ogg": 19503,
+  "assets/voiceover/vo_p3_done.ogg": 16980,
+  "assets/voiceover/vo_p3_explain_a.ogg": 16553,
+  "assets/voiceover/vo_p3_explain_b.ogg": 16324,
+  "assets/voiceover/vo_p3_head.ogg": 20346,
+  "assets/voiceover/vo_p4_child.ogg": 17775,
+  "assets/voiceover/vo_p4_done.ogg": 18053,
+  "assets/voiceover/vo_p4_explain_a.ogg": 17977,
+  "assets/voiceover/vo_p4_explain_b.ogg": 8119,
+  "assets/voiceover/vo_p4_head.ogg": 25974,
+  "assets/voiceover/vo_p5_ask.ogg": 12012,
+  "assets/voiceover/vo_p5_instr.ogg": 11805,
+  "assets/voiceover/vo_p5_ok.ogg": 16672,
+  "assets/voiceover/vo_p6_ask.ogg": 12884,
+  "assets/voiceover/vo_p6_instr.ogg": 12765,
+  "assets/voiceover/vo_p6_ok.ogg": 16891,
+  "assets/voiceover/vo_p6b_ask.ogg": 13327,
+  "assets/voiceover/vo_p6b_instr.ogg": 11652,
+  "assets/voiceover/vo_p6b_ok.ogg": 15984,
+  "assets/voiceover/vo_p7_ask.ogg": 12845,
+  "assets/voiceover/vo_p7_instr.ogg": 11358,
+  "assets/voiceover/vo_p7_ok.ogg": 16739,
+  "assets/voiceover/vo_p8_ask.ogg": 15536,
+  "assets/voiceover/vo_p8_ok.ogg": 15107,
+  "assets/voiceover/vo_p8_reask.ogg": 13171,
+  "assets/voiceover/vo_p9_ask.ogg": 14799,
+  "assets/voiceover/vo_p9_ok.ogg": 16665,
+  "assets/voiceover/vo_p9_reask.ogg": 13239,
+  "assets/voiceover/vo_pt_guided.ogg": 8240,
+  "assets/voiceover/vo_pt_practice.ogg": 5411,
+  "assets/voiceover/vo_pt_tutorial.ogg": 8226,
+  "assets/voiceover/vo_rule_a.ogg": 22585,
+  "assets/voiceover/vo_rule_b.ogg": 9415,
+  "assets/voiceover/vo_rule_c.ogg": 10547,
+  "assets/voiceover/vo_try_again.ogg": 11485,
+  "assets/voiceover/vo_well_done.ogg": 18180
 };
 /* @asset-sizes:end */
 const Assets = (function(){
@@ -4977,7 +5100,7 @@ const Assets = (function(){
   function init(){
     if(items.size) return;
     /* CRIT: the landing - what the boot loader waits for */
-    ["startnew_bg_plain.webp", "start_card.webp", "background_1st_screen.webp", "pencil_purple.webp", "pencil_face_rig.webp",
+    ["startnew_bg_plain.webp", "start_card.webp", "background_1st_screen_nolamp.webp", "pencil_purple.webp", "pencil_face_rig.webp",
      "cubes_blue_row.webp", "btn-play-round-waiting.svg", "btn-play-round.svg", "bgdeco_star.svg", "bgdeco_star_o.svg",
      "bgdeco_spark.svg"].forEach(f => add("assets/" + f, CRIT));
     add(art("new_landing_swiftee_anim.webp"), CRIT);                                // Swiftee's wave (sgMascotPlayer reads its Blob)
@@ -6829,6 +6952,7 @@ boot();
     if(reduce){ built.classList.add("static"); introDone(); return; }
     built.classList.add("go");
     setTimeout(introDone, FIRST + (N - 1) * STEP + CUBE_DUR);         // once the last cube has landed
+    for(let i = 0; i < N; i++) setTimeout(()=> sfxCubePop(i, i === N - 1), FIRST + i * STEP);   // each cube's entry sound
     const eyes = window.SGEyes;                                        // the pencil's eyes (app.js [pencil eyes]) watch its own measuring
     if(eyes){
       const marks = built.querySelectorAll(".sgm-mark"), blocks = built.querySelectorAll(".sgm-block");

@@ -1418,7 +1418,7 @@ body.is-end{background:#FDE9A8;}
        but under the title, blocks, CTA, mascot and VO chip. --- */
 .sg-card{isolation:isolate;}
 .sg-card::before{content:"";position:absolute;inset:9px;border-radius:37px;z-index:-1;pointer-events:none;
-  background:url("assets/background_1st_screen.webp") center/100% 100% no-repeat;}   /* 100% 100%, not cover: the 16:9 art in a 2.5:1 box - cover cropped the posters/lamp; this shows the whole scene edge to edge */
+  background:url("assets/background_1st_screen_nolamp.webp") center/100% 100% no-repeat;}   /* 100% 100%, not cover: the 16:9 art in a 2.5:1 box - cover cropped the posters/lamp; this shows the whole scene edge to edge */
 
 /* --- [landing pencil] centre hero on the first screen (replaces the block row).
        pencil.webp is ~6.8:1, so size by WIDTH - the generic 250px height cap would
@@ -1471,37 +1471,10 @@ body.is-end{background:#FDE9A8;}
    so specks only ever ADD light to the art. */
 .sg-dust{position:absolute;left:0;top:0;width:1096px;height:438px;mix-blend-mode:screen;pointer-events:none;}
 
-/* study-lamp light (review 2026-09-29: "light of lamp should only come from inside"). The painted lamp faces down-left;
-   its lit OPENING and the shade around it were traced from the art (card px, via a 3x render). Two parts, both inside
-   .sg-lamp (fx 890,-30, 160px box), which flickers them together - smoothly and continuously, by BRIGHTNESS ONLY (a
-   scale would push the clipped light past the traced edges):
-   ::before - the bulb's glow, CLIPPED to the opening, so it can only brighten the inside of the shade (the old round
-              glow also lit the shade's orange outside, as if the light shone through it);
-   ::after  - the light the lamp throws onto the wall, starting BELOW the shade: its top edge follows the shade's lower
-              rim, from the left tip of the opening to the rim's lowest point, and it spreads down and left from there
-              (the way the lamp points), fading out before its own edges, so it never touches the shade itself. */
-.sg-lamp{position:absolute;left:890px;top:-30px;width:160px;height:160px;mix-blend-mode:screen;pointer-events:none;
-  animation:sgLampFlicker 5.2s ease-in-out infinite;}
-.sg-lamp::before{content:"";position:absolute;left:0;top:0;width:160px;height:160px;
-  background:radial-gradient(ellipse 64px 36px at 79px 80px,rgba(255,246,206,.92) 0,rgba(255,226,146,.5) 42%,rgba(255,208,116,.18) 78%,transparent 100%);
-  clip-path:polygon(19.1px 66.8px,21.2px 64.4px,23.3px 63.7px,25.4px 63.4px,27.4px 63.4px,29.5px 63.4px,31.6px 63.7px,33.7px 63.7px,35.8px 64.1px,37.9px 64.4px,39.9px 64.8px,42.0px 64.8px,44.1px 65.1px,46.2px 65.4px,48.3px 65.8px,50.4px 66.1px,52.4px 66.5px,54.5px 66.8px,56.6px 67.2px,58.7px 67.9px,60.8px 68.6px,62.9px 69.3px,64.9px 68.9px,67.0px 69.3px,69.1px 70.0px,71.2px 70.3px,73.3px 71.0px,75.4px 71.7px,77.4px 72.4px,79.5px 73.4px,81.6px 73.8px,83.7px 74.5px,85.8px 75.5px,87.9px 76.2px,89.9px 77.2px,92.0px 77.9px,94.1px 79.0px,96.2px 79.7px,98.3px 80.7px,100.4px 82.1px,102.4px 83.2px,104.5px 84.2px,106.6px 85.2px,108.7px 85.9px,110.8px 87.0px,112.9px 88.4px,114.9px 89.4px,117.0px 90.4px,119.1px 91.5px,121.2px 92.9px,123.3px 94.3px,125.4px 96.0px,127.4px 97.4px,129.5px 99.5px,131.6px 101.9px,132.7px 104.0px,132.7px 104.0px,131.6px 105.4px,129.5px 106.4px,127.4px 106.8px,125.4px 107.1px,123.3px 107.1px,121.2px 107.1px,119.1px 107.1px,117.0px 107.1px,114.9px 106.8px,112.9px 106.4px,110.8px 106.1px,108.7px 105.7px,106.6px 105.4px,104.5px 105.0px,102.4px 105.0px,100.4px 104.7px,98.3px 104.7px,96.2px 104.0px,94.1px 103.6px,92.0px 102.9px,89.9px 102.6px,87.9px 102.6px,85.8px 102.6px,83.7px 101.9px,81.6px 101.2px,79.5px 100.2px,77.4px 99.5px,75.4px 98.8px,73.3px 98.4px,71.2px 97.7px,69.1px 97.0px,67.0px 96.3px,64.9px 95.7px,62.9px 94.6px,60.8px 93.6px,58.7px 92.5px,56.6px 91.5px,54.5px 90.4px,52.4px 89.8px,50.4px 89.1px,48.3px 88.0px,46.2px 86.6px,44.1px 85.9px,42.0px 85.2px,39.9px 83.5px,37.9px 82.5px,35.8px 81.4px,33.7px 80.0px,31.6px 79.3px,29.5px 77.9px,27.4px 76.2px,25.4px 74.8px,23.3px 73.1px,21.2px 71.3px,19.1px 68.2px);}
-.sg-lamp::after{content:"";position:absolute;left:-110px;top:40px;width:330px;height:250px;
-  background:radial-gradient(ellipse 125px 120px at 132px 64px,rgba(255,230,160,.44) 0,rgba(255,214,130,.21) 40%,rgba(255,206,120,.07) 72%,transparent 100%);
-  clip-path:polygon(0.0px 61.2px,120.4px 27.2px,122.5px 31.0px,124.6px 33.1px,126.7px 35.2px,128.8px 36.6px,130.8px 37.9px,132.9px 39.7px,135.0px 41.1px,137.1px 42.1px,139.2px 43.5px,141.3px 44.5px,143.3px 45.6px,145.4px 46.6px,147.5px 47.7px,149.6px 48.7px,151.7px 49.8px,153.8px 50.4px,155.8px 51.5px,157.9px 52.5px,160.0px 53.2px,162.1px 54.3px,164.2px 55.3px,166.3px 56.0px,168.3px 56.7px,170.4px 57.7px,172.5px 58.1px,174.6px 58.8px,176.7px 59.5px,178.8px 60.2px,180.8px 60.9px,182.9px 61.6px,185.0px 62.2px,187.1px 62.9px,189.2px 63.3px,191.3px 64.0px,193.3px 64.7px,195.4px 65.0px,197.5px 65.7px,199.6px 66.1px,201.7px 66.8px,203.8px 67.1px,205.8px 67.5px,207.9px 67.8px,210.0px 68.2px,212.1px 68.5px,214.2px 68.8px,216.3px 69.2px,218.3px 69.5px,220.4px 69.9px,222.5px 69.9px,224.6px 70.2px,226.7px 70.6px,251.7px 250.0px,0.0px 250.0px);}
-@keyframes sgLampFlicker{
-    0%{opacity:.8;}
-   14%{opacity:1;}
-   27%{opacity:.86;}
-   36%{opacity:.55;}
-   44%{opacity:.96;}
-   60%{opacity:.82;}
-   76%{opacity:1;}
-   88%{opacity:.64;}
-  100%{opacity:.8;}
-}
+/* (study lamp removed from the landing art 2026-10-13: "remove the lamp" - its .sg-lamp glow/flicker went with it) */
 
 @media (prefers-reduced-motion:reduce){
-  .sg-flare2,.sg-lamp{animation:none;}
+  .sg-flare2{animation:none;}
 }
 
 /* ==================== START BUTTON AS ART ====================
@@ -2224,6 +2197,8 @@ body.is-start .sg-sky{
 .md-mark.no{background-color:#6D28D9;}   /* [endmark colour] the tutorial marks are one purple - see .md-endmark */
 .md-mark.in{animation:mdPop .4s cubic-bezier(.3,1.7,.5,1) forwards;}
 .md-mark.out{opacity:0 !important;}
+.md-mark.no{display:none !important;}   /* 2026-10-13: "remove the purple cross completely from all game screens" */
+.md-err.none{display:none !important;}   /* the overlap demo: no dotted box (app.js MEASURE_DEMO) */
 /* [endmark colour] review 2026-10-05: "the yellow indicator is not visible enough on a white background". Measured
    (WCAG contrast; 3:1 is the floor for a UI mark): the yellow #FFC21A scored 1.2-1.5 on the white grid paper, the cream
    tabletop, the wood and tile floors. Deep purple #6D28D9 scores 3.7-6.6 on all of them, and is a hue no other mark in
@@ -2234,11 +2209,11 @@ body.is-start .sg-sky{
    ~2:1), its ✗ (.md-mark.no) and the "place it here" arrow (.md-arrow, was #FFB400). The game-wide wrong-ANSWER amber
    (--wrong, the options' border) is another signal and stays. */
 .md-endmark{position:absolute;z-index:8;border-radius:4px;background:#6D28D9;pointer-events:none;
-  box-shadow:0 0 0 2px #FFFFFF,0 0 10px 4px rgba(109,40,217,.55);animation:mdBeatMark .7s ease-in-out infinite;transition:opacity .3s;}
+  box-shadow:0 0 0 1.5px #FFFFFF,0 0 6px 2px rgba(109,40,217,.5);animation:mdBeatMark .7s ease-in-out infinite;transition:opacity .3s;}
 @keyframes mdBeatMark{0%,100%{opacity:1;scale:1;}50%{opacity:.85;scale:1.06;}}
-.md-endmark.v{width:6px;}
-.md-endmark.h{height:6px;}
-.md-err{position:absolute;z-index:9;box-sizing:border-box;border-radius:10px;pointer-events:none;
+.md-endmark.v{width:3px;}   /* 2026-10-13 ("too thick"): was 6px, its ring 2px and glow 10px/4px */
+.md-endmark.h{height:3px;}
+.md-err{position:absolute;z-index:9;box-sizing:border-box;border-radius:4px;pointer-events:none;
   background:rgba(109,40,217,.16);animation:mdBeat .7s ease-in-out infinite;transition:opacity .3s;
   box-shadow:0 0 12px 2px rgba(109,40,217,.38);}
 /* its dashes (app.js, the gap / overlap demo): each purple dash with its own white outline - review 2026-10-05 */
@@ -2973,3 +2948,39 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
   -webkit-tap-highlight-color:transparent;}
 body.vo-lock #voLock{display:block;}
 body.vo-lock .dev-nav{z-index:150001;}
+
+/* ==================== [cta pulse] 2026-10-13: "fix the next button and end button pulsate to same as the front screen
+   play button pulsate effect throughout the game" ====================
+   The Next (→, #navBtn) and the end screen's button (#endBtn) now move exactly as the title screen's play button:
+   the one-shot arrival pop (sgPlayPop: 1.20 / .93 / 1.05, .6s) the moment it turns active, then the idle pulse
+   (sgPlayPulse: 1.10 / .985, 1.15s, the same curve) on a loop. On the individual `scale` property, so it never fights
+   the transform that centres / presses the button. (Was: Next a weaker 1.08 pulse with no pop; the end button only
+   popped in once.) */
+/* the pop / pulse were lopsided ("too much popping up on one side and less on the other"): `scale` applies AFTER the
+   button's centring transform (translateX(-50%)), so it grew about the box's UN-shifted centre - the visual button's right
+   edge. Its origin is put back on the visual centre: 0 = the left edge of the un-shifted box = where the shifted centre is. */
+.nav-btn,.stage .nav-btn{transform-origin:0 50%;}
+@keyframes ctaPop{0%{scale:1;}35%{scale:1.20;}60%{scale:.93;}80%{scale:1.05;}100%{scale:1;}}
+@keyframes ctaPulse{0%,100%{scale:1;}30%{scale:1.10;}58%{scale:.985;}}
+.nav-btn.active,.stage .nav-btn.active,.end-btn.show:not(:disabled){
+  animation:ctaPop .6s cubic-bezier(.34,1.3,.5,1) both,ctaPulse 1.15s cubic-bezier(.34,.62,.3,1) 1.2s infinite;}
+.nav-btn.active:active,.stage .nav-btn.active:active,.end-btn.show:not(:disabled):active{animation:none;}
+@media (prefers-reduced-motion:reduce){ .nav-btn.active,.stage .nav-btn.active,.end-btn.show{animation:none;} }
+
+/* ==================== [flat options] 2026-10-13: "these option boxes are too 3d, not correct as per figma" ====================
+   The Figma card (FLN 1162:29905, the same spec as P2 / P3's match cards above): white, a 2.69px #D5D8DF border, radius 16,
+   NO shadow. The answer cards (.mq-opt) and the count labels styled as them (.cm-count) had a hard 0 4px 0 grey foot -
+   that raised ledge is gone in every state. The pressed state no longer sinks, and the right answer keeps its green
+   rim + soft green glow (review 2026-10-06), just without the foot. */
+.mq-opt,.cm-count{box-shadow:none;}
+.mq-opt:active{box-shadow:none;translate:none;}
+.mq-opt.hint-on{box-shadow:0 0 0 6px rgba(0,177,50,.28);}
+.mq-opts.in .mq-opt.correct,.cm-count.ok{box-shadow:0 0 6px #00B132,0 0 14px rgba(0,177,50,.45);}
+
+/* [idle pulse] 2026-10-13: the classroom game's tray objects after 7s with no pick (app.js CLASSROOM_FIT) - the title
+   screen play button's pulse (ctaPulse: 1.10 / .985, 1.15s), on `scale` so it never fights their translate */
+.md-stage.in.cf .cf-item.cf-idle-pulse:not(:disabled),.cf-item.cf-idle-pulse:not(:disabled){transform-origin:50% 50%;animation:cfIdlePulse 1.15s cubic-bezier(.34,.62,.3,1) 2;   /* twice, then still (review 2026-10-13) */animation-delay:0s;}
+/* (review 2026-10-13 "too much pulsating, lessen it, I don't want collision between the options": the play button's 1.10
+   grew each ~360px card ~18px a side into its neighbours - the gap is ~22px. 1.04 = ~7px a side, the same rhythm) */
+@keyframes cfIdlePulse{0%,100%{scale:1;}30%{scale:1.04;}58%{scale:.995;}}   /* (the tray's drop-in rule, .md-stage.in.cf .cf-item, is more specific - it overrode the pulse: matched here) */
+@media (prefers-reduced-motion:reduce){ .md-stage.in.cf .cf-item.cf-idle-pulse,.cf-item.cf-idle-pulse{animation:none;} }

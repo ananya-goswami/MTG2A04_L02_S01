@@ -492,10 +492,14 @@
           },
           {
             "id": "stool",
-            "src": "assets/obj_stool.webp",
+            "src": "assets/obj_stool_v2.webp",
             "n": 3,
             "axis": "y",
-            "ar": 0.8349
+            "ar": 0.5967,
+            "span": [
+              0.2,
+              1
+            ]
           }
         ],
         "boxes": [
@@ -536,14 +540,14 @@
           },
           {
             "id": "watercan",
-            "src": "assets/obj_watercan.webp",
+            "src": "assets/obj_watercan_v2.webp",
             "n": 4,
             "axis": "y",
-            "ar": 1.5967
+            "ar": 1.5017
           },
           {
             "id": "tv",
-            "src": "assets/obj_tv.webp",
+            "src": "assets/obj_tv_v2.webp",
             "n": 6,
             "axis": "x",
             "ar": 0.58
@@ -607,7 +611,7 @@
           },
           {
             "id": "almirah",
-            "name_hi": "छोटी अलमारी",
+            "name_hi": "अलमारी",
             "src": "assets/obj_almirah.webp",
             "ar": 1.5915,
             "n": 7,
@@ -835,14 +839,14 @@
       "obj_blackboard_p2": "assets/obj_blackboard_p2.webp",
       "scene_classroom": "assets/scene_classroom.svg",
       "obj_window": "assets/obj_window.webp",
-      "obj_watercan": "assets/obj_watercan.webp",
-      "obj_tv": "assets/obj_tv.webp",
+      "obj_watercan": "assets/obj_watercan_v2.webp",
+      "obj_tv": "assets/obj_tv_v2.webp",
       "obj_chair": "assets/obj_chair.webp",
       "room_window": "assets/room_window.webp",
       "room_door": "assets/room_door.webp",
       "room_clock": "assets/room_clock.webp",
       "room_flags": "assets/room_flags.webp",
-      "obj_stool": "assets/obj_stool.webp"
+      "obj_stool": "assets/obj_stool_v2.webp"
     },
     "img_ext": "webp",
     "audio_ext": "ogg"
