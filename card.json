@@ -492,12 +492,12 @@
           },
           {
             "id": "stool",
-            "src": "assets/obj_stool_v2.webp",
+            "src": "assets/obj_stool_v3.webp",
             "n": 3,
             "axis": "y",
-            "ar": 0.5967,
+            "ar": 1.4717,
             "span": [
-              0.2,
+              0.065,
               1
             ]
           }
@@ -543,7 +543,11 @@
             "src": "assets/obj_watercan_v2.webp",
             "n": 4,
             "axis": "y",
-            "ar": 1.5017
+            "ar": 1.5017,
+            "span": [
+              0.012,
+              0.988
+            ]
           },
           {
             "id": "tv",
@@ -846,7 +850,7 @@
       "room_door": "assets/room_door.webp",
       "room_clock": "assets/room_clock.webp",
       "room_flags": "assets/room_flags.webp",
-      "obj_stool": "assets/obj_stool_v2.webp"
+      "obj_stool": "assets/obj_stool_v3.webp"
     },
     "img_ext": "webp",
     "audio_ext": "ogg"

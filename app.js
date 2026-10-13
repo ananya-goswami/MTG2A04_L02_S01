@@ -1039,10 +1039,19 @@ const MDK = (function(){
      trimmed clip's length: a beat is max(COUNT_MS, NUM_MS[n]) - 650ms for 1..9, a little longer for दस / ग्यारह / बारह -
      and a SILENT count (digits only: the 3rd wrong) keeps the very same per-number timing, so every attempt runs at one pace.
      countBeat(say, n): say(n) returns the clip's promise (or nothing for a silent beat). */
-  const COUNT_MS = 650, NUM_MS = [618, 509, 492, 668, 648, 487, 632, 509, 553, 728, 805, 777];
-  const beatMs = n => Math.max(COUNT_MS, NUM_MS[n - 1] || 0);
+  // (then, of the 3rd wrong's digits at 650 - 805ms: "this 1234... coming animation is too slow" - COUNT_MS 580, and a
+  //  SILENT count no longer waits out the spoken words' lengths: a flat 580ms a digit, 12 in ~7s (was ~8.3s). A spoken
+  //  count still never cuts a word - 1..9 run at 580-668ms, दस / ग्यारह / बारह at their own 728-805ms)
+  // (then "with the 2nd wrong attempt the VO is not at a consistent speed": each spoken beat took its own word's length,
+  //  487-805ms. vo_num_1..12 are re-made so every word fits ONE beat - the long ones gently sped up, pitch kept (atempo:
+  //  4 x1.11, 5 x1.06, 10 x1.17, 11 x1.30, 12 x1.29), every clip 0.44-0.61s - and every count, spoken or silent, moves on a
+  //  flat COUNT_MS = 620 a number. Still: the next number waits for a word that is somehow late, never cuts it.)
+  // (then, of the 3rd wrong's silent digits at 620: "with 3rd incorrect option when 1, 2, 3, 4 comes it's really slow" - a
+  //  SILENT count has no words to wait for, so it runs on its own quicker beat, SILENT_MS = 450 a digit (140 was "really
+  //  fast", 2026-10-09). A spoken count keeps COUNT_MS: every number word fits one 620ms beat.)
+  const COUNT_MS = 620, SILENT_MS = 450;
   const countBeat = (say, n)=>{
-    const t = new Promise(r => setTimeout(r, n ? beatMs(n) : COUNT_MS));
+    const t = new Promise(r => setTimeout(r, say ? COUNT_MS : SILENT_MS));
     const v = say ? say() : null;
     return v && v.then ? Promise.all([t, v]) : t; };
   function add(parent, tag, cls, css){ const e = document.createElement(tag); e.className = cls; if(css) e.style.cssText = css; parent.appendChild(e); return e; }
@@ -4874,7 +4883,7 @@ const ASSET_SIZES = {
   "assets/obj_mat_1.webp": 165508,
   "assets/obj_mat_2.webp": 145580,
   "assets/obj_pillow.webp": 90784,
-  "assets/obj_stool_v2.webp": 41410,
+  "assets/obj_stool_v3.webp": 75484,
   "assets/obj_table_long.webp": 31502,
   "assets/obj_table_measure.webp": 45156,
   "assets/obj_table_short.webp": 21208,
@@ -4921,18 +4930,18 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_landing.ogg": 29144,
   "assets/voiceover/vo_match_instr.ogg": 14012,
   "assets/voiceover/vo_match_ok.ogg": 21117,
-  "assets/voiceover/vo_num_1.ogg": 2815,
-  "assets/voiceover/vo_num_10.ogg": 3374,
-  "assets/voiceover/vo_num_11.ogg": 3586,
-  "assets/voiceover/vo_num_12.ogg": 3302,
-  "assets/voiceover/vo_num_2.ogg": 2431,
-  "assets/voiceover/vo_num_3.ogg": 2150,
-  "assets/voiceover/vo_num_4.ogg": 2878,
-  "assets/voiceover/vo_num_5.ogg": 3152,
-  "assets/voiceover/vo_num_6.ogg": 2179,
-  "assets/voiceover/vo_num_7.ogg": 2681,
-  "assets/voiceover/vo_num_8.ogg": 2315,
-  "assets/voiceover/vo_num_9.ogg": 2463,
+  "assets/voiceover/vo_num_1.ogg": 2601,
+  "assets/voiceover/vo_num_10.ogg": 2675,
+  "assets/voiceover/vo_num_11.ogg": 2781,
+  "assets/voiceover/vo_num_12.ogg": 2585,
+  "assets/voiceover/vo_num_2.ogg": 2424,
+  "assets/voiceover/vo_num_3.ogg": 2168,
+  "assets/voiceover/vo_num_4.ogg": 2670,
+  "assets/voiceover/vo_num_5.ogg": 2854,
+  "assets/voiceover/vo_num_6.ogg": 2048,
+  "assets/voiceover/vo_num_7.ogg": 2517,
+  "assets/voiceover/vo_num_8.ogg": 2236,
+  "assets/voiceover/vo_num_9.ogg": 2379,
   "assets/voiceover/vo_p13_intro.ogg": 33326,
   "assets/voiceover/vo_p13_measure.ogg": 9242,
   "assets/voiceover/vo_p13_measure_almirah.ogg": 10635,
@@ -4948,7 +4957,7 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p3_done.ogg": 16980,
   "assets/voiceover/vo_p3_explain_a.ogg": 16553,
   "assets/voiceover/vo_p3_explain_b.ogg": 16324,
-  "assets/voiceover/vo_p3_head.ogg": 20346,
+  "assets/voiceover/vo_p3_head.ogg": 18979,
   "assets/voiceover/vo_p4_child.ogg": 17775,
   "assets/voiceover/vo_p4_done.ogg": 18053,
   "assets/voiceover/vo_p4_explain_a.ogg": 17977,
@@ -4979,7 +4988,7 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_rule_b.ogg": 9415,
   "assets/voiceover/vo_rule_c.ogg": 10547,
   "assets/voiceover/vo_try_again.ogg": 11485,
-  "assets/voiceover/vo_well_done.ogg": 18180
+  "assets/voiceover/vo_well_done.ogg": 12419
 };
 /* @asset-sizes:end */
 const Assets = (function(){
