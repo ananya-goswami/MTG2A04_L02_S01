@@ -2984,3 +2984,12 @@ body.vo-lock .dev-nav{z-index:150001;}
    grew each ~360px card ~18px a side into its neighbours - the gap is ~22px. 1.04 = ~7px a side, the same rhythm) */
 @keyframes cfIdlePulse{0%,100%{scale:1;}30%{scale:1.04;}58%{scale:.995;}}   /* (the tray's drop-in rule, .md-stage.in.cf .cf-item, is more specific - it overrode the pulse: matched here) */
 @media (prefers-reduced-motion:reduce){ .md-stage.in.cf .cf-item.cf-idle-pulse,.cf-item.cf-idle-pulse{animation:none;} }
+
+/* [gap box red] 2026-10-13 ("when this dotted box comes, show red shade inside it - throughout the game"): the gap demo's
+   dotted box (.md-err, app.js MEASURE_DEMO) is filled with a soft red - "this gap is wrong" - instead of the faint purple;
+   its glow turns red with it. The purple-on-white dashes stay. */
+.md-err{background:none;box-shadow:none;}
+/* (then "make sure the red shade is only inside the dotted box": the box's own background ran out past the dashes (they
+   are inset 3px) and the glow spread beyond them - both gone; the red is the dashed rectangle's own fill, painted under
+   its white + purple dashes, so it ends exactly at the dotted line) */
+.md-err .md-err-dash rect:first-child{fill:rgba(235,64,64,.30);}

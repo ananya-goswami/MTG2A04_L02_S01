@@ -445,9 +445,9 @@ const sfxNudge     = ()=> playSfxFile("sfx_nudge", 0.45);
    (C-major pentatonic), so the row climbs like a little xylophone run; the last cube adds a sparkle on top.
    Procedural (WebAudio), kept well under the VO; silent until the audio context is unlocked. */
 const CUBE_NOTES = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
-function sfxCubePop(i, last){
+function sfxCubePop(i, last, when){
   const c = _ac(); if(!c || c.state !== "running") return;
-  const t0 = c.currentTime + 0.01, f = CUBE_NOTES[Math.min(i, CUBE_NOTES.length - 1)], out = c.createGain();
+  const t0 = when != null ? Math.max(when, c.currentTime) : c.currentTime, f = CUBE_NOTES[Math.min(i, CUBE_NOTES.length - 1)], out = c.createGain();
   out.gain.value = 0.9; out.connect(c.destination);
   const o = c.createOscillator(), g = c.createGain(); o.type = "sine";
   o.frequency.setValueAtTime(f * 0.55, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.07);   // the spring up
@@ -2420,7 +2420,10 @@ const MDK = (function(){
         /* 2026-10-13 ("if by mistake the cube gets dropped on its initial location only, it should not disappear"): a drop
            back where it was picked up (within ~one cube of it), or a tap with no drag, is NOT a wrong answer - no buzz, no
            miss on the hint ladder, no vanish / respawn: it just slides back into its place and waits */
-        const home = !hit && (!dr.moved || Math.hypot(at.x - dr.from.x, at.y - dr.from.y) <= S * 0.9);
+        // (then "if a cube is not dropped at the correct place it should vanish - the same behaviour throughout": the "back
+        //  where it was" zone was 0.9 of a cube - a drop near the robot but off its lid slid back instead of vanishing. Now
+        //  only a real put-back - its centre within a third of a cube of where it was picked up - or a tap with no drag)
+        const home = !hit && (!dr.moved || Math.hypot(at.x - dr.from.x, at.y - dr.from.y) <= S * 0.33);
         if(home){
           drop(b); b.style.zIndex = 30;
           glide(b, dr.from, reduce() ? 0 : 200, false).then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3; if(live() && !drag) armIdle(); });
@@ -3065,10 +3068,13 @@ const SlideModules = {
             lits.push(K.bulb(bs[k], { steady: true })); await K.countBeat(()=> sayNum(k + 1), k + 1); } }   // (the counting beat; steady - no twinkle while counting)
           finally{ lits.forEach(l => l.off()); } }
         else {
-          lockWrong();                                                       // the wrong options off, then the digits + the hand
+          // the digits first, THEN the wrong options off + the hand (review 2026-10-13: "in 3rd wrong attempt the other options
+          // should not get disabled before the counting has ended" - they dimmed the moment the count began)
           if(!digits){ digits = [];
             for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.countBeat(null, k + 1); }   // (the counting beat - was 140ms)
             await K.wait(350); }
+          if(!alive()) return;
+          lockWrong();
           nudged = true; if(alive() && !state.locked) placeNudge(right);
         }
       }
@@ -4058,7 +4064,9 @@ const SlideModules = {
           //  was ~8-10 robot widths, not ~15 - at the same pace the whole entrance took 2.6-3.1s (as short as the 3.2s drive
           //  turned down before), a wave every ~0.75s. On it the robot drives at 2.2: home ~4.9-5.9s after it sets off (as the
           //  ~4.7-5.4s of the drive before the waves), a slow sway every ~1.5s. The traced path keeps 4.2)
-          box.drive(path.map(([px_, py_])=> [px_ - hx, py_ - hy]), { far: 850, speed: d.drive_path === "traced" ? 4.2 : 2.2, delay: 300 }); }
+          box.drive(path.map(([px_, py_])=> [px_ - hx, py_ - hy]), { far: 850, speed: d.drive_path === "traced" ? 4.2 : 3.0, delay: 300 }); }
+        // (2026-10-13 "when I select one of the options the transition is happening really slow": 2.2 -> 3.0 - home ~3.6-4.3s
+        //  after the tap, was ~4.9-5.9s; still slower than the 3.2s drive called "really fast" on 2026-10-09)
       }
       function measured(it, layer){
         if(!alive() || cur !== it) return;
@@ -6961,7 +6969,31 @@ boot();
     if(reduce){ built.classList.add("static"); introDone(); return; }
     built.classList.add("go");
     setTimeout(introDone, FIRST + (N - 1) * STEP + CUBE_DUR);         // once the last cube has landed
-    for(let i = 0; i < N; i++) setTimeout(()=> sfxCubePop(i, i === N - 1), FIRST + i * STEP);   // each cube's entry sound
+    /* each cube's entry sound, sample-accurate (review 2026-10-13, twice: "the sfx is not matching with the entry of the
+       cubes"). Timers and animation events both drift from what is on screen, and a sound sent while the audio context was
+       still waking was lost - the rest then fell on the wrong cubes. Now: the moment the cubes start (class "go"), every
+       cube's pop time is computed from the SAME numbers its CSS animation-delay uses (FIRST + i * STEP), and all of them
+       are booked at once on the audio clock (sample-accurate), each moved earlier by the device's output latency so the
+       sound leaves the speaker as the cube appears. Not running yet: it waits for the context, then books only the cubes
+       still to come, at their own times - a late start drops the past ones, it never shifts the rest onto other cubes. */
+    // (measured in Chrome: the CSS animations really start ~75ms after the class is added - the next style pass - so the
+    //  booking reads the first cube's ACTUAL start time (Animation.startTime, the same clock as performance.now()) once it
+    //  is known, and every cube's pop is that + its own animation-delay)
+    const ctx = _ac(), a0 = (()=>{ const b0 = built.querySelector(".sgm-block"); return b0 && b0.getAnimations ? b0.getAnimations()[0] : null; })();
+    let popAt0 = performance.now();
+    const book = ()=>{
+      if(!ctx || ctx.state !== "running") return;
+      const lat = ctx.outputLatency || ctx.baseLatency || 0;
+      const audioNow = ctx.currentTime, perfNow = performance.now();
+      for(let i = 0; i < N; i++){
+        const at = audioNow + (popAt0 + FIRST + i * STEP - perfNow) / 1000 - lat;
+        if(at < audioNow - .04) continue;                                // its moment has passed - never late, never on the next cube
+        sfxCubePop(i, i === N - 1, at);
+      }
+    };
+    const go = ()=>{ if(ctx && ctx.state === "running") book(); else if(ctx){ try{ ctx.resume().then(book, ()=>{}); }catch(e){} } };
+    if(a0 && a0.ready) a0.ready.then(()=>{ if(a0.startTime != null) popAt0 = a0.startTime; go(); }, go);
+    else go();
     const eyes = window.SGEyes;                                        // the pencil's eyes (app.js [pencil eyes]) watch its own measuring
     if(eyes){
       const marks = built.querySelectorAll(".sgm-mark"), blocks = built.querySelectorAll(".sgm-block");
