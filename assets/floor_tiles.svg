@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 90" width="240" height="90" preserveAspectRatio="none">
+  <!-- T2's floor: pale lilac marble slabs. Review 2026-10-19 (manager): "the slabs can be bigger - biggest - and less
+       colourful": 2 x 2 slabs per tile (were 4 x 3), the tile painted at 480px wide (CSS .floor-tile), so each slab is
+       ~240 x 150 stage px; the lilac is paler and greyer, the veins fainter. T3 keeps its oak planks. -->
+  <defs>
+    <linearGradient id="m1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3EFF8"/><stop offset="1" stop-color="#E9E2F2"/></linearGradient>
+    <linearGradient id="m2" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0EBF7"/><stop offset="1" stop-color="#E6DEF0"/></linearGradient>
+  </defs>
+  <g stroke="none">
+    <rect x="0" y="0" width="120" height="40" fill="url(#m1)"/><rect x="120" y="0" width="120" height="40" fill="url(#m2)"/>
+    <rect x="0" y="40" width="120" height="50" fill="url(#m2)"/><rect x="120" y="40" width="120" height="50" fill="url(#m1)"/>
+  </g>
+  <!-- veins: long, soft, few; none crosses a grout line -->
+  <g fill="none" stroke-linecap="round" stroke-width=".9" opacity=".6">
+    <path d="M8 34C30 22 48 26 74 8M136 6c22 10 40 8 78 26" stroke="#FFFFFF"/>
+    <path d="M6 84c24-12 44-26 70-30M130 48c26 8 44 22 86 30" stroke="#FFFFFF"/>
+  </g>
+  <g fill="none" stroke-linecap="round" stroke-width=".6" opacity=".3">
+    <path d="M26 14c18-4 34-6 58 2M150 30c16-6 30-14 60-14M40 70c14-8 30-8 48-18M160 84c14-8 30-18 52-16" stroke="#B7A6D6"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M120 0V90" stroke="#D4C9E5" stroke-width=".6"/>
+    <path d="M0 40H240" stroke="#D4C9E5" stroke-width=".65"/>
+    <path d="M0 40.6H240" stroke="#F8F5FC" stroke-width=".4" opacity=".8"/>
+  </g>
+</svg>

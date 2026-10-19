@@ -34,6 +34,9 @@
     "guided": 5,
     "practice": 5
   },
+  "phase_gate_at": {
+    "guided": "G4"
+  },
   "scaffold_rules": {
     "nudge_timeout_ms": {
       "tutorial": 7000,
@@ -79,10 +82,26 @@
           {
             "src": "assets/obj_table_long.webp",
             "feet": [
-              [0.065, 0.9946, 0.0733],
-              [0.1478, 0.7649, 0.0656],
-              [0.8489, 0.7649, 0.0656],
-              [0.9328, 0.9946, 0.0733]
+              [
+                0.065,
+                0.9946,
+                0.0733
+              ],
+              [
+                0.1478,
+                0.7649,
+                0.0656
+              ],
+              [
+                0.8489,
+                0.7649,
+                0.0656
+              ],
+              [
+                0.9328,
+                0.9946,
+                0.0733
+              ]
             ],
             "w": 450,
             "correct": true,
@@ -95,10 +114,26 @@
           {
             "src": "assets/obj_table_short.webp",
             "feet": [
-              [0.0863, 0.9934, 0.0871],
-              [0.1766, 0.8073, 0.0742],
-              [0.8218, 0.8073, 0.0742],
-              [0.9113, 0.9934, 0.0855]
+              [
+                0.0863,
+                0.9934,
+                0.0871
+              ],
+              [
+                0.1766,
+                0.8073,
+                0.0742
+              ],
+              [
+                0.8218,
+                0.8073,
+                0.0742
+              ],
+              [
+                0.9113,
+                0.9934,
+                0.0855
+              ]
             ],
             "w": 308,
             "emoji": "🪑"
@@ -114,7 +149,7 @@
       "phase": "tutorial",
       "eis": "iconic",
       "type": "MEASURE_DEMO",
-      "prompt_hi": "चलिए, टेबल की लंबाई मापते हैं।",
+      "prompt_hi": "",
       "audio": {
         "prompt": "vo_p3_head",
         "explain_a": "vo_p3_explain_a",
@@ -132,13 +167,31 @@
         "demo": 2,
         "axis": "x",
         "count_at": 2.38,
+        "floor": "tile",
+        "wall": "paint",
         "obj": {
           "src": "assets/obj_table_measure.webp",
           "feet": [
-            [0.0585, 0.9941, 0.0768],
-            [0.1353, 0.8239, 0.0661],
-            [0.8607, 0.8258, 0.067],
-            [0.9411, 0.9941, 0.0759]
+            [
+              0.0585,
+              0.9941,
+              0.0768
+            ],
+            [
+              0.1353,
+              0.8239,
+              0.0661
+            ],
+            [
+              0.8607,
+              0.8258,
+              0.067
+            ],
+            [
+              0.9411,
+              0.9941,
+              0.0759
+            ]
           ],
           "w": 560,
           "ar": 0.4562,
@@ -157,7 +210,7 @@
       "phase": "tutorial",
       "eis": "iconic",
       "type": "MEASURE_DEMO",
-      "prompt_hi": "अब दरवाजे की लंबाई मापते हैं।",
+      "prompt_hi": "",
       "audio": {
         "prompt": "vo_p4_head",
         "explain_a": "vo_p4_explain_a",
@@ -210,6 +263,7 @@
         "axis": "x",
         "wrong_cue": "deck",
         "holder": "basket",
+        "line_top": 0.88,
         "bg": "room",
         "obj": {
           "src": "assets/obj_bed.webp",
@@ -217,10 +271,26 @@
           "a0": 0,
           "a1": 1,
           "feet": [
-            [0.031, 0.9978, 0.049],
-            [0.106, 0.8344, 0.045],
-            [0.9005, 0.8323, 0.044],
-            [0.968, 0.9978, 0.051]
+            [
+              0.031,
+              0.9978,
+              0.049
+            ],
+            [
+              0.106,
+              0.8344,
+              0.045
+            ],
+            [
+              0.9005,
+              0.8323,
+              0.044
+            ],
+            [
+              0.968,
+              0.9978,
+              0.051
+            ]
           ]
         },
         "ask_hi": "पलंग की लंबाई कितनी है?",
@@ -231,6 +301,7 @@
         ],
         "unit_hi": "ब्लॉक्स",
         "fill": "stage",
+        "robot_at": "under",
         "spare": 1
       },
       "signals": {
@@ -390,7 +461,8 @@
           }
         ],
         "bg": "terrace",
-        "count_box": "card"
+        "count_box": "card",
+        "hide_wrong_count": true
       },
       "signals": {
         "on_complete": [
@@ -442,15 +514,15 @@
             "motion": "breathe"
           },
           {
-            "src": "assets/prop_turtle.webp",
-            "ar": 0.8025,
-            "w": 0.6114,
-            "motion": "bob"
+            "src": "assets/prop_mouse.webp",
+            "ar": 0.7389,
+            "w": 0.8
           }
         ],
         "riders_random": true,
         "bg": "veranda",
-        "count_box": "card"
+        "count_box": "card",
+        "hide_wrong_count": true
       },
       "signals": {
         "on_complete": [
@@ -798,7 +870,7 @@
       "vo_p9_reask": "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?",
       "vo_pt_guided": "चलिए, साथ में करें!",
       "vo_pt_practice": "अब आपकी बारी!",
-      "vo_pt_tutorial": "चलिए, शुरू करते हैं!",
+      "vo_pt_tutorial": "चलिए, शुरू करें!",
       "vo_p3_head": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
       "vo_p3_explain_a": "इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे।",
       "vo_p3_explain_b": "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।",
@@ -830,7 +902,6 @@
       "obj_almirah": "assets/obj_almirah.webp",
       "obj_almirah_sock": "assets/obj_almirah_sock.webp",
       "prop_cat": "assets/prop_cat.webp",
-      "prop_turtle": "assets/prop_turtle.webp",
       "obj_pillow": "assets/obj_pillow.webp",
       "obj_fridge": "assets/obj_fridge.webp",
       "obj_mat_1": "assets/obj_mat_1.webp",
