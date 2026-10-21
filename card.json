@@ -35,7 +35,8 @@
     "practice": 5
   },
   "phase_gate_at": {
-    "guided": "G4"
+    "guided": "G4",
+    "practice": "P1"
   },
   "scaffold_rules": {
     "nudge_timeout_ms": {
@@ -247,6 +248,128 @@
       }
     },
     {
+      "id": "G2b",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "तकिये की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p6b_instr",
+        "ask": "vo_p6b_ask",
+        "correct": "vo_p6b_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 5,
+        "axis": "x",
+        "wrong_cue": "deck",
+        "obj": {
+          "src": "assets/obj_pillow.webp",
+          "ar": 0.5921
+        },
+        "ask_hi": "तकिये की लंबाई कितनी है?",
+        "options": [
+          4,
+          5,
+          7
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "bg": "dusk",
+        "holder": "cloudtub",
+        "horizon": "base",
+        "fill": "stage",
+        "spare": 1,
+        "box_dx": 40
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
+      }
+    },
+    {
+      "id": "G2",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "अलमारी की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p6_instr",
+        "ask": "vo_p6_ask",
+        "correct": "vo_p6_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 7,
+        "axis": "y",
+        "line_in": 0.11,
+        "wrong_cue": "deck",
+        "obj": {
+          "src": "assets/obj_almirah_sock.webp",
+          "ar": 1.2302,
+          "a0": 0.0026,
+          "a1": 0.9974
+        },
+        "ask_hi": "अलमारी की लंबाई कितनी है?",
+        "options": [
+          6,
+          7,
+          8
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "bg": "bedroom",
+        "holder": "laundry",
+        "fill": "stage",
+        "spare": 0
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
+      }
+    },
+    {
+      "id": "G3",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "फ्रिज की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p7_instr",
+        "ask": "vo_p7_ask",
+        "correct": "vo_p7_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 7,
+        "axis": "y",
+        "wrong_cue": "deck",
+        "obj": {
+          "src": "assets/obj_fridge.webp",
+          "ar": 1.7208,
+          "a0": 0.0026,
+          "a1": 0.9974
+        },
+        "ask_hi": "फ्रिज की लंबाई कितनी है?",
+        "options": [
+          5,
+          6,
+          7
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "bg": "kitchen",
+        "holder": "wicker",
+        "fill": "stage",
+        "spare": 1,
+        "sink": 34
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
+      }
+    },
+    {
       "id": "G1",
       "phase": "guided",
       "eis": "iconic",
@@ -307,226 +430,6 @@
       "signals": {
         "on_complete": [
           "cardinality_first_try"
-        ]
-      }
-    },
-    {
-      "id": "G2",
-      "phase": "guided",
-      "eis": "iconic",
-      "type": "MEASURE_ASK",
-      "prompt_hi": "अलमारी की लंबाई ब्लॉक से मापिए।",
-      "audio": {
-        "prompt": "vo_p6_instr",
-        "ask": "vo_p6_ask",
-        "correct": "vo_p6_ok",
-        "try_again": "vo_try_again"
-      },
-      "data": {
-        "n": 7,
-        "axis": "y",
-        "line_in": 0.11,
-        "wrong_cue": "deck",
-        "obj": {
-          "src": "assets/obj_almirah_sock.webp",
-          "ar": 1.2302,
-          "a0": 0.0026,
-          "a1": 0.9974
-        },
-        "ask_hi": "अलमारी की लंबाई कितनी है?",
-        "options": [
-          6,
-          7,
-          8
-        ],
-        "unit_hi": "ब्लॉक्स",
-        "bg": "bedroom",
-        "holder": "laundry",
-        "fill": "stage",
-        "spare": 0
-      },
-      "signals": {
-        "on_complete": [
-          "cardinality_first_try"
-        ]
-      }
-    },
-    {
-      "id": "G2b",
-      "phase": "guided",
-      "eis": "iconic",
-      "type": "MEASURE_ASK",
-      "prompt_hi": "तकिये की लंबाई ब्लॉक से मापिए।",
-      "audio": {
-        "prompt": "vo_p6b_instr",
-        "ask": "vo_p6b_ask",
-        "correct": "vo_p6b_ok",
-        "try_again": "vo_try_again"
-      },
-      "data": {
-        "n": 5,
-        "axis": "x",
-        "wrong_cue": "deck",
-        "obj": {
-          "src": "assets/obj_pillow.webp",
-          "ar": 0.5921
-        },
-        "ask_hi": "तकिये की लंबाई कितनी है?",
-        "options": [
-          4,
-          5,
-          7
-        ],
-        "unit_hi": "ब्लॉक्स",
-        "bg": "dusk",
-        "holder": "cloudtub",
-        "horizon": "base",
-        "fill": "stage",
-        "spare": 1,
-        "box_dx": 40
-      },
-      "signals": {
-        "on_complete": [
-          "cardinality_first_try"
-        ]
-      }
-    },
-    {
-      "id": "G3",
-      "phase": "guided",
-      "eis": "iconic",
-      "type": "MEASURE_ASK",
-      "prompt_hi": "फ्रिज की लंबाई ब्लॉक से मापिए।",
-      "audio": {
-        "prompt": "vo_p7_instr",
-        "ask": "vo_p7_ask",
-        "correct": "vo_p7_ok",
-        "try_again": "vo_try_again"
-      },
-      "data": {
-        "n": 7,
-        "axis": "y",
-        "wrong_cue": "deck",
-        "obj": {
-          "src": "assets/obj_fridge.webp",
-          "ar": 1.7208,
-          "a0": 0.0026,
-          "a1": 0.9974
-        },
-        "ask_hi": "फ्रिज की लंबाई कितनी है?",
-        "options": [
-          5,
-          6,
-          7
-        ],
-        "unit_hi": "ब्लॉक्स",
-        "bg": "kitchen",
-        "holder": "wicker",
-        "fill": "stage",
-        "spare": 1
-      },
-      "signals": {
-        "on_complete": [
-          "cardinality_first_try"
-        ]
-      }
-    },
-    {
-      "id": "G4",
-      "phase": "guided",
-      "eis": "iconic",
-      "type": "COMPARE_MEASURED",
-      "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",
-      "audio": {
-        "prompt": "vo_p8_ask",
-        "correct": "vo_p8_ok",
-        "reask": "vo_p8_reask"
-      },
-      "data": {
-        "axis": "x",
-        "wrong_cue": "deck",
-        "nudge_sfx_only": true,
-        "unit_hi": "ब्लॉक्स",
-        "items": [
-          {
-            "src": "assets/obj_mat_1.webp",
-            "ar": 0.4945,
-            "n": 8
-          },
-          {
-            "src": "assets/obj_mat_2.webp",
-            "ar": 0.42,
-            "n": 9,
-            "correct": true
-          }
-        ],
-        "bg": "terrace",
-        "count_box": "card",
-        "hide_wrong_count": true
-      },
-      "signals": {
-        "on_complete": [
-          "compare_correct"
-        ]
-      }
-    },
-    {
-      "id": "P1",
-      "phase": "practice",
-      "eis": "iconic",
-      "type": "COMPARE_MEASURED",
-      "prompt_hi": "कौन-सी कुर्सी ज़्यादा लंबी है?",
-      "audio": {
-        "prompt": "vo_p9_ask",
-        "correct": "vo_p9_ok",
-        "reask": "vo_p9_reask"
-      },
-      "data": {
-        "axis": "y",
-        "wrong_cue": "deck",
-        "unit_hi": "ब्लॉक्स",
-        "items": [
-          {
-            "src": "assets/obj_chair_short.webp",
-            "ar": 1.615,
-            "n": 6,
-            "seat": {
-              "cx": 0.5,
-              "y": 0.502
-            }
-          },
-          {
-            "src": "assets/obj_chair_tall.webp",
-            "ar": 1.7926,
-            "n": 7,
-            "correct": true,
-            "seat": {
-              "cx": 0.5,
-              "y": 0.541
-            }
-          }
-        ],
-        "riders": [
-          {
-            "src": "assets/prop_cat.webp",
-            "ar": 0.6226,
-            "w": 1.265,
-            "motion": "breathe"
-          },
-          {
-            "src": "assets/prop_mouse.webp",
-            "ar": 0.7389,
-            "w": 0.8
-          }
-        ],
-        "riders_random": true,
-        "bg": "veranda",
-        "count_box": "card",
-        "hide_wrong_count": true
-      },
-      "signals": {
-        "on_complete": [
-          "compare_correct"
         ]
       }
     },
@@ -638,6 +541,105 @@
       "signals": {
         "on_complete": [
           "match_correct"
+        ]
+      }
+    },
+    {
+      "id": "G4",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "COMPARE_MEASURED",
+      "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",
+      "audio": {
+        "prompt": "vo_p8_ask",
+        "correct": "vo_p8_ok",
+        "reask": "vo_p8_reask"
+      },
+      "data": {
+        "axis": "x",
+        "wrong_cue": "deck",
+        "nudge_sfx_only": true,
+        "unit_hi": "ब्लॉक्स",
+        "items": [
+          {
+            "src": "assets/obj_mat_1.webp",
+            "ar": 0.4945,
+            "n": 8
+          },
+          {
+            "src": "assets/obj_mat_2.webp",
+            "ar": 0.42,
+            "n": 9,
+            "correct": true
+          }
+        ],
+        "bg": "terrace",
+        "count_box": "card",
+        "hide_wrong_count": true
+      },
+      "signals": {
+        "on_complete": [
+          "compare_correct"
+        ]
+      }
+    },
+    {
+      "id": "P1",
+      "phase": "practice",
+      "eis": "iconic",
+      "type": "COMPARE_MEASURED",
+      "prompt_hi": "कौन-सी कुर्सी ज़्यादा लंबी है?",
+      "audio": {
+        "prompt": "vo_p9_ask",
+        "correct": "vo_p9_ok",
+        "reask": "vo_p9_reask"
+      },
+      "data": {
+        "axis": "y",
+        "wrong_cue": "deck",
+        "unit_hi": "ब्लॉक्स",
+        "items": [
+          {
+            "src": "assets/obj_chair_short.webp",
+            "ar": 1.615,
+            "n": 6,
+            "seat": {
+              "cx": 0.5,
+              "y": 0.502
+            }
+          },
+          {
+            "src": "assets/obj_chair_tall.webp",
+            "ar": 1.7926,
+            "n": 7,
+            "correct": true,
+            "seat": {
+              "cx": 0.5,
+              "y": 0.541
+            }
+          }
+        ],
+        "riders": [
+          {
+            "src": "assets/prop_cat.webp",
+            "ar": 0.6226,
+            "w": 1.265,
+            "motion": "breathe"
+          },
+          {
+            "src": "assets/prop_mouse.webp",
+            "ar": 0.7389,
+            "w": 0.8
+          }
+        ],
+        "riders_random": true,
+        "bg": "veranda",
+        "count_box": "card",
+        "hide_wrong_count": true
+      },
+      "signals": {
+        "on_complete": [
+          "compare_correct"
         ]
       }
     },
@@ -805,7 +807,7 @@
       "vo_p9_reask": "assets/voiceover/vo_p9_reask.ogg",
       "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
       "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
-      "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.ogg",
+      "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.wav",
       "vo_p3_head": "assets/voiceover/vo_p3_head.ogg",
       "vo_p3_explain_a": "assets/voiceover/vo_p3_explain_a.ogg",
       "vo_p3_explain_b": "assets/voiceover/vo_p3_explain_b.ogg",
@@ -883,7 +885,7 @@
       "vo_p4_explain_a": "इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे",
       "vo_p4_explain_b": "और ऊपर तक जाएंगे।",
       "vo_p4_child": "अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है।",
-      "vo_well_done": "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!",
+      "vo_well_done": "शाबाश! आपने कर दिखाया।",
       "vo_p13_intro": "आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए।",
       "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।",
       "vo_p13_measure_almirah": "छोटी अलमारी को ब्लॉक से मापिए।",

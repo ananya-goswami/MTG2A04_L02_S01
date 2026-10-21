@@ -1734,7 +1734,7 @@ body.is-start .sg-sky{
    filter surface shared with the card FX (dust canvas / flare / lamp) at reduced resampling quality:
    measured 87% of the sharpest Chrome can draw this 560px frame; with it 97%, also after a resize. */
 .sg-mascot{width:208px;height:auto;left:-24px;bottom:-12px;animation:none;will-change:transform;}
-.sg-vo{left:96px;bottom:-16px;}
+.sg-vo{left:90px;bottom:-22px;width:70px;height:70px;}   /* QA checklist (2026-10-21): the title screen's speaker is 70px (was 58) - grown about the same centre, still on Swiftie's foot */
 
 /* [04] SPEAKING = white text-stroke outline while that word's VO plays (the tutorial prompt while
    the prompt is spoken, the big running numeral while its number is spoken - app.js toggles
@@ -2233,6 +2233,9 @@ body.is-start .sg-sky{
 /* the blocks */
 .md-block{position:absolute;z-index:3;background-repeat:no-repeat;cursor:grab;touch-action:none;user-select:none;opacity:0;
   filter:drop-shadow(0 3px 3px rgba(12,46,92,.22));rotate:var(--rot, 0deg);transition:filter .15s,rotate .22s ease-out;}
+/* an easier grab for small fingers (review 2026-10-21): each loose cube takes a touch 14px outside its edges - an
+   invisible margin (a pseudo-element's hits are the cube's own); not once it is laid in the row */
+.md-block:not(.placed):not(.ghost)::before{content:"";position:absolute;inset:-14px;}
 /* a block lies askew in the box (--rot, MDK.toybox's PILE) - picked up, a ghost, or laid in the row it is square */
 .md-block.lift,.md-block.placed,.md-block.ghost{rotate:0deg;}
 .md-stage.in .md-block{animation:mdFade .35s ease-out forwards;animation-delay:calc(.55s + var(--i,0) * 60ms);}
@@ -2260,6 +2263,9 @@ body.is-start .sg-sky{
   background:rgba(255,255,255,.55);opacity:0;transition:opacity .2s;pointer-events:none;}
 .md-slot.show{opacity:1;}
 .md-slot.target{animation:mdSlot .9s ease-in-out infinite;}
+/* a carried cube is in the drop zone (MDK.childMeasure): the tile just stays shown, its own dashed outline - no extra
+   solid border / glow (review 2026-10-21: "the dotted outline is enough, extra blue outline is not needed") */
+.md-slot.near{opacity:1;}
 .md-arrow{position:absolute;width:32px;height:32px;z-index:12;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,40,120,.3));}
 .md-arrow.down{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M6 7 H26 L16 26 Z' fill='%236D28D9' stroke='%23fff' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;animation:mdBobY .8s ease-in-out infinite;}
 .md-arrow.left{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M25 6 V26 L6 16 Z' fill='%236D28D9' stroke='%23fff' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;animation:mdBobX .8s ease-in-out infinite;}
@@ -2671,6 +2677,15 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
 .cf-card.cf-invite{animation:cfInvitePop 1.15s cubic-bezier(.34,.62,.3,1) 2 !important;}
 @keyframes cfInvitePop{0%,100%{scale:1;}30%{scale:1.10;}58%{scale:.985;}}
 .cf-card.lift{cursor:grabbing;filter:drop-shadow(0 16px 14px rgba(12,46,92,.30));}
+/* [tap to place] (app.js CLASSROOM_FIT makeCard, review 2026-10-21): picked up by a tap - it floats a little above its box
+   with a soft blue glow and bobs, and the open spaces breathe (brighter border, a light fill) until the next tap */
+.cf-card.cf-sel{cursor:pointer;filter:drop-shadow(0 14px 12px rgba(12,46,92,.28)) drop-shadow(0 0 10px rgba(56,140,255,.75));
+  animation:cfSelBob 1.1s ease-in-out infinite !important;}
+@keyframes cfSelBob{0%,100%{transform:translateY(-8px);}50%{transform:translateY(-14px);}}
+.cf.cf-choosing .cf-space:not(.filled){cursor:pointer;border-color:#2F82DE;animation:cfSpaceBreathe 1.1s ease-in-out infinite;}
+@keyframes cfSpaceBreathe{0%,100%{background-color:rgba(255,255,255,.4);box-shadow:0 0 0 0 rgba(47,130,222,0);}
+  50%{background-color:rgba(214,234,255,.75);box-shadow:0 0 0 5px rgba(47,130,222,.25);}}
+@media (prefers-reduced-motion:reduce){ .cf-card.cf-sel{animation:none !important;transform:translateY(-10px);} .cf.cf-choosing .cf-space:not(.filled){animation:none;background-color:rgba(214,234,255,.75);} }
 .cf-card.gone{opacity:0;}
 /* the placed objects' shadows (app.js fit): a soft contact ellipse under what stands on the floor; the board's on the wall */
 .cf-shadow{position:absolute;pointer-events:none;border-radius:50%;
@@ -2765,35 +2780,32 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
    - .blink (app.js, every few seconds + on each change of mood) shuts the eye to a line and back. */
 .md-robot .rb-face{position:absolute;display:block;user-select:none;pointer-events:none;}
 .md-robot .rb-screen{position:absolute;left:0;top:0;width:100%;height:100%;display:block;user-select:none;}
+.md-robot .rb-glass{position:absolute;inset:0;clip-path:inset(16.4% 8.2% 11.7% 7.1% round 2.6em);}   /* [robot display] only on its glass (measured on robot_screen.webp) */
 .md-robot .rb-eyes{position:absolute;inset:0;}
 .md-robot .rb-eye{position:absolute;top:52.3%;width:13.4em;height:13.4em;margin:-6.7em 0 0 -6.7em;
   transition:transform .12s cubic-bezier(.3,0,.3,1);}
 .md-robot .rb-eye.l{left:31.1%;} .md-robot .rb-eye.r{left:67.8%;}
-.md-robot .rb-eye.blink{transform:scaleY(.08);transition-duration:.07s;}
+/* (blinks: app.js MDK.robot blink(), WAAPI on .rb-eye - review 2026-10-21) */
 .md-robot .rb-eye b{position:absolute;inset:0;box-sizing:border-box;border-radius:50%;border:2.6em solid #98FCFA;
   background:radial-gradient(circle,rgba(40,170,255,0) 52%,rgba(40,170,255,.28) 100%);
   box-shadow:0 0 .5em rgba(170,255,255,.9),0 0 1.9em .45em rgba(24,186,255,.9),inset 0 0 1.3em rgba(24,186,255,.8);
   clip-path:inset(-40%);transform:scale(.97);
-  transition:transform .32s cubic-bezier(.34,1.45,.55,1),clip-path .26s ease,border-radius .3s ease;}
+  transition:transform .18s cubic-bezier(.2,.8,.3,1),clip-path .18s ease,border-radius .18s ease;}   /* [robot display] crisp, no spring */
 .md-robot .rb-eye b::after{content:"";position:absolute;left:10%;top:8%;width:2.4em;height:2.4em;border-radius:50%;
   background:#F2FFFF;box-shadow:0 0 .7em rgba(190,255,255,.9);transition:opacity .2s;}   /* the glint */
 .md-robot.look .rb-eye b{transform:scale(1.08);}
-.md-robot.happy .rb-eye b{clip-path:inset(-40% -40% 52% -40%);transform:translateY(24%) scale(1.1);}
-.md-robot.happy .rb-eye b::after,.md-robot.sad .rb-eye b::after{opacity:0;}
-.md-robot.happy .rb-eyes{animation:rbJoy .5s cubic-bezier(.3,1.6,.5,1);}
-/* [robot hearts] review 2026-10-07 ("where is the heart-shaped eyes of the robo mop"): the live eyes' "^^" had replaced
-   the supplied hearts. Happy is the hearts again - robot_face_happy.webp (its screen with the pixel hearts, cut to the
-   same box as robot_screen.webp) cross-fades in over the screen as the live eyes fade out, and the hearts beat twice. */
-.md-robot .rb-hearts{position:absolute;left:0;top:0;width:100%;height:100%;display:block;opacity:0;user-select:none;pointer-events:none;
-  transition:opacity .18s ease;}
-.md-robot .rb-eyes{transition:opacity .18s ease;}
-.md-robot.happy .rb-hearts{opacity:1;animation:rbBeat .62s ease-in-out .12s 2;}
-.md-robot.happy .rb-eyes{opacity:0;}
-@keyframes rbBeat{0%,100%{filter:brightness(1);}35%{filter:brightness(1.35) drop-shadow(0 0 .9em rgba(255,90,200,.75));}}
+.md-robot.sad .rb-eye b::after{opacity:0;}
+/* [robot hearts] review 2026-10-07 ("where is the heart-shaped eyes of the robo mop"): happy is the supplied pixel hearts,
+   each its own cut-out (robot_heart_l / _r.webp, from robot_face_happy.webp, same place on the screen). How they come and go
+   is app.js [robot display] (MDK.robot face): the screen redraws - the eyes fold to a line, the hearts open out of it,
+   then beat softly (review 2026-10-21). .rb-hearts follows the gaze a little, like the eyes. */
+.md-robot .rb-hearts{position:absolute;inset:0;display:block;pointer-events:none;}
+.md-robot .rb-heart{position:absolute;display:block;opacity:0;transform:scale(0);user-select:none;pointer-events:none;will-change:transform,opacity;}
+.md-robot .rb-heart.l{left:20.086%;top:9.375%;width:25.27%;height:80.47%;}
+.md-robot .rb-heart.r{left:54.212%;top:10.156%;width:25.054%;height:78.906%;}
 .md-robot.sad .rb-eye.l b{transform:translateY(20%) rotate(-15deg) scale(1,.3);}
 .md-robot.sad .rb-eye.r b{transform:translateY(20%) rotate(15deg) scale(1,.3);}
-@keyframes rbJoy{0%{transform:translateY(0);}40%{transform:translateY(-1.8em);}100%{transform:translateY(0);}}
-@media (prefers-reduced-motion:reduce){ .md-robot .rb-eye,.md-robot .rb-eye b{transition:none;} .md-robot.happy .rb-eyes{animation:none;} .md-robot .rb-hearts,.md-robot .rb-eyes{transition:none;} .md-robot.happy .rb-hearts{animation:none;} }
+@media (prefers-reduced-motion:reduce){ .md-robot .rb-eye,.md-robot .rb-eye b{transition:none;} }
 /* its profile (robot_side.webp, supplied 2026-10-07: facing right, its cube on board): only while T2's robot_enter drives it
    in (app.js robotIn) - centred on the front body, feet on the same line; .turning: both views at once (the turn) */
 .md-robot .rb-side{position:absolute;left:1.5%;width:97%;bottom:0;display:none;transform-origin:50% 100%;user-select:none;}
@@ -3219,933 +3231,935 @@ body.vo-lock .dev-nav{z-index:150001;}
 <!-- ============ CARD DATA (embedded; in prod the compiler does this) ============ -->
 <script type="application/json" id="cardData">
 {
- "version": "0.1",
- "skill_code": "MTG2A04_L02_S01",
- "lo_code": "MTG2A04_L02",
- "grade": "G2",
- "attribute": "A04",
- "skill_type": "CORE",
- "part_label": "",
- "theme": "toybox",
- "title": {
-  "hi": "लंबाई मापना",
-  "en": "Measuring distances in non-standard units"
- },
- "subtitle_hi": "नापो · गिनो · डालो",
- "landing_hero": {
-  "kind": "image",
-  "src": "assets/pencil_purple.webp"
- },
- "skill_description_hi": "ब्लॉक जैसी एक ही तरह की इकाई को एक कतार में, बिना जगह छोड़े रखकर, गिनकर किसी चीज़ की लंबाई नापता है।",
- "number_set": [
-  1,
-  2,
-  3,
-  4,
-  5,
-  6,
-  7,
-  8,
-  9
- ],
- "dt_fallback": null,
- "phase_distribution": {
-  "tutorial": 3,
-  "guided": 5,
-  "practice": 5
- },
- "phase_gate_at": {
-  "guided": "G4"
- },
- "scaffold_rules": {
-  "nudge_timeout_ms": {
-   "tutorial": 7000,
-   "guided": 7000,
-   "practice": 7000,
-   "independent": 7000
+  "version": "0.1",
+  "skill_code": "MTG2A04_L02_S01",
+  "lo_code": "MTG2A04_L02",
+  "grade": "G2",
+  "attribute": "A04",
+  "skill_type": "CORE",
+  "part_label": "",
+  "theme": "toybox",
+  "title": {
+    "hi": "लंबाई मापना",
+    "en": "Measuring distances in non-standard units"
   },
-  "max_attempts": 3
- },
- "signals_expected": [
-  "slide_entered",
-  "slide_completed",
-  "pick_extreme_correct",
-  "measure_unit_placed",
-  "cardinality_first_try",
-  "compare_correct",
-  "match_correct",
-  "classroom_placed",
-  "classroom_done",
-  "answer_wrong",
-  "answer_revealed",
-  "mastery_score",
-  "lesson_completed"
- ],
- "slides": [
-  {
-   "id": "T1",
-   "phase": "tutorial",
-   "eis": "iconic",
-   "type": "PICK_EXTREME",
-   "prompt_hi": "कौन-सी टेबल ज़्यादा लंबी है?",
-   "audio": {
-    "prompt": "vo_p2_ask",
-    "try_again": "vo_p2_fb",
-    "hint": "vo_p2_fb",
-    "reveal": "vo_p2_fb"
-   },
-   "data": {
-    "by": "length",
-    "look": "tables",
-    "wrong_cue": "deck",
-    "options": [
-     {
-      "src": "assets/obj_table_long.webp",
-      "feet": [
-       [
-        0.065,
-        0.9946,
-        0.0733
-       ],
-       [
-        0.1478,
-        0.7649,
-        0.0656
-       ],
-       [
-        0.8489,
-        0.7649,
-        0.0656
-       ],
-       [
-        0.9328,
-        0.9946,
-        0.0733
-       ]
-      ],
-      "w": 450,
-      "correct": true,
-      "emoji": "🪑",
-      "tap": [
-       0.5,
-       0.2
-      ]
-     },
-     {
-      "src": "assets/obj_table_short.webp",
-      "feet": [
-       [
-        0.0863,
-        0.9934,
-        0.0871
-       ],
-       [
-        0.1766,
-        0.8073,
-        0.0742
-       ],
-       [
-        0.8218,
-        0.8073,
-        0.0742
-       ],
-       [
-        0.9113,
-        0.9934,
-        0.0855
-       ]
-      ],
-      "w": 308,
-      "emoji": "🪑"
-     }
-    ]
-   },
-   "signals": {
-    "on_complete": []
-   }
+  "subtitle_hi": "नापो · गिनो · डालो",
+  "landing_hero": {
+    "kind": "image",
+    "src": "assets/pencil_purple.webp"
   },
-  {
-   "id": "T2",
-   "phase": "tutorial",
-   "eis": "iconic",
-   "type": "MEASURE_DEMO",
-   "prompt_hi": "",
-   "audio": {
-    "prompt": "vo_p3_head",
-    "explain_a": "vo_p3_explain_a",
-    "explain_b": "vo_p3_explain_b",
-    "demo": "vo_demo_start",
-    "rule_a": "vo_rule_a",
-    "rule_b": "vo_rule_b",
-    "rule_c": "vo_rule_c",
-    "child": "vo_p3_child",
-    "conclude": "vo_p3_done"
-   },
-   "data": {
-    "robot_enter": true,
-    "n": 9,
-    "demo": 2,
-    "axis": "x",
-    "count_at": 2.38,
-    "floor": "tile",
-    "wall": "paint",
-    "obj": {
-     "src": "assets/obj_table_measure.webp",
-     "feet": [
-      [
-       0.0585,
-       0.9941,
-       0.0768
-      ],
-      [
-       0.1353,
-       0.8239,
-       0.0661
-      ],
-      [
-       0.8607,
-       0.8258,
-       0.067
-      ],
-      [
-       0.9411,
-       0.9941,
-       0.0759
-      ]
-     ],
-     "w": 560,
-     "ar": 0.4562,
-     "a0": 0.0018,
-     "a1": 0.9982
+  "skill_description_hi": "ब्लॉक जैसी एक ही तरह की इकाई को एक कतार में, बिना जगह छोड़े रखकर, गिनकर किसी चीज़ की लंबाई नापता है।",
+  "number_set": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "dt_fallback": null,
+  "phase_distribution": {
+    "tutorial": 3,
+    "guided": 5,
+    "practice": 5
+  },
+  "phase_gate_at": {
+    "guided": "G4",
+    "practice": "P1"
+  },
+  "scaffold_rules": {
+    "nudge_timeout_ms": {
+      "tutorial": 7000,
+      "guided": 7000,
+      "practice": 7000,
+      "independent": 7000
     },
-    "unit_hi": "ब्लॉक्स",
-    "spare": 0
-   },
-   "signals": {
-    "on_complete": []
-   }
+    "max_attempts": 3
   },
-  {
-   "id": "T3",
-   "phase": "tutorial",
-   "eis": "iconic",
-   "type": "MEASURE_DEMO",
-   "prompt_hi": "",
-   "audio": {
-    "prompt": "vo_p4_head",
-    "explain_a": "vo_p4_explain_a",
-    "explain_b": "vo_p4_explain_b",
-    "demo": "vo_demo_start",
-    "rule_a": "vo_rule_a",
-    "rule_b": "vo_rule_b",
-    "rule_c": "vo_rule_c",
-    "child": "vo_p4_child",
-    "conclude": "vo_p4_done"
-   },
-   "data": {
-    "robot_enter": true,
-    "n": 7,
-    "demo": 2,
-    "axis": "y",
-    "count_at": 2.56,
-    "holder": "painting",
-    "floor": "wood",
-    "wall": "paint",
-    "obj": {
-     "src": "assets/obj_door.webp",
-     "light": [
-      0.093,
-      0.907,
-      0.984
-     ],
-     "ar": 1.6434
+  "signals_expected": [
+    "slide_entered",
+    "slide_completed",
+    "pick_extreme_correct",
+    "measure_unit_placed",
+    "cardinality_first_try",
+    "compare_correct",
+    "match_correct",
+    "classroom_placed",
+    "classroom_done",
+    "answer_wrong",
+    "answer_revealed",
+    "mastery_score",
+    "lesson_completed"
+  ],
+  "slides": [
+    {
+      "id": "T1",
+      "phase": "tutorial",
+      "eis": "iconic",
+      "type": "PICK_EXTREME",
+      "prompt_hi": "कौन-सी टेबल ज़्यादा लंबी है?",
+      "audio": {
+        "prompt": "vo_p2_ask",
+        "try_again": "vo_p2_fb",
+        "hint": "vo_p2_fb",
+        "reveal": "vo_p2_fb"
+      },
+      "data": {
+        "by": "length",
+        "look": "tables",
+        "wrong_cue": "deck",
+        "options": [
+          {
+            "src": "assets/obj_table_long.webp",
+            "feet": [
+              [
+                0.065,
+                0.9946,
+                0.0733
+              ],
+              [
+                0.1478,
+                0.7649,
+                0.0656
+              ],
+              [
+                0.8489,
+                0.7649,
+                0.0656
+              ],
+              [
+                0.9328,
+                0.9946,
+                0.0733
+              ]
+            ],
+            "w": 450,
+            "correct": true,
+            "emoji": "🪑",
+            "tap": [
+              0.5,
+              0.2
+            ]
+          },
+          {
+            "src": "assets/obj_table_short.webp",
+            "feet": [
+              [
+                0.0863,
+                0.9934,
+                0.0871
+              ],
+              [
+                0.1766,
+                0.8073,
+                0.0742
+              ],
+              [
+                0.8218,
+                0.8073,
+                0.0742
+              ],
+              [
+                0.9113,
+                0.9934,
+                0.0855
+              ]
+            ],
+            "w": 308,
+            "emoji": "🪑"
+          }
+        ]
+      },
+      "signals": {
+        "on_complete": []
+      }
     },
-    "unit_hi": "ब्लॉक्स"
-   },
-   "signals": {
-    "on_complete": []
-   }
-  },
-  {
-   "id": "G1",
-   "phase": "guided",
-   "eis": "iconic",
-   "type": "MEASURE_ASK",
-   "prompt_hi": "पलंग की लंबाई ब्लॉक से मापिए।",
-   "audio": {
-    "prompt": "vo_p5_instr",
-    "ask": "vo_p5_ask",
-    "correct": "vo_p5_ok",
-    "try_again": "vo_try_again"
-   },
-   "data": {
-    "n": 12,
-    "axis": "x",
-    "wrong_cue": "deck",
-    "holder": "basket",
-    "line_top": 0.88,
-    "bg": "room",
-    "obj": {
-     "src": "assets/obj_bed.webp",
-     "ar": 0.465,
-     "a0": 0,
-     "a1": 1,
-     "feet": [
-      [
-       0.031,
-       0.9978,
-       0.049
-      ],
-      [
-       0.106,
-       0.8344,
-       0.045
-      ],
-      [
-       0.9005,
-       0.8323,
-       0.044
-      ],
-      [
-       0.968,
-       0.9978,
-       0.051
-      ]
-     ]
+    {
+      "id": "T2",
+      "phase": "tutorial",
+      "eis": "iconic",
+      "type": "MEASURE_DEMO",
+      "prompt_hi": "",
+      "audio": {
+        "prompt": "vo_p3_head",
+        "explain_a": "vo_p3_explain_a",
+        "explain_b": "vo_p3_explain_b",
+        "demo": "vo_demo_start",
+        "rule_a": "vo_rule_a",
+        "rule_b": "vo_rule_b",
+        "rule_c": "vo_rule_c",
+        "child": "vo_p3_child",
+        "conclude": "vo_p3_done"
+      },
+      "data": {
+        "robot_enter": true,
+        "n": 9,
+        "demo": 2,
+        "axis": "x",
+        "count_at": 2.38,
+        "floor": "tile",
+        "wall": "paint",
+        "obj": {
+          "src": "assets/obj_table_measure.webp",
+          "feet": [
+            [
+              0.0585,
+              0.9941,
+              0.0768
+            ],
+            [
+              0.1353,
+              0.8239,
+              0.0661
+            ],
+            [
+              0.8607,
+              0.8258,
+              0.067
+            ],
+            [
+              0.9411,
+              0.9941,
+              0.0759
+            ]
+          ],
+          "w": 560,
+          "ar": 0.4562,
+          "a0": 0.0018,
+          "a1": 0.9982
+        },
+        "unit_hi": "ब्लॉक्स",
+        "spare": 0
+      },
+      "signals": {
+        "on_complete": []
+      }
     },
-    "ask_hi": "पलंग की लंबाई कितनी है?",
-    "options": [
-     11,
-     12,
-     13
-    ],
-    "unit_hi": "ब्लॉक्स",
-    "fill": "stage",
-    "robot_at": "under",
-    "spare": 1
-   },
-   "signals": {
-    "on_complete": [
-     "cardinality_first_try"
-    ]
-   }
-  },
-  {
-   "id": "G2",
-   "phase": "guided",
-   "eis": "iconic",
-   "type": "MEASURE_ASK",
-   "prompt_hi": "अलमारी की लंबाई ब्लॉक से मापिए।",
-   "audio": {
-    "prompt": "vo_p6_instr",
-    "ask": "vo_p6_ask",
-    "correct": "vo_p6_ok",
-    "try_again": "vo_try_again"
-   },
-   "data": {
-    "n": 7,
-    "axis": "y",
-    "line_in": 0.11,
-    "wrong_cue": "deck",
-    "obj": {
-     "src": "assets/obj_almirah_sock.webp",
-     "ar": 1.2302,
-     "a0": 0.0026,
-     "a1": 0.9974
+    {
+      "id": "T3",
+      "phase": "tutorial",
+      "eis": "iconic",
+      "type": "MEASURE_DEMO",
+      "prompt_hi": "",
+      "audio": {
+        "prompt": "vo_p4_head",
+        "explain_a": "vo_p4_explain_a",
+        "explain_b": "vo_p4_explain_b",
+        "demo": "vo_demo_start",
+        "rule_a": "vo_rule_a",
+        "rule_b": "vo_rule_b",
+        "rule_c": "vo_rule_c",
+        "child": "vo_p4_child",
+        "conclude": "vo_p4_done"
+      },
+      "data": {
+        "robot_enter": true,
+        "n": 7,
+        "demo": 2,
+        "axis": "y",
+        "count_at": 2.56,
+        "holder": "painting",
+        "floor": "wood",
+        "wall": "paint",
+        "obj": {
+          "src": "assets/obj_door.webp",
+          "light": [
+            0.093,
+            0.907,
+            0.984
+          ],
+          "ar": 1.6434
+        },
+        "unit_hi": "ब्लॉक्स"
+      },
+      "signals": {
+        "on_complete": []
+      }
     },
-    "ask_hi": "अलमारी की लंबाई कितनी है?",
-    "options": [
-     6,
-     7,
-     8
-    ],
-    "unit_hi": "ब्लॉक्स",
-    "bg": "bedroom",
-    "holder": "laundry",
-    "fill": "stage",
-    "spare": 0
-   },
-   "signals": {
-    "on_complete": [
-     "cardinality_first_try"
-    ]
-   }
-  },
-  {
-   "id": "G2b",
-   "phase": "guided",
-   "eis": "iconic",
-   "type": "MEASURE_ASK",
-   "prompt_hi": "तकिये की लंबाई ब्लॉक से मापिए।",
-   "audio": {
-    "prompt": "vo_p6b_instr",
-    "ask": "vo_p6b_ask",
-    "correct": "vo_p6b_ok",
-    "try_again": "vo_try_again"
-   },
-   "data": {
-    "n": 5,
-    "axis": "x",
-    "wrong_cue": "deck",
-    "obj": {
-     "src": "assets/obj_pillow.webp",
-     "ar": 0.5921
+    {
+      "id": "G2b",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "तकिये की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p6b_instr",
+        "ask": "vo_p6b_ask",
+        "correct": "vo_p6b_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 5,
+        "axis": "x",
+        "wrong_cue": "deck",
+        "obj": {
+          "src": "assets/obj_pillow.webp",
+          "ar": 0.5921
+        },
+        "ask_hi": "तकिये की लंबाई कितनी है?",
+        "options": [
+          4,
+          5,
+          7
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "bg": "dusk",
+        "holder": "cloudtub",
+        "horizon": "base",
+        "fill": "stage",
+        "spare": 1,
+        "box_dx": 40
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
+      }
     },
-    "ask_hi": "तकिये की लंबाई कितनी है?",
-    "options": [
-     4,
-     5,
-     7
-    ],
-    "unit_hi": "ब्लॉक्स",
-    "bg": "dusk",
-    "holder": "cloudtub",
-    "horizon": "base",
-    "fill": "stage",
-    "spare": 1,
-    "box_dx": 40
-   },
-   "signals": {
-    "on_complete": [
-     "cardinality_first_try"
-    ]
-   }
-  },
-  {
-   "id": "G3",
-   "phase": "guided",
-   "eis": "iconic",
-   "type": "MEASURE_ASK",
-   "prompt_hi": "फ्रिज की लंबाई ब्लॉक से मापिए।",
-   "audio": {
-    "prompt": "vo_p7_instr",
-    "ask": "vo_p7_ask",
-    "correct": "vo_p7_ok",
-    "try_again": "vo_try_again"
-   },
-   "data": {
-    "n": 7,
-    "axis": "y",
-    "wrong_cue": "deck",
-    "obj": {
-     "src": "assets/obj_fridge.webp",
-     "ar": 1.7208,
-     "a0": 0.0026,
-     "a1": 0.9974
+    {
+      "id": "G2",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "अलमारी की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p6_instr",
+        "ask": "vo_p6_ask",
+        "correct": "vo_p6_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 7,
+        "axis": "y",
+        "line_in": 0.11,
+        "wrong_cue": "deck",
+        "obj": {
+          "src": "assets/obj_almirah_sock.webp",
+          "ar": 1.2302,
+          "a0": 0.0026,
+          "a1": 0.9974
+        },
+        "ask_hi": "अलमारी की लंबाई कितनी है?",
+        "options": [
+          6,
+          7,
+          8
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "bg": "bedroom",
+        "holder": "laundry",
+        "fill": "stage",
+        "spare": 0
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
+      }
     },
-    "ask_hi": "फ्रिज की लंबाई कितनी है?",
-    "options": [
-     5,
-     6,
-     7
-    ],
-    "unit_hi": "ब्लॉक्स",
-    "bg": "kitchen",
-    "holder": "wicker",
-    "fill": "stage",
-    "spare": 1
-   },
-   "signals": {
-    "on_complete": [
-     "cardinality_first_try"
-    ]
-   }
-  },
-  {
-   "id": "G4",
-   "phase": "guided",
-   "eis": "iconic",
-   "type": "COMPARE_MEASURED",
-   "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",
-   "audio": {
-    "prompt": "vo_p8_ask",
-    "correct": "vo_p8_ok",
-    "reask": "vo_p8_reask"
-   },
-   "data": {
-    "axis": "x",
-    "wrong_cue": "deck",
-    "nudge_sfx_only": true,
-    "unit_hi": "ब्लॉक्स",
-    "items": [
-     {
-      "src": "assets/obj_mat_1.webp",
-      "ar": 0.4945,
-      "n": 8
-     },
-     {
-      "src": "assets/obj_mat_2.webp",
-      "ar": 0.42,
-      "n": 9,
-      "correct": true
-     }
-    ],
-    "bg": "terrace",
-    "count_box": "card",
-    "hide_wrong_count": true
-   },
-   "signals": {
-    "on_complete": [
-     "compare_correct"
-    ]
-   }
-  },
-  {
-   "id": "P1",
-   "phase": "practice",
-   "eis": "iconic",
-   "type": "COMPARE_MEASURED",
-   "prompt_hi": "कौन-सी कुर्सी ज़्यादा लंबी है?",
-   "audio": {
-    "prompt": "vo_p9_ask",
-    "correct": "vo_p9_ok",
-    "reask": "vo_p9_reask"
-   },
-   "data": {
-    "axis": "y",
-    "wrong_cue": "deck",
-    "unit_hi": "ब्लॉक्स",
-    "items": [
-     {
-      "src": "assets/obj_chair_short.webp",
-      "ar": 1.615,
-      "n": 6,
-      "seat": {
-       "cx": 0.5,
-       "y": 0.502
+    {
+      "id": "G3",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "फ्रिज की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p7_instr",
+        "ask": "vo_p7_ask",
+        "correct": "vo_p7_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 7,
+        "axis": "y",
+        "wrong_cue": "deck",
+        "obj": {
+          "src": "assets/obj_fridge.webp",
+          "ar": 1.7208,
+          "a0": 0.0026,
+          "a1": 0.9974
+        },
+        "ask_hi": "फ्रिज की लंबाई कितनी है?",
+        "options": [
+          5,
+          6,
+          7
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "bg": "kitchen",
+        "holder": "wicker",
+        "fill": "stage",
+        "spare": 1,
+        "sink": 34
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
       }
-     },
-     {
-      "src": "assets/obj_chair_tall.webp",
-      "ar": 1.7926,
-      "n": 7,
-      "correct": true,
-      "seat": {
-       "cx": 0.5,
-       "y": 0.541
+    },
+    {
+      "id": "G1",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "MEASURE_ASK",
+      "prompt_hi": "पलंग की लंबाई ब्लॉक से मापिए।",
+      "audio": {
+        "prompt": "vo_p5_instr",
+        "ask": "vo_p5_ask",
+        "correct": "vo_p5_ok",
+        "try_again": "vo_try_again"
+      },
+      "data": {
+        "n": 12,
+        "axis": "x",
+        "wrong_cue": "deck",
+        "holder": "basket",
+        "line_top": 0.88,
+        "bg": "room",
+        "obj": {
+          "src": "assets/obj_bed.webp",
+          "ar": 0.465,
+          "a0": 0,
+          "a1": 1,
+          "feet": [
+            [
+              0.031,
+              0.9978,
+              0.049
+            ],
+            [
+              0.106,
+              0.8344,
+              0.045
+            ],
+            [
+              0.9005,
+              0.8323,
+              0.044
+            ],
+            [
+              0.968,
+              0.9978,
+              0.051
+            ]
+          ]
+        },
+        "ask_hi": "पलंग की लंबाई कितनी है?",
+        "options": [
+          11,
+          12,
+          13
+        ],
+        "unit_hi": "ब्लॉक्स",
+        "fill": "stage",
+        "robot_at": "under",
+        "spare": 1
+      },
+      "signals": {
+        "on_complete": [
+          "cardinality_first_try"
+        ]
       }
-     }
-    ],
-    "riders": [
-     {
-      "src": "assets/prop_cat.webp",
-      "ar": 0.6226,
-      "w": 1.265,
-      "motion": "breathe"
-     },
-     {
-      "src": "assets/prop_mouse.webp",
-      "ar": 0.7389,
-      "w": 0.8
-     }
-    ],
-    "riders_random": true,
-    "bg": "veranda",
-    "count_box": "card",
-    "hide_wrong_count": true
-   },
-   "signals": {
-    "on_complete": [
-     "compare_correct"
-    ]
-   }
-  },
-  {
-   "id": "P2",
-   "phase": "practice",
-   "eis": "iconic",
-   "type": "MATCH_ROWS",
-   "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
-   "audio": {
-    "prompt": "vo_match_instr",
-    "correct": "vo_match_ok"
-   },
-   "data": {
-    "unit_hi": "ब्लॉक्स",
-    "bg": "softboard",
-    "join": "lines",
-    "ppt_hints": true,
-    "no_ends": true,
-    "items": [
-     {
-      "id": "bench",
-      "src": "assets/obj_bench_p2.webp",
-      "n": 7,
-      "axis": "x",
-      "seat": 0.25,
-      "ar": 0.4116
-     },
-     {
-      "id": "board",
-      "src": "assets/obj_blackboard_p2.webp",
-      "n": 5,
-      "axis": "x",
-      "ar": 0.5934
-     },
-     {
-      "id": "stool",
-      "src": "assets/obj_stool_v3.webp",
-      "n": 3,
-      "axis": "y",
-      "ar": 1.4717,
-      "span": [
-       0.065,
-       1
-      ]
-     }
-    ],
-    "boxes": [
-     3,
-     7,
-     5
-    ]
-   },
-   "signals": {
-    "on_complete": [
-     "match_correct"
-    ]
-   }
-  },
-  {
-   "id": "P3",
-   "phase": "practice",
-   "eis": "iconic",
-   "type": "MATCH_ROWS",
-   "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
-   "audio": {
-    "prompt": "vo_match_instr",
-    "correct": "vo_match_ok"
-   },
-   "data": {
-    "unit_hi": "ब्लॉक्स",
-    "bg": "fridge",
-    "join": "lines",
-    "ppt_hints": true,
-    "no_ends": true,
-    "items": [
-     {
-      "id": "window",
-      "src": "assets/obj_window.webp",
-      "n": 5,
-      "axis": "y",
-      "ar": 0.872
-     },
-     {
-      "id": "watercan",
-      "src": "assets/obj_watercan_v2.webp",
-      "n": 4,
-      "axis": "y",
-      "ar": 1.5017,
-      "span": [
-       0.012,
-       0.988
-      ]
-     },
-     {
-      "id": "tv",
-      "src": "assets/obj_tv_v2.webp",
-      "n": 6,
-      "axis": "x",
-      "ar": 0.58
-     }
-    ],
-    "boxes": [
-     6,
-     5,
-     4
-    ]
-   },
-   "signals": {
-    "on_complete": [
-     "match_correct"
-    ]
-   }
-  },
-  {
-   "id": "P4",
-   "phase": "practice",
-   "eis": "iconic",
-   "type": "CLASSROOM_FIT",
-   "prompt_hi": "ब्लॉक से मापिए और सही जगह चुनिए।",
-   "audio": {
-    "intro": "vo_p13_intro",
-    "measure_bench": "vo_p13_measure",
-    "place_bench": "vo_p13_place",
-    "measure_almirah": "vo_p13_measure_almirah",
-    "place_almirah": "vo_p13_place_almirah",
-    "measure_chair": "vo_p13_measure_chair",
-    "place_chair": "vo_p13_place_chair",
-    "measure_board": "vo_p13_measure_board",
-    "place_board": "vo_p13_place_board"
-   },
-   "data": {
-    "no_head": true,
-    "wrong_cue": "deck",
-    "dims": true,
-    "bg": "classroom",
-    "sc": 39,
-    "tray_h": 150,
-    "unit_hi": "ब्लॉक्स",
-    "vo_object": "bench",
-    "items": [
-     {
-      "id": "bench",
-      "name_hi": "बेंच",
-      "src": "assets/obj_bench.webp",
-      "ar": 0.2433,
-      "sit": 0.235,
-      "n": 11,
-      "axis": "x",
-      "space": {
-       "x": 449,
-       "y": 452,
-       "label": [
-        724,
-        280
-       ]
+    },
+    {
+      "id": "P2",
+      "phase": "practice",
+      "eis": "iconic",
+      "type": "MATCH_ROWS",
+      "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
+      "audio": {
+        "prompt": "vo_match_instr",
+        "correct": "vo_match_ok"
+      },
+      "data": {
+        "unit_hi": "ब्लॉक्स",
+        "bg": "softboard",
+        "join": "lines",
+        "ppt_hints": true,
+        "no_ends": true,
+        "items": [
+          {
+            "id": "bench",
+            "src": "assets/obj_bench_p2.webp",
+            "n": 7,
+            "axis": "x",
+            "seat": 0.25,
+            "ar": 0.4116
+          },
+          {
+            "id": "board",
+            "src": "assets/obj_blackboard_p2.webp",
+            "n": 5,
+            "axis": "x",
+            "ar": 0.5934
+          },
+          {
+            "id": "stool",
+            "src": "assets/obj_stool_v3.webp",
+            "n": 3,
+            "axis": "y",
+            "ar": 1.4717,
+            "span": [
+              0.065,
+              1
+            ]
+          }
+        ],
+        "boxes": [
+          3,
+          7,
+          5
+        ]
+      },
+      "signals": {
+        "on_complete": [
+          "match_correct"
+        ]
       }
-     },
-     {
-      "id": "almirah",
-      "name_hi": "अलमारी",
-      "src": "assets/obj_almirah.webp",
-      "ar": 1.5915,
-      "n": 7,
-      "axis": "y",
-      "space": {
-       "x": 920,
-       "y": 204,
-       "label": [
-        941,
-        132
-       ]
+    },
+    {
+      "id": "P3",
+      "phase": "practice",
+      "eis": "iconic",
+      "type": "MATCH_ROWS",
+      "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
+      "audio": {
+        "prompt": "vo_match_instr",
+        "correct": "vo_match_ok"
+      },
+      "data": {
+        "unit_hi": "ब्लॉक्स",
+        "bg": "fridge",
+        "join": "lines",
+        "ppt_hints": true,
+        "no_ends": true,
+        "items": [
+          {
+            "id": "window",
+            "src": "assets/obj_window.webp",
+            "n": 5,
+            "axis": "y",
+            "ar": 0.872
+          },
+          {
+            "id": "watercan",
+            "src": "assets/obj_watercan_v2.webp",
+            "n": 4,
+            "axis": "y",
+            "ar": 1.5017,
+            "span": [
+              0.012,
+              0.988
+            ]
+          },
+          {
+            "id": "tv",
+            "src": "assets/obj_tv_v2.webp",
+            "n": 6,
+            "axis": "x",
+            "ar": 0.58
+          }
+        ],
+        "boxes": [
+          6,
+          5,
+          4
+        ]
+      },
+      "signals": {
+        "on_complete": [
+          "match_correct"
+        ]
       }
-     },
-     {
-      "id": "chair",
-      "name_hi": "कुर्सी",
-      "src": "assets/obj_chair.webp",
-      "ar": 1.6151,
-      "n": 6,
-      "axis": "y",
-      "space": {
-       "x": 184,
-       "y": 245,
-       "label": [
-        256,
-        168
-       ]
+    },
+    {
+      "id": "G4",
+      "phase": "guided",
+      "eis": "iconic",
+      "type": "COMPARE_MEASURED",
+      "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",
+      "audio": {
+        "prompt": "vo_p8_ask",
+        "correct": "vo_p8_ok",
+        "reask": "vo_p8_reask"
+      },
+      "data": {
+        "axis": "x",
+        "wrong_cue": "deck",
+        "nudge_sfx_only": true,
+        "unit_hi": "ब्लॉक्स",
+        "items": [
+          {
+            "src": "assets/obj_mat_1.webp",
+            "ar": 0.4945,
+            "n": 8
+          },
+          {
+            "src": "assets/obj_mat_2.webp",
+            "ar": 0.42,
+            "n": 9,
+            "correct": true
+          }
+        ],
+        "bg": "terrace",
+        "count_box": "card",
+        "hide_wrong_count": true
+      },
+      "signals": {
+        "on_complete": [
+          "compare_correct"
+        ]
       }
-     },
-     {
-      "id": "board",
-      "name_hi": "ब्लैकबोर्ड",
-      "src": "assets/obj_blackboard.webp",
-      "ar": 0.4483,
-      "n": 9,
-      "axis": "x",
-      "space": {
-       "x": 417,
-       "y": 99,
-       "label": [
-        636,
-        110
-       ]
+    },
+    {
+      "id": "P1",
+      "phase": "practice",
+      "eis": "iconic",
+      "type": "COMPARE_MEASURED",
+      "prompt_hi": "कौन-सी कुर्सी ज़्यादा लंबी है?",
+      "audio": {
+        "prompt": "vo_p9_ask",
+        "correct": "vo_p9_ok",
+        "reask": "vo_p9_reask"
+      },
+      "data": {
+        "axis": "y",
+        "wrong_cue": "deck",
+        "unit_hi": "ब्लॉक्स",
+        "items": [
+          {
+            "src": "assets/obj_chair_short.webp",
+            "ar": 1.615,
+            "n": 6,
+            "seat": {
+              "cx": 0.5,
+              "y": 0.502
+            }
+          },
+          {
+            "src": "assets/obj_chair_tall.webp",
+            "ar": 1.7926,
+            "n": 7,
+            "correct": true,
+            "seat": {
+              "cx": 0.5,
+              "y": 0.541
+            }
+          }
+        ],
+        "riders": [
+          {
+            "src": "assets/prop_cat.webp",
+            "ar": 0.6226,
+            "w": 1.265,
+            "motion": "breathe"
+          },
+          {
+            "src": "assets/prop_mouse.webp",
+            "ar": 0.7389,
+            "w": 0.8
+          }
+        ],
+        "riders_random": true,
+        "bg": "veranda",
+        "count_box": "card",
+        "hide_wrong_count": true
+      },
+      "signals": {
+        "on_complete": [
+          "compare_correct"
+        ]
       }
-     }
-    ],
-    "room": {
-     "full": true,
-     "door": [
-      1388,
-      53,
-      150,
-      414
-     ]
+    },
+    {
+      "id": "P4",
+      "phase": "practice",
+      "eis": "iconic",
+      "type": "CLASSROOM_FIT",
+      "prompt_hi": "ब्लॉक से मापिए और सही जगह चुनिए।",
+      "audio": {
+        "intro": "vo_p13_intro",
+        "measure_bench": "vo_p13_measure",
+        "place_bench": "vo_p13_place",
+        "measure_almirah": "vo_p13_measure_almirah",
+        "place_almirah": "vo_p13_place_almirah",
+        "measure_chair": "vo_p13_measure_chair",
+        "place_chair": "vo_p13_place_chair",
+        "measure_board": "vo_p13_measure_board",
+        "place_board": "vo_p13_place_board"
+      },
+      "data": {
+        "no_head": true,
+        "wrong_cue": "deck",
+        "dims": true,
+        "bg": "classroom",
+        "sc": 39,
+        "tray_h": 150,
+        "unit_hi": "ब्लॉक्स",
+        "vo_object": "bench",
+        "items": [
+          {
+            "id": "bench",
+            "name_hi": "बेंच",
+            "src": "assets/obj_bench.webp",
+            "ar": 0.2433,
+            "sit": 0.235,
+            "n": 11,
+            "axis": "x",
+            "space": {
+              "x": 449,
+              "y": 452,
+              "label": [
+                724,
+                280
+              ]
+            }
+          },
+          {
+            "id": "almirah",
+            "name_hi": "अलमारी",
+            "src": "assets/obj_almirah.webp",
+            "ar": 1.5915,
+            "n": 7,
+            "axis": "y",
+            "space": {
+              "x": 920,
+              "y": 204,
+              "label": [
+                941,
+                132
+              ]
+            }
+          },
+          {
+            "id": "chair",
+            "name_hi": "कुर्सी",
+            "src": "assets/obj_chair.webp",
+            "ar": 1.6151,
+            "n": 6,
+            "axis": "y",
+            "space": {
+              "x": 184,
+              "y": 245,
+              "label": [
+                256,
+                168
+              ]
+            }
+          },
+          {
+            "id": "board",
+            "name_hi": "ब्लैकबोर्ड",
+            "src": "assets/obj_blackboard.webp",
+            "ar": 0.4483,
+            "n": 9,
+            "axis": "x",
+            "space": {
+              "x": 417,
+              "y": 99,
+              "label": [
+                636,
+                110
+              ]
+            }
+          }
+        ],
+        "room": {
+          "full": true,
+          "door": [
+            1388,
+            53,
+            150,
+            414
+          ]
+        }
+      },
+      "signals": {
+        "on_complete": [
+          "classroom_done"
+        ]
+      }
+    },
+    {
+      "id": "CEL",
+      "phase": "practice",
+      "eis": "enactive",
+      "type": "CELEBRATION",
+      "prompt_hi": "",
+      "audio": {
+        "prompt": "vo_well_done"
+      },
+      "data": {}
     }
-   },
-   "signals": {
-    "on_complete": [
-     "classroom_done"
-    ]
-   }
-  },
-  {
-   "id": "CEL",
-   "phase": "practice",
-   "eis": "enactive",
-   "type": "CELEBRATION",
-   "prompt_hi": "",
-   "audio": {
-    "prompt": "vo_well_done"
-   },
-   "data": {}
+  ],
+  "assets": {
+    "audio": {
+      "vo_landing": "assets/voiceover/vo_landing.ogg",
+      "vo_match_instr": "assets/voiceover/vo_match_instr.ogg",
+      "vo_match_ok": "assets/voiceover/vo_match_ok.ogg",
+      "vo_num_1": "assets/voiceover/vo_num_1.ogg",
+      "vo_num_2": "assets/voiceover/vo_num_2.ogg",
+      "vo_num_3": "assets/voiceover/vo_num_3.ogg",
+      "vo_num_4": "assets/voiceover/vo_num_4.ogg",
+      "vo_num_5": "assets/voiceover/vo_num_5.ogg",
+      "vo_num_6": "assets/voiceover/vo_num_6.ogg",
+      "vo_num_7": "assets/voiceover/vo_num_7.ogg",
+      "vo_num_8": "assets/voiceover/vo_num_8.ogg",
+      "vo_num_9": "assets/voiceover/vo_num_9.ogg",
+      "vo_num_10": "assets/voiceover/vo_num_10.ogg",
+      "vo_num_11": "assets/voiceover/vo_num_11.ogg",
+      "vo_num_12": "assets/voiceover/vo_num_12.ogg",
+      "vo_p13_measure": "assets/voiceover/vo_p13_measure.ogg",
+      "vo_p2_ask": "assets/voiceover/vo_p2_ask.ogg",
+      "vo_p2_fb": "assets/voiceover/vo_p2_fb.ogg",
+      "vo_p3_done": "assets/voiceover/vo_p3_done.ogg",
+      "vo_p4_done": "assets/voiceover/vo_p4_done.ogg",
+      "vo_p5_instr": "assets/voiceover/vo_p5_instr.ogg",
+      "vo_p7_ask": "assets/voiceover/vo_p7_ask.ogg",
+      "vo_p6b_ok": "assets/voiceover/vo_p6b_ok.ogg",
+      "vo_p6b_ask": "assets/voiceover/vo_p6b_ask.ogg",
+      "vo_p6b_instr": "assets/voiceover/vo_p6b_instr.ogg",
+      "vo_p6_instr": "assets/voiceover/vo_p6_instr.ogg",
+      "vo_p5_ask": "assets/voiceover/vo_p5_ask.ogg",
+      "vo_p5_ok": "assets/voiceover/vo_p5_ok.ogg",
+      "vo_try_again": "assets/voiceover/vo_try_again.ogg",
+      "vo_p6_ask": "assets/voiceover/vo_p6_ask.ogg",
+      "vo_p6_ok": "assets/voiceover/vo_p6_ok.ogg",
+      "vo_p7_instr": "assets/voiceover/vo_p7_instr.ogg",
+      "vo_p7_ok": "assets/voiceover/vo_p7_ok.ogg",
+      "vo_p8_ask": "assets/voiceover/vo_p8_ask.ogg",
+      "vo_p8_ok": "assets/voiceover/vo_p8_ok.ogg",
+      "vo_p8_reask": "assets/voiceover/vo_p8_reask.ogg",
+      "vo_p9_ask": "assets/voiceover/vo_p9_ask.ogg",
+      "vo_p9_ok": "assets/voiceover/vo_p9_ok.ogg",
+      "vo_p9_reask": "assets/voiceover/vo_p9_reask.ogg",
+      "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
+      "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
+      "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.wav",
+      "vo_p3_head": "assets/voiceover/vo_p3_head.ogg",
+      "vo_p3_explain_a": "assets/voiceover/vo_p3_explain_a.ogg",
+      "vo_p3_explain_b": "assets/voiceover/vo_p3_explain_b.ogg",
+      "vo_demo_start": "assets/voiceover/vo_demo_start.ogg",
+      "vo_rule_a": "assets/voiceover/vo_rule_a.ogg",
+      "vo_rule_b": "assets/voiceover/vo_rule_b.ogg",
+      "vo_rule_c": "assets/voiceover/vo_rule_c.ogg",
+      "vo_p3_child": "assets/voiceover/vo_p3_child.ogg",
+      "vo_p4_head": "assets/voiceover/vo_p4_head.ogg",
+      "vo_p4_explain_a": "assets/voiceover/vo_p4_explain_a.ogg",
+      "vo_p4_explain_b": "assets/voiceover/vo_p4_explain_b.ogg",
+      "vo_p4_child": "assets/voiceover/vo_p4_child.ogg",
+      "vo_well_done": "assets/voiceover/vo_well_done.ogg",
+      "vo_p13_intro": "assets/voiceover/vo_p13_intro.ogg",
+      "vo_p13_place": "assets/voiceover/vo_p13_place.ogg",
+      "vo_p13_measure_almirah": "assets/voiceover/vo_p13_measure_almirah.ogg",
+      "vo_p13_measure_chair": "assets/voiceover/vo_p13_measure_chair.ogg",
+      "vo_p13_measure_board": "assets/voiceover/vo_p13_measure_board.ogg",
+      "vo_p13_place_almirah": "assets/voiceover/vo_p13_place_almirah.ogg",
+      "vo_p13_place_chair": "assets/voiceover/vo_p13_place_chair.ogg",
+      "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg"
+    },
+    "audio_text": {
+      "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
+      "vo_match_instr": "हर चीज़ को उसके सही माप से मिलाइए।",
+      "vo_match_ok": "शाबाश! आपने सभी चीज़ों को उनके सही माप से मिला दिया।",
+      "vo_num_1": "एक",
+      "vo_num_2": "दो",
+      "vo_num_3": "तीन",
+      "vo_num_4": "चार",
+      "vo_num_5": "पाँच",
+      "vo_num_6": "छह",
+      "vo_num_7": "सात",
+      "vo_num_8": "आठ",
+      "vo_num_9": "नौ",
+      "vo_num_10": "दस",
+      "vo_num_11": "ग्यारह",
+      "vo_num_12": "बारह",
+      "vo_p13_measure": "बेंच को ब्लॉक से मापिए।",
+      "vo_p2_ask": "इनमें से कौन-सी टेबल ज्यादा लंबी है? उस पर टैप करिए।",
+      "vo_p2_fb": "यह टेबल ज्यादा लंबी है।",
+      "vo_p3_done": "शाबाश! यह टेबल 9 ब्लॉक्स लंबी है।",
+      "vo_p4_done": "शाबाश! यह दरवाजा 7 ब्लॉक्स लंबा है।",
+      "vo_p5_instr": "पलंग की लंबाई ब्लॉक से मापिए।",
+      "vo_p7_ask": "अब बताइए, फ्रिज की लंबाई कितनी है?",
+      "vo_p6b_ok": "शाबाश! तकिये की लंबाई 5 ब्लॉक्स है।",
+      "vo_p6b_ask": "अब बताइए, तकिये की लंबाई कितनी है?",
+      "vo_p6b_instr": "तकिये की लंबाई ब्लॉक से मापिए।",
+      "vo_p6_instr": "अलमारी की लंबाई ब्लॉक से मापिए।",
+      "vo_p5_ask": "अब बताइए, पलंग की लंबाई कितनी है?",
+      "vo_p5_ok": "शाबाश! पलंग की लंबाई 12 ब्लॉक्स है।",
+      "vo_try_again": "ब्लॉक्स को एक बार फिर गिनिए।",
+      "vo_p6_ask": "अब बताइए, अलमारी की लंबाई कितनी है?",
+      "vo_p6_ok": "शाबाश! अलमारी की लंबाई 7 ब्लॉक्स है।",
+      "vo_p7_instr": "फ्रिज की लंबाई ब्लॉक से मापिए।",
+      "vo_p7_ok": "शाबाश! फ्रिज की लंबाई 7 ब्लॉक्स है।",
+      "vo_p8_ask": "कौन-सी चटाई ज़्यादा लंबी है? उस पर टैप करिए।",
+      "vo_p8_ok": "शाबाश! यह चटाई ज़्यादा लंबी है।",
+      "vo_p8_reask": "अब बताइए, कौन-सी चटाई ज़्यादा लंबी है?",
+      "vo_p9_ask": "कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए।",
+      "vo_p9_ok": "शाबाश! यह कुर्सी ज़्यादा लंबी है।",
+      "vo_p9_reask": "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?",
+      "vo_pt_guided": "चलिए, साथ में करें!",
+      "vo_pt_practice": "अब आपकी बारी!",
+      "vo_pt_tutorial": "चलिए, शुरू करें!",
+      "vo_p3_head": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
+      "vo_p3_explain_a": "इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे।",
+      "vo_p3_explain_b": "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।",
+      "vo_demo_start": "चलिए, शुरू करते हैं।",
+      "vo_rule_a": "अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था।",
+      "vo_rule_b": "बीच में जगह न छोड़ें,",
+      "vo_rule_c": "और एक-दूसरे के ऊपर न रखें।",
+      "vo_p3_child": "अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है।",
+      "vo_p4_head": "क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
+      "vo_p4_explain_a": "इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे",
+      "vo_p4_explain_b": "और ऊपर तक जाएंगे।",
+      "vo_p4_child": "अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है।",
+      "vo_well_done": "शाबाश! आपने कर दिखाया।",
+      "vo_p13_intro": "आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए।",
+      "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।",
+      "vo_p13_measure_almirah": "छोटी अलमारी को ब्लॉक से मापिए।",
+      "vo_p13_measure_chair": "कुर्सी को ब्लॉक से मापिए।",
+      "vo_p13_measure_board": "ब्लैकबोर्ड को ब्लॉक से मापिए।",
+      "vo_p13_place_almirah": "अब छोटी अलमारी के लिए सही जगह चुनिए।",
+      "vo_p13_place_chair": "अब कुर्सी के लिए सही जगह चुनिए।",
+      "vo_p13_place_board": "अब ब्लैकबोर्ड के लिए सही जगह चुनिए।"
+    },
+    "image": {
+      "obj_table_long": "assets/obj_table_long.webp",
+      "obj_table_short": "assets/obj_table_short.webp",
+      "obj_table_measure": "assets/obj_table_measure.webp",
+      "obj_door": "assets/obj_door.webp",
+      "obj_charpai": "assets/obj_charpai.webp",
+      "obj_almirah": "assets/obj_almirah.webp",
+      "obj_almirah_sock": "assets/obj_almirah_sock.webp",
+      "prop_cat": "assets/prop_cat.webp",
+      "obj_pillow": "assets/obj_pillow.webp",
+      "obj_fridge": "assets/obj_fridge.webp",
+      "obj_mat_1": "assets/obj_mat_1.webp",
+      "obj_mat_2": "assets/obj_mat_2.webp",
+      "obj_chair_short": "assets/obj_chair_short.webp",
+      "obj_chair_tall": "assets/obj_chair_tall.webp",
+      "obj_bench": "assets/obj_bench.webp",
+      "obj_blackboard": "assets/obj_blackboard.webp",
+      "obj_bench_p2": "assets/obj_bench_p2.webp",
+      "obj_blackboard_p2": "assets/obj_blackboard_p2.webp",
+      "scene_classroom": "assets/scene_classroom.svg",
+      "obj_window": "assets/obj_window.webp",
+      "obj_watercan": "assets/obj_watercan_v2.webp",
+      "obj_tv": "assets/obj_tv_v2.webp",
+      "obj_chair": "assets/obj_chair.webp",
+      "room_window": "assets/room_window.webp",
+      "room_door": "assets/room_door.webp",
+      "room_clock": "assets/room_clock.webp",
+      "room_flags": "assets/room_flags.webp",
+      "obj_stool": "assets/obj_stool_v3.webp"
+    },
+    "img_ext": "webp",
+    "audio_ext": "ogg"
   }
- ],
- "assets": {
-  "audio": {
-   "vo_landing": "assets/voiceover/vo_landing.ogg",
-   "vo_match_instr": "assets/voiceover/vo_match_instr.ogg",
-   "vo_match_ok": "assets/voiceover/vo_match_ok.ogg",
-   "vo_num_1": "assets/voiceover/vo_num_1.ogg",
-   "vo_num_2": "assets/voiceover/vo_num_2.ogg",
-   "vo_num_3": "assets/voiceover/vo_num_3.ogg",
-   "vo_num_4": "assets/voiceover/vo_num_4.ogg",
-   "vo_num_5": "assets/voiceover/vo_num_5.ogg",
-   "vo_num_6": "assets/voiceover/vo_num_6.ogg",
-   "vo_num_7": "assets/voiceover/vo_num_7.ogg",
-   "vo_num_8": "assets/voiceover/vo_num_8.ogg",
-   "vo_num_9": "assets/voiceover/vo_num_9.ogg",
-   "vo_num_10": "assets/voiceover/vo_num_10.ogg",
-   "vo_num_11": "assets/voiceover/vo_num_11.ogg",
-   "vo_num_12": "assets/voiceover/vo_num_12.ogg",
-   "vo_p13_measure": "assets/voiceover/vo_p13_measure.ogg",
-   "vo_p2_ask": "assets/voiceover/vo_p2_ask.ogg",
-   "vo_p2_fb": "assets/voiceover/vo_p2_fb.ogg",
-   "vo_p3_done": "assets/voiceover/vo_p3_done.ogg",
-   "vo_p4_done": "assets/voiceover/vo_p4_done.ogg",
-   "vo_p5_instr": "assets/voiceover/vo_p5_instr.ogg",
-   "vo_p7_ask": "assets/voiceover/vo_p7_ask.ogg",
-   "vo_p6b_ok": "assets/voiceover/vo_p6b_ok.ogg",
-   "vo_p6b_ask": "assets/voiceover/vo_p6b_ask.ogg",
-   "vo_p6b_instr": "assets/voiceover/vo_p6b_instr.ogg",
-   "vo_p6_instr": "assets/voiceover/vo_p6_instr.ogg",
-   "vo_p5_ask": "assets/voiceover/vo_p5_ask.ogg",
-   "vo_p5_ok": "assets/voiceover/vo_p5_ok.ogg",
-   "vo_try_again": "assets/voiceover/vo_try_again.ogg",
-   "vo_p6_ask": "assets/voiceover/vo_p6_ask.ogg",
-   "vo_p6_ok": "assets/voiceover/vo_p6_ok.ogg",
-   "vo_p7_instr": "assets/voiceover/vo_p7_instr.ogg",
-   "vo_p7_ok": "assets/voiceover/vo_p7_ok.ogg",
-   "vo_p8_ask": "assets/voiceover/vo_p8_ask.ogg",
-   "vo_p8_ok": "assets/voiceover/vo_p8_ok.ogg",
-   "vo_p8_reask": "assets/voiceover/vo_p8_reask.ogg",
-   "vo_p9_ask": "assets/voiceover/vo_p9_ask.ogg",
-   "vo_p9_ok": "assets/voiceover/vo_p9_ok.ogg",
-   "vo_p9_reask": "assets/voiceover/vo_p9_reask.ogg",
-   "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
-   "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
-   "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.ogg",
-   "vo_p3_head": "assets/voiceover/vo_p3_head.ogg",
-   "vo_p3_explain_a": "assets/voiceover/vo_p3_explain_a.ogg",
-   "vo_p3_explain_b": "assets/voiceover/vo_p3_explain_b.ogg",
-   "vo_demo_start": "assets/voiceover/vo_demo_start.ogg",
-   "vo_rule_a": "assets/voiceover/vo_rule_a.ogg",
-   "vo_rule_b": "assets/voiceover/vo_rule_b.ogg",
-   "vo_rule_c": "assets/voiceover/vo_rule_c.ogg",
-   "vo_p3_child": "assets/voiceover/vo_p3_child.ogg",
-   "vo_p4_head": "assets/voiceover/vo_p4_head.ogg",
-   "vo_p4_explain_a": "assets/voiceover/vo_p4_explain_a.ogg",
-   "vo_p4_explain_b": "assets/voiceover/vo_p4_explain_b.ogg",
-   "vo_p4_child": "assets/voiceover/vo_p4_child.ogg",
-   "vo_well_done": "assets/voiceover/vo_well_done.ogg",
-   "vo_p13_intro": "assets/voiceover/vo_p13_intro.ogg",
-   "vo_p13_place": "assets/voiceover/vo_p13_place.ogg",
-   "vo_p13_measure_almirah": "assets/voiceover/vo_p13_measure_almirah.ogg",
-   "vo_p13_measure_chair": "assets/voiceover/vo_p13_measure_chair.ogg",
-   "vo_p13_measure_board": "assets/voiceover/vo_p13_measure_board.ogg",
-   "vo_p13_place_almirah": "assets/voiceover/vo_p13_place_almirah.ogg",
-   "vo_p13_place_chair": "assets/voiceover/vo_p13_place_chair.ogg",
-   "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg"
-  },
-  "audio_text": {
-   "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
-   "vo_match_instr": "हर चीज़ को उसके सही माप से मिलाइए।",
-   "vo_match_ok": "शाबाश! आपने सभी चीज़ों को उनके सही माप से मिला दिया।",
-   "vo_num_1": "एक",
-   "vo_num_2": "दो",
-   "vo_num_3": "तीन",
-   "vo_num_4": "चार",
-   "vo_num_5": "पाँच",
-   "vo_num_6": "छह",
-   "vo_num_7": "सात",
-   "vo_num_8": "आठ",
-   "vo_num_9": "नौ",
-   "vo_num_10": "दस",
-   "vo_num_11": "ग्यारह",
-   "vo_num_12": "बारह",
-   "vo_p13_measure": "बेंच को ब्लॉक से मापिए।",
-   "vo_p2_ask": "इनमें से कौन-सी टेबल ज्यादा लंबी है? उस पर टैप करिए।",
-   "vo_p2_fb": "यह टेबल ज्यादा लंबी है।",
-   "vo_p3_done": "शाबाश! यह टेबल 9 ब्लॉक्स लंबी है।",
-   "vo_p4_done": "शाबाश! यह दरवाजा 7 ब्लॉक्स लंबा है।",
-   "vo_p5_instr": "पलंग की लंबाई ब्लॉक से मापिए।",
-   "vo_p7_ask": "अब बताइए, फ्रिज की लंबाई कितनी है?",
-   "vo_p6b_ok": "शाबाश! तकिये की लंबाई 5 ब्लॉक्स है।",
-   "vo_p6b_ask": "अब बताइए, तकिये की लंबाई कितनी है?",
-   "vo_p6b_instr": "तकिये की लंबाई ब्लॉक से मापिए।",
-   "vo_p6_instr": "अलमारी की लंबाई ब्लॉक से मापिए।",
-   "vo_p5_ask": "अब बताइए, पलंग की लंबाई कितनी है?",
-   "vo_p5_ok": "शाबाश! पलंग की लंबाई 12 ब्लॉक्स है।",
-   "vo_try_again": "ब्लॉक्स को एक बार फिर गिनिए।",
-   "vo_p6_ask": "अब बताइए, अलमारी की लंबाई कितनी है?",
-   "vo_p6_ok": "शाबाश! अलमारी की लंबाई 7 ब्लॉक्स है।",
-   "vo_p7_instr": "फ्रिज की लंबाई ब्लॉक से मापिए।",
-   "vo_p7_ok": "शाबाश! फ्रिज की लंबाई 7 ब्लॉक्स है।",
-   "vo_p8_ask": "कौन-सी चटाई ज़्यादा लंबी है? उस पर टैप करिए।",
-   "vo_p8_ok": "शाबाश! यह चटाई ज़्यादा लंबी है।",
-   "vo_p8_reask": "अब बताइए, कौन-सी चटाई ज़्यादा लंबी है?",
-   "vo_p9_ask": "कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए।",
-   "vo_p9_ok": "शाबाश! यह कुर्सी ज़्यादा लंबी है।",
-   "vo_p9_reask": "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?",
-   "vo_pt_guided": "चलिए, साथ में करें!",
-   "vo_pt_practice": "अब आपकी बारी!",
-   "vo_pt_tutorial": "चलिए, शुरू करें!",
-   "vo_p3_head": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
-   "vo_p3_explain_a": "इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे।",
-   "vo_p3_explain_b": "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।",
-   "vo_demo_start": "चलिए, शुरू करते हैं।",
-   "vo_rule_a": "अब ध्यान रखें! हर अगला ब्लॉक वहीं से शुरू करें, जहाँ पिछला खत्म हुआ था।",
-   "vo_rule_b": "बीच में जगह न छोड़ें,",
-   "vo_rule_c": "और एक-दूसरे के ऊपर न रखें।",
-   "vo_p3_child": "अब आगे आप मापिए और बताइए, टेबल कितने ब्लॉक लंबी है।",
-   "vo_p4_head": "क्या आप बता सकते हैं, यह दरवाजा कितना लंबा है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
-   "vo_p4_explain_a": "इसके लिए हम दरवाजे के निचले छोर से मापना शुरू करेंगे",
-   "vo_p4_explain_b": "और ऊपर तक जाएंगे।",
-   "vo_p4_child": "अब आगे आप मापिए और बताइए, दरवाजे की लंबाई कितनी है।",
-   "vo_well_done": "शाबाश! आपने ब्लॉक्स से लंबाई मापना सीख लिया!",
-   "vo_p13_intro": "आज हमें कक्षा सजानी है! हर चीज़ अपनी सही जगह पर ही फिट होगी। ब्लॉक से मापिए और सही जगह चुनिए।",
-   "vo_p13_place": "अब बेंच के लिए सही जगह चुनिए।",
-   "vo_p13_measure_almirah": "छोटी अलमारी को ब्लॉक से मापिए।",
-   "vo_p13_measure_chair": "कुर्सी को ब्लॉक से मापिए।",
-   "vo_p13_measure_board": "ब्लैकबोर्ड को ब्लॉक से मापिए।",
-   "vo_p13_place_almirah": "अब छोटी अलमारी के लिए सही जगह चुनिए।",
-   "vo_p13_place_chair": "अब कुर्सी के लिए सही जगह चुनिए।",
-   "vo_p13_place_board": "अब ब्लैकबोर्ड के लिए सही जगह चुनिए।"
-  },
-  "image": {
-   "obj_table_long": "assets/obj_table_long.webp",
-   "obj_table_short": "assets/obj_table_short.webp",
-   "obj_table_measure": "assets/obj_table_measure.webp",
-   "obj_door": "assets/obj_door.webp",
-   "obj_charpai": "assets/obj_charpai.webp",
-   "obj_almirah": "assets/obj_almirah.webp",
-   "obj_almirah_sock": "assets/obj_almirah_sock.webp",
-   "prop_cat": "assets/prop_cat.webp",
-   "obj_pillow": "assets/obj_pillow.webp",
-   "obj_fridge": "assets/obj_fridge.webp",
-   "obj_mat_1": "assets/obj_mat_1.webp",
-   "obj_mat_2": "assets/obj_mat_2.webp",
-   "obj_chair_short": "assets/obj_chair_short.webp",
-   "obj_chair_tall": "assets/obj_chair_tall.webp",
-   "obj_bench": "assets/obj_bench.webp",
-   "obj_blackboard": "assets/obj_blackboard.webp",
-   "obj_bench_p2": "assets/obj_bench_p2.webp",
-   "obj_blackboard_p2": "assets/obj_blackboard_p2.webp",
-   "scene_classroom": "assets/scene_classroom.svg",
-   "obj_window": "assets/obj_window.webp",
-   "obj_watercan": "assets/obj_watercan_v2.webp",
-   "obj_tv": "assets/obj_tv_v2.webp",
-   "obj_chair": "assets/obj_chair.webp",
-   "room_window": "assets/room_window.webp",
-   "room_door": "assets/room_door.webp",
-   "room_clock": "assets/room_clock.webp",
-   "room_flags": "assets/room_flags.webp",
-   "obj_stool": "assets/obj_stool_v3.webp"
-  },
-  "img_ext": "webp",
-  "audio_ext": "ogg"
- }
 }
 </script>
 
@@ -4920,6 +4934,7 @@ function placeNudge(el){
   let cutTop = Infinity;
   [...document.querySelectorAll("button, .nav-btn, .audio-chip, .tut-audio, .hint-btn")].forEach(b => {
     if(b === el || b.contains(el) || el.contains(b)) return;
+    if(b.closest("#devNav")) return;   // (review 2026-10-21 "hand nudge is cutting here", G3: the ?dev slide jumper floats over the game - never a reason to cut the hand)
     const br = b.getBoundingClientRect();
     if(br.width < 2 || br.height < 2 || getComputedStyle(b).visibility === "hidden") return;
     if(br.left < hr.r && br.right > hr.l && br.top < hr.b && br.bottom > hr.t) cutTop = Math.min(cutTop, br.top);
@@ -5502,9 +5517,10 @@ const MDK = (function(){
     const fc = "left:" + F[0] * 100 + "%;top:" + F[1] * 100 + "%;width:" + F[2] * 100 + "%;height:" + F[3] * 100 + "%;font-size:" + px(F[2] * w / 100);
     back.innerHTML = '<i class="rb-shadow"></i><span class="rb-in"><img class="rb-body" src="assets/robot_body.webp" alt="" draggable="false">' +
       '<span class="rb-face" style="' + fc + '"><img class="rb-screen" src="assets/robot_screen.webp" alt="" draggable="false">' +
-      '<span class="rb-eyes"><i class="rb-eye l"><b></b></i><i class="rb-eye r"><b></b></i></span>' +   // [robot eyes] live
-      '<img class="rb-hearts" src="assets/robot_face_happy.webp" alt="" draggable="false"></span></span>' +   // [robot hearts] its happy face
-      '<img class="rb-side" src="assets/robot_side_v2.webp" alt="" draggable="false">';   // its profile, cube on board (robot_enter: .profile) - v2 (review 2026-10-19, the user: "when the robo came with the cube it was bigger and when he front faced it got smaller"): its painted cube cut to the real cube's size (~53px tall on screen, was ~63 x 100), the lid under it filled
+      '<span class="rb-glass"><span class="rb-eyes"><i class="rb-eye l"><b></b></i><i class="rb-eye r"><b></b></i></span>' +   // [robot eyes] live, on its glass
+      '<span class="rb-hearts"><img class="rb-heart l" src="assets/robot_heart_l.webp" alt="" draggable="false">' +   // [robot hearts] its happy face:
+      '<img class="rb-heart r" src="assets/robot_heart_r.webp" alt="" draggable="false"></span></span></span></span>' +     //  one heart per eye
+      '<img class="rb-side" src="assets/robot_side_v3.webp" alt="" draggable="false">';   // its profile, cube on board (robot_enter: .profile) - v2 (review 2026-10-19, the user: "when the robo came with the cube it was bigger and when he front faced it got smaller"): its painted cube cut to the real cube's size (~53px tall on screen, was ~63 x 100), the lid under it filled; v3 (review 2026-10-21: "when the robo is entering the blue cube glow is really uneven"): the patchy teal on its lid smoothed out and an even sky-blue halo round the cube, as .rb-aura's in front view (transparent room above it, so the light isn't cut off - bottom-anchored, the robot doesn't move)
     const seat = { x: x + ROBOT.seat[0] * w - s / 2, y: y + ROBOT.seat[1] * h - s };
     /* the waiting cube's sky-blue aura (review 2026-10-05: "glow ... sky blue ... magical", then "this is really bad"): a
        blurred light BEHIND the cube, rising from the lid - the cube covers its middle, so only a soft halo shows round it.
@@ -5557,37 +5573,134 @@ const MDK = (function(){
        points, every 1.4-3s. gaze({x, y}) (-1..1 each) holds a direction instead (robotIn: on the table), gaze(null)
        lets go; tau = how quickly they get there. BLINKS: every 2.4-5s, and on each change of mood (a robot's "refresh").
        Off the page, the loop stops. */
+    /* review 2026-10-21 ("the robo mop eyes is still not as much responsive as the 1st screen pencil eyes"): the gaze is
+       now the pencil's ([pencil eyes] SGEyes) - not a slow glide toward a moving cube. ATTENTION, most important first: a
+       cube on the move (dragged, flying, the hint's ghost) > the child's finger / mouse moving or tapping anywhere on the
+       stage (held ~0.7s after it stops; a tap ~1s) > the nudge hand > idle (mostly the child, glances at Swiftie, at the
+       answer cards once they are up, at a random spot). MOTION, as real eyes: a fast jump (saccade, 50-170ms, ease-out)
+       to each new target - with a little stretch along the jump and a settle - smooth pursuit of a moving one (with
+       catch-up jumps), tiny drifts while it rests; blinks every 2.2-5.5s, often with a big jump, now and then a double. */
     const eyesEl = back.querySelector(".rb-eyes"), eyeEls = [...back.querySelectorAll(".rb-eye")], faceEl = back.querySelector(".rb-face");
-    const G = { x: 0, y: 0, tx: 0, ty: 0, over: null, tau: 0, seenAt: -1e9, nextWander: 0 }, GX = 10, GY = 2.8;   // range, em
-    function blink(){ if(reduce()) return; eyeEls.forEach(e => e.classList.add("blink")); setTimeout(()=> eyeEls.forEach(e => e.classList.remove("blink")), 110); }
-    function gaze(o, tau){ G.over = o || null; G.tau = tau || 0; }
-    let blinkAt = performance.now() + 1800, lastT = performance.now();
+    const heartsEl = back.querySelector(".rb-hearts"), heartEls = [...back.querySelectorAll(".rb-heart")];
+    const GX = 10, GY = 2.8;                                                // range, em
+    let G = { x: 0, y: 0 }, sac = null, jit = { x: 0, y: 0 }, nextJit = 0, over = null, overTau = 0;
+    let ptr = null, idleT = null, idleUntil = 0, shut = false, blinkA = null;
+    function blink(){
+      if(reduce() || shut) return;
+      if(blinkA) blinkA.forEach(x => x.cancel());
+      blinkA = eyeEls.map(e => e.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(.08)", offset: .32, easing: "cubic-bezier(.4,0,.8,.6)" },
+                                         { transform: "scaleY(.08)", offset: .45 }, { transform: "scaleY(1)" }],
+                                        { duration: 190, easing: "cubic-bezier(.2,.8,.3,1)" }));
+      lastBlink = performance.now(); blinkAt = lastBlink + 2200 + Math.random() * 3300;
+      if(Math.random() < .12) setTimeout(()=>{ if(back.isConnected && !shut){ blinkA = null; blink(); } }, 300);   // now and then a double blink
+    }
+    function gaze(o, tau){ over = o || null; overTau = tau || 0; }
+    // the child's finger / mouse: anywhere on the stage (removed when the robot goes)
+    const onPtr = e =>{ if(!back.isConnected){ removeEventListener("pointermove", onPtr, true); removeEventListener("pointerdown", onPtr, true); return; }
+      ptr = { x: e.clientX, y: e.clientY, until: performance.now() + (e.type === "pointerdown" ? 1000 : 700) }; };
+    addEventListener("pointermove", onPtr, true); addEventListener("pointerdown", onPtr, true);
+    // a screen point -> a look direction (-1..1 each), from the face's centre
+    let fr = null, frAt = -1e9;
+    function dir(px0, py0, t){
+      if(t - frAt > 120 || !fr){ const f = faceEl.getBoundingClientRect(); fr = { cx: f.left + f.width / 2, cy: f.top + f.height / 2, k: f.width / (faceEl.offsetWidth || 1) || 1 }; frAt = t; }
+      const dx = (px0 - fr.cx) / fr.k, dy = (py0 - fr.cy) / fr.k;
+      return { x: dx / Math.hypot(dx, 170), y: dy / Math.hypot(dy, 150) };
+    }
+    const mid = el =>{ const r = el.getBoundingClientRect(); return r.width || r.height ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; };
+    function chooseIdle(t){
+      const r = Math.random();
+      if(r < .5) return { x: 0, y: 0 };                                     // the child
+      if(r < .66){ const m = document.querySelector(".mascot-wrap, .tut-mascot"); const p = m && mid(m); if(p) return dir(p.x, p.y, t); }   // Swiftie
+      if(r < .82){ const os = [...document.querySelectorAll(".mq-opts.in .mq-opt:not(.gone)")]; if(os.length){ const p = mid(os[Math.floor(Math.random() * os.length)]); if(p) return dir(p.x, p.y, t); } }   // the answers
+      return { x: (Math.random() * 2 - 1) * .45, y: (Math.random() * 2 - 1) * .35 };   // a glance
+    }
+    function target(t){
+      if(over) return { x: over.x, y: over.y, moving: true };
+      const mv = parent.querySelector(".md-block.lift, .md-block.moving, .md-block.ghost");
+      if(mv){ const p = mid(mv); if(p){ idleUntil = t + 900; return Object.assign(dir(p.x, p.y, t), { moving: true }); } }
+      if(ptr && t < ptr.until){ idleUntil = t + 600; return dir(ptr.x, ptr.y, t); }
+      const nh = document.getElementById("nudgeHand");
+      if(nh && nh.classList.contains("show")){ const p = mid(nh); if(p){ idleUntil = t + 600; return dir(p.x, p.y, t); } }
+      if(!idleT || t > idleUntil){ idleT = chooseIdle(t); idleUntil = t + 1300 + Math.random() * 1900; }
+      return idleT;
+    }
+    let blinkAt = performance.now() + 1800, lastBlink = 0, lastT = performance.now();
     (function loop(t){
       if(!back.isConnected) return;
-      const dt = Math.min(64, t - lastT); lastT = t;
-      if(G.over){ G.tx = G.over.x; G.ty = G.over.y; }
-      else {
-        const mv = parent.querySelector(".md-block.lift, .md-block.moving, .md-block.ghost");
-        if(mv && faceEl.offsetWidth){
-          const r = mv.getBoundingClientRect(), f = faceEl.getBoundingClientRect(), k = f.width / faceEl.offsetWidth || 1;
-          const dx = (r.left + r.width / 2 - f.left - f.width / 2) / k, dy = (r.top + r.height / 2 - f.top - f.height / 2) / k;
-          G.tx = dx / Math.hypot(dx, 170); G.ty = dy / Math.hypot(dy, 150); G.seenAt = t; G.nextWander = t + 900;
-        } else if(t > G.nextWander){                                      // wander: mostly back to the child, sometimes a glance
-          const home = Math.random() < .45; G.tx = home ? 0 : (Math.random() * 2 - 1) * .45; G.ty = home ? 0 : (Math.random() * 2 - 1) * .35;
-          G.nextWander = t + 1400 + Math.random() * 1600;
-        }
-      }
-      const tau = G.tau || (G.over || t - G.seenAt < 100 ? 80 : 55), a = 1 - Math.exp(-dt / tau);   // pursuit / saccade
-      G.x += (G.tx - G.x) * a; G.y += (G.ty - G.y) * a;
-      eyesEl.style.translate = (G.x * GX).toFixed(2) + "em " + (G.y * GY).toFixed(2) + "em";
-      eyesEl.style.scale = (1 - Math.abs(G.x) * .08).toFixed(3) + " 1";   // a little narrower toward the sides
-      if(t > blinkAt){ blink(); blinkAt = t + 2400 + Math.random() * 2600; }
+      const dt = Math.min(64, t - lastT) / 1000; lastT = t;
+      const T = target(t);
+      if(t > nextJit){ const m = .03 + Math.random() * .05, th = Math.random() * 6.2832;   // tiny drifts while it rests
+        jit = { x: m * Math.cos(th), y: m * Math.sin(th) }; nextJit = t + 700 + Math.random() * 1100; }
+      const tx = Math.max(-1, Math.min(1, T.x + jit.x)), ty = Math.max(-1, Math.min(1, T.y + jit.y)), dx = tx - G.x, dy = ty - G.y, dist = Math.hypot(dx, dy);
+      let st = 0;                                                           // stretch along a jump
+      if(reduce()){ G.x = tx; G.y = ty; }
+      else if(over && overTau){ const k = 1 - Math.exp(-dt * 1000 / overTau); G.x += dx * k; G.y += dy * k; }   // a held direction (robotIn): its own pace
+      else if(sac){                                                         // a saccade lands on where the target is NOW
+        const k = Math.min(1, (t - sac.t0) / sac.ms), e = 1 - Math.pow(1 - k, 3);
+        G.x = sac.x0 + (tx - sac.x0) * e; G.y = sac.y0 + (ty - sac.y0) * e; st = Math.sin(k * Math.PI) * Math.min(.05, sac.d * .045);
+        if(k >= 1) sac = null;
+      } else if(dist > .16){
+        sac = { t0: t, ms: 50 + 70 * Math.min(dist, 1.7), x0: G.x, y0: G.y, d: dist };
+        if(dist > .55 && t - lastBlink > 1200 && !shut && Math.random() < .35) blink();   // big jumps often come with a blink
+      } else { const k = 1 - Math.exp(-dt * (T.moving ? 18 : 12)); G.x += dx * k; G.y += dy * k; }   // smooth following
+      const tr = (G.x * GX).toFixed(2) + "em " + (G.y * GY).toFixed(2) + "em";
+      eyesEl.style.translate = tr; heartsEl.style.translate = (G.x * GX * .4).toFixed(2) + "em " + (G.y * GY * .4).toFixed(2) + "em";
+      const side = 1 - Math.abs(G.x) * .08, ax = sac ? Math.abs(sac.x0 - tx) / (sac.d || 1) : 0;   // narrower toward the sides; stretched along the jump
+      eyesEl.style.scale = (side * (1 + st * ax)).toFixed(3) + " " + (1 + st * (1 - ax)).toFixed(3);
+      if(t > blinkAt) blink();
       requestAnimationFrame(loop);
     })(performance.now());
+    /* [robot display] review 2026-10-21 ("the heart eyes come too much out of the eye area and pop a lot - it should look
+       and feel like a robot's eye animation, all his eye expressions, logically"): the eyes are pixels on its screen, so
+       every change of expression is the screen redrawing - the shape on it now folds down to a thin line, the next one
+       opens out of that line (calm <-> look <-> sad <-> hearts, all the same way). Crisp, no springy overshoot; nothing
+       is drawn off the glass (CSS .rb-glass clips to it); the hearts' beat is a small pulse in brightness and size that
+       stays inside the eye. A newer change cancels one in progress (tok). */
+    let faceTok = 0, faceA = [], want = null;
+    const LINE = "scale(1,.06)", FOLD_MS = 90, OPEN_MS = 150;
+    const anim = (el, kf, o)=>{ const a = el.animate(kf, Object.assign({ fill: "forwards" }, o)); faceA.push(a); return a; };
+    const after = ms => new Promise(r => setTimeout(r, ms));             // (steps on the clock, not on finish events - those wait for a painted frame)
+    // every animation on the eyes and hearts off - a change that cut in on another (or a blink) leaves nothing behind
+    const clearAll = ()=>{ [...eyeEls, ...heartEls].forEach(el => el.getAnimations().forEach(x => x.cancel())); faceA = []; };
+    function fold(was){                                                     // the shape on the screen now -> a line
+      const els = was === "happy" ? heartEls : eyeEls;
+      const from = els.map(el =>{ const c = getComputedStyle(el); return { transform: c.transform === "none" ? "scale(1,1)" : c.transform, opacity: +c.opacity }; });   // (from where it is NOW: no jump)
+      clearAll();
+      if(was === "happy") eyeEls.forEach(e => anim(e, [{ transform: LINE, opacity: 0 }, { transform: LINE, opacity: 0 }], { duration: 1 }));   // (the eyes stay off meanwhile)
+      els.forEach((el, i) => anim(el, [from[i], { transform: LINE, opacity: from[i].opacity }].concat(was === "happy" ? [{ transform: LINE, opacity: 0 }] : []),
+                                  { duration: FOLD_MS, easing: "cubic-bezier(.5,0,.9,.4)" }));
+      return after(FOLD_MS);
+    }
+    function open(kind){                                                    // the line -> the next shape
+      if(kind === "happy"){
+        eyeEls.forEach(e => anim(e, [{ transform: LINE, opacity: 0 }, { transform: LINE, opacity: 0 }], { duration: 1 }));   // (the eyes stay off)
+        heartEls.forEach(h =>{
+          anim(h, [{ transform: LINE, opacity: 1, filter: "brightness(1.5)" }, { transform: "scale(1,1)", opacity: 1, filter: "brightness(1.15)", offset: .7 },
+                             { transform: "scale(1,1)", opacity: 1, filter: "brightness(1)" }], { duration: OPEN_MS + 60, easing: "cubic-bezier(.2,.8,.3,1)" });
+          const mine = faceTok;
+          after(OPEN_MS + 60).then(()=>{ if(mine !== faceTok || !back.classList.contains("happy") || !back.isConnected) return;   // the beat: lub-dub, a glow more than a jump
+            anim(h, [{ transform: "scale(1)", filter: "brightness(1)" }, { transform: "scale(1.05)", filter: "brightness(1.32)", offset: .12 },
+                     { transform: "scale(1)", filter: "brightness(1.05)", offset: .26 }, { transform: "scale(1.035)", filter: "brightness(1.22)", offset: .38 },
+                     { transform: "scale(1)", filter: "brightness(1)", offset: .6 }, { transform: "scale(1)", filter: "brightness(1)" }],
+                 { duration: 820, iterations: 2, easing: "ease-in-out" }); });
+        });
+        return;
+      }
+      heartEls.forEach(h => anim(h, [{ opacity: 0, transform: LINE }, { opacity: 0, transform: LINE }], { duration: 1 }));
+      eyeEls.forEach(e => anim(e, [{ transform: LINE, opacity: 1 }, { transform: "scale(1,1)", opacity: 1 }], { duration: OPEN_MS, easing: "cubic-bezier(.2,.8,.3,1)", fill: "none" }));
+    }
     function face(kind){
-      const was = ["happy", "sad", "look"].find(c => back.classList.contains(c)) || null;
-      back.classList.remove("happy", "sad", "look"); if(kind) back.classList.add(kind);
-      if(was !== (kind || null) && kind !== "sad") blink();               // (sad squeezes shut on its own)
+      kind = kind || null;
+      const was = ["happy", "sad", "look"].find(c => back.classList.contains(c)) || null;   // on the screen now
+      if(want === kind) return; want = kind;                                // (where it is heading - a quick happy, sad, calm ends calm)
+      const tok = ++faceTok, set = ()=>{ back.classList.remove("happy", "sad", "look"); if(kind) back.classList.add(kind); };
+      if(blinkA){ blinkA.forEach(x => x.cancel()); blinkA = null; }
+      if(reduce()){ clearAll(); set(); shut = kind === "happy";
+        eyesEl.style.opacity = shut ? 0 : ""; heartEls.forEach(h =>{ h.style.opacity = shut ? 1 : 0; h.style.transform = "none"; }); return; }
+      shut = true;                                                          // (no blink across a redraw)
+      fold(was).then(()=>{ if(tok !== faceTok || !back.isConnected) return;
+        clearAll(); set(); shut = kind === "happy"; open(kind);
+        lastBlink = performance.now(); blinkAt = lastBlink + 1500 + Math.random() * 2000; });
     }
     /* "look" (review 2026-10-05: "add this robot reaction ... at the time of the tutorial or when there is inactivity"):
        wide-open round eyes - the robot watching. Held through the tutorial's explanation + demonstration (MEASURE_DEMO)
@@ -6361,10 +6474,13 @@ const MDK = (function(){
   /* robotSpot(scene, g) - review 2026-10-19 (the user: "why is the robo mop still in a different position on different game
      screens?"): ONE place on every screen with the robot - the card's horizontal centre, its base SPOT_GAP px above the
      card's inner bottom edge. The card is the same rectangle on every framed screen, so this is the same place on the
-     screen everywhere (T2, T3, G1, G2, G2b, G3). Returns the robot box's top-left in scene px, or null outside a card. */
+     screen everywhere (T2, T3, G1, G2, G2b, G3). Returns the robot box's top-left in scene px, or null outside a card.
+     Review 2026-10-21 (the user: "make sure in all screens robo mop position is same as this screen [T2] and stops at the
+     center only"): an unframed game screen (G1-G3 full-bleed - no card, so it fell back to the old place on the left) uses
+     the game stage's rectangle the same way - its centre, its base SPOT_GAP + 10 px above the stage's bottom edge. */
   const SPOT_GAP = 14;
   function robotSpot(scene, g){
-    const card = scene.closest(".tut-card"); if(!card) return null;
+    const card = scene.closest(".tut-card") || scene.closest(".stage"); if(!card) return null;
     const sR = scene.getBoundingClientRect(), k = sR.width / (scene.offsetWidth || 1) || 1, cR = card.getBoundingClientRect();
     const cx = ((cR.left + cR.right) / 2 - sR.left) / k, foot = (cR.bottom - sR.top) / k - 10 - SPOT_GAP;
     return { x: cx - g.seat[0] * g.w, y: foot - g.h };
@@ -6620,6 +6736,16 @@ const MDK = (function(){
     const misses = [];                                                       // wrong drops per tile - the hint ladder
     const GHOST_AT = cfg.ghostAt || 3;                                       // the wrong drop (per tile) the ghost drag follows from
     const live = ()=> on && cfg.alive();
+    /* review 2026-10-21 ("the drag and drop is really hard for grade 2 kids - keep the mechanism, make it easier"): a
+       forgiving drop zone. ALONG the row (or column) it is .72 of a cube either side of the next tile - a drop a whole
+       cube on (a gap) or half on the last one (an overlap) is still wrong, as the lesson teaches; ACROSS it, 1.3 cubes -
+       being a little above / below the row (left / right of a column) is only a shaky hand, not a measuring mistake.
+       While a carried cube is inside the zone the tile stays shown (.near) - its dashed outline only. */
+    const ALONG = .72, ACROSS = 1.3;
+    const axis = ()=>{ const a = slotXY(0), b = slotXY(Math.min(1, N - 1));
+      return Math.abs(b.y - a.y) > Math.abs(b.x - a.x) ? "y" : "x"; };   // (one tile: a row)
+    const inZone = at =>{ const to = slotXY(placed), dx = Math.abs(at.x - to.x), dy = Math.abs(at.y - to.y);
+      return axis() === "x" ? dx <= S * ALONG && dy <= S * ACROSS : dy <= S * ALONG && dx <= S * ACROSS; };
     const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
     const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : (b._z || 3); };
     async function ghost(keep){                                              // keep: the tile stays lit after it (hint attempt 2)
@@ -6651,13 +6777,14 @@ const MDK = (function(){
         if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
         const p = local(scene, ev); if(Math.hypot(p.x - drag.sx, p.y - drag.sy) > 6) drag.moved = true;
         setPos(b, { x: p.x - drag.ox, y: p.y - drag.oy });
+        if(slots[placed]) slots[placed].classList.toggle("near", drag.moved && inZone(pos(b)));
       });
       const up = ev =>{
         if(!drag || drag.b !== b || ev.pointerId !== drag.id) return;
         const dr = drag; drag = null;
         const at = pos(b), to = slotXY(placed), slot = slots[placed];
-        const hit = dr.moved && Math.abs(at.x - to.x) <= S * 0.6 && Math.abs(at.y - to.y) <= S * 0.6;
-        slot.classList.remove("show", "target");
+        const hit = dr.moved && inZone(at);
+        slot.classList.remove("show", "target", "near");
         /* 2026-10-13 ("if by mistake the cube gets dropped on its initial location only, it should not disappear"): a drop
            back where it was picked up (within ~one cube of it), or a tap with no drag, is NOT a wrong answer - no buzz, no
            miss on the hint ladder, no vanish / respawn: it just slides back into its place and waits */
@@ -6982,7 +7109,7 @@ const SlideModules = {
               if(u < CUT){ const q = u / CUT; side.style.transform = "scale(" + (1 - .04 * q) + "," + (1 + .09 * q) + ")"; }   // toward the front view's proportions
               else {
                 if(!cut){ cut = true; back.classList.remove("profile"); side.style.transform = "";   // the swap: one frame
-                  lidParts.forEach(e => e.style.visibility = ""); auras.forEach(e => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380 }));
+                  lidParts.forEach(e => e.style.visibility = "");   // (the aura at once, no fade: the profile was glowing too - review 2026-10-21 "glow really uneven")
                   if(box.gaze) box.gaze({ x: 0, y: 0 }, 280); }                  // the eyes sweep round to the child
                 const q = (u - CUT) / (1 - CUT), e = 1 - Math.pow(1 - q, 3), y = .93 + .07 * e + .025 * Math.sin(Math.PI * e);
                 body.style.transform = "scale(" + (.97 + .03 * e) + "," + y.toFixed(4) + ")";
@@ -7287,7 +7414,7 @@ const SlideModules = {
            column, its digits' side kept clear (G2 / G3), or left of the row's start (G1 / G2b) */
         const xFar = CARDF ? Math.max(-ROOM_L + 24, mascotR + 8) : -ROOM_L + 24, xNear = (AX === "y" ? OX - 14 - S - 30 - 16 : OX - 40) - g.w;
         const x = Math.max(Math.min(xFar, xNear), Math.min((xFar + xNear) / 2, xNear));   // [g-left] left of the column
-        const hz = d.bg ? (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6) : OY + OH;   // where the wall meets the floor
+        const hz = d.bg ? (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6 - (d.sink || 0)) : OY + OH;   // where the wall meets the floor
         let base = Math.min(H - 12, hz + Math.max(S * 0.9, (H - hz) * 0.5));
         const nO = d.options.length, optL = W / 2 - (nO * 200 + (nO - 1) * 30) / 2, optT = H - OPT_H + 8;
         if(x + g.w > optL - 12 && base > optT - 6) base = Math.max(hz + 14, optT - 6);
@@ -7311,7 +7438,11 @@ const SlideModules = {
          object, half-way up it, in stage px (review 2026-10-01: "keep the background minimal only - non distracting,
          so that the main focus is on the main gameplay") */
       if(d.bg){ const st = $("stage"), stR = st.getBoundingClientRect(), kSt = stR.width / (st.offsetWidth || 1) || 1;
-        st.style.setProperty("--horizon", px((SR0.top - stR.top) / kSt + (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6))); }
+        /* data.sink (review 2026-10-21, G3: "the refrigerator is looking like it is in the air and not on the floor"): an
+           upright object's feet stood ON the wall's foot line (6px below it) - pressed into the skirting, hovering. The
+           room's floor line is raised sink px behind it instead, so its feet stand on the floor in FRONT of the wall. Only
+           the backdrop moves - the object, its lines, the blocks and the robot stay where they were. */
+        st.style.setProperty("--horizon", px((SR0.top - stR.top) / kSt + (AX === "x" && d.horizon !== "base" ? OY + OH * 0.52 : OY + OH - 6 - (d.sink || 0)))); }
       /* [night-window] data.window {src, x, y, w, h0, ar, moon, stars}: the room's window as its own layer (MDK.nightWindow), where
          the backdrop drew it: x, y, w in the backdrop's own px (its wall meets its floor at h0), shifted with the slide's
          --horizon as the backdrop is (stage y = y - h0 + horizon) */
@@ -7355,7 +7486,10 @@ const SlideModules = {
            cluttering the screen"): it goes as the last block lands (MDK.robotLeave, ~0.6s), and the answers pop up once it
            has gone (G1's robot stands where they come) */
         const robotGone = ROBOT && box.robot ? K.robotLeave(box, blocks.filter(b => !b._placed)) : Promise.resolve();
-        robotGone.then(()=>{ if(alive() && phase === "ask") opts.classList.add("in"); });
+        robotGone.then(()=>{ if(alive() && phase === "ask"){ opts.classList.add("in");
+          /* QA checklist (2026-10-21): "options come one by one, with some SFX" - each card's pop-in (.12s apart, CSS
+             .mq-opts.in .mq-opt) gets the landing cubes' bloop, a step higher per card, the sparkle on the last */
+          const c = _ac(); if(c) optEls.forEach((o, k)=> sfxCubePop(k, k === optEls.length - 1, c.currentTime + k * 0.12)); } });
         /* [deck] review 2026-10-08 ("the VO is still not correct"): not busy once the options are up - but no tap reaches
            them while the question is said (the [vo-lock], VoLock), so it always plays to its end */
         busy = !DECK;
@@ -8347,9 +8481,12 @@ const SlideModules = {
           S = Math.min(K.CUBE, (TOP - 40) / N, (W - 80) / (M + (M - 1) * .16));   // the game's cube, as far as it fits
           oh = N * S; ow = oh / it.ar; const gx = (W - (S + 12 + ow)) / 2; ox = gx + S + 12; oy = (TOP - oh) / 2 + 10;
           slotXY = k => ({ x: gx, y: oy + oh - (k + 1) * S });
+          /* [line outside] (review 2026-10-21: "the cube is overlapping with the dotted pink line"): each 9px line, centred
+             on its own position (CSS translate -50%), stands 6px OUTSIDE its end - just clear of the first / last block,
+             as the game's .md-line (MDK.endLines) - not centred on the end, half under the cube (the row's two too) */
           const gw = S + 12 + ow * .6 + 16;
-          K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy - 1) + ";width:" + px(gw));
-          K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy + oh - 1) + ";width:" + px(gw));
+          K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy - 6) + ";width:" + px(gw));
+          K.add(layer, "div", "mm-guide h", "left:" + px(gx - 10) + ";top:" + px(oy + oh + 6) + ";width:" + px(gw));
         } else {
           S = Math.min(K.CUBE, (W - 120) / N, (TOP - 40) / (1 + N * it.ar), (W - 80) / (M + (M - 1) * .16));
           ow = N * S; oh = ow * it.ar; ox = (W - ow) / 2; oy = (TOP - (S + oh)) / 2 + S + 10;
@@ -8358,8 +8495,8 @@ const SlideModules = {
           const sy = (it.sit || 0) * oh;
           slotXY = k => ({ x: ox + k * S, y: oy - S + sy });
           const gh = S + 12 + Math.min(oh * .4, 50);
-          K.add(layer, "div", "mm-guide v", "left:" + px(ox - 1) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
-          K.add(layer, "div", "mm-guide v", "left:" + px(ox + ow - 1) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
+          K.add(layer, "div", "mm-guide v", "left:" + px(ox - 6) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
+          K.add(layer, "div", "mm-guide v", "left:" + px(ox + ow + 6) + ";top:" + px(oy - S + sy - 12) + ";height:" + px(gh));
         }
         // [floor] review 2026-10-09: its soft shadow on the measuring view's floor (CSS [floor]) - it stands, it does not float
         K.add(layer, "div", "cf-floorshadow", "left:" + px(ox - ow * .02) + ";top:" + px(oy + oh - 14) + ";width:" + px(ow * 1.04) + ";height:28px");
@@ -8499,23 +8636,34 @@ const SlideModules = {
         const back = ()=>{ busy = true; return K.glide(c, home, reduce ? 0 : 480, true).then(()=>{ busy = false;   // [juice] a settle on landing
           if(!reduce) c.animate([{ rotate: "-5deg" }, { rotate: "4deg" }, { rotate: "-2deg" }, { rotate: "0deg" }], { duration: 380, easing: "ease-out" });
         }); };
+        /* [tap to place] review 2026-10-21 ("along with drag and drop can we add tap game mechanism also"): the object can be
+           DRAGGED onto a space (as before) or TAPPED - the tap-to-select / tap-to-place pattern: a tap on the object picks
+           it up (it lifts and bobs in its box, the open spaces breathe - "where will it go?"); a tap on a space then sends
+           it there - it flies over and lands exactly as a drop on that space would (right: it fits; wrong: the space shakes,
+           it flies home, the same hint ladder). A tap on it again, or on the room off any space, puts it down. A press
+           that moves more than a few px is a drag, never a tap - the two never mix. While it is picked up, a tap straight
+           on a space is enough; with nothing picked up, a tap on a space does nothing (no accidental wrong answers). */
+        let sel = false;
+        const select = on =>{ sel = !!on; c.classList.toggle("cf-sel", sel); scene.classList.toggle("cf-choosing", sel);
+          if(sel){ invite(false); stopNudge(); sfxTap(); } };
         c.addEventListener("pointerdown", ev =>{
           if(phase !== "place" || busy || drag || !alive()) return;
           ev.preventDefault(); stopNudge();
-          const p = K.local(scene, ev), cp = K.pos(c); drag = { id: ev.pointerId, ox: p.x - cp.x, oy: p.y - cp.y, lx: p.x, tilt: 0 };
+          const p = K.local(scene, ev), cp = K.pos(c); drag = { id: ev.pointerId, ox: p.x - cp.x, oy: p.y - cp.y, lx: p.x, tilt: 0, x0: p.x, y0: p.y, t0: performance.now(), moved: false, home: cp };
           try{ c.setPointerCapture(ev.pointerId); }catch(e){}
-          c.classList.add("lift"); invite(false); sfxTap();
+          invite(false);
         });
         c.addEventListener("pointermove", ev =>{
           if(!drag || ev.pointerId !== drag.id) return;
-          const p = K.local(scene, ev); K.setPos(c, { x: p.x - drag.ox, y: p.y - drag.oy }); hover(spaceAt(p));
+          const p = K.local(scene, ev);
+          if(!drag.moved){ if(Math.hypot(p.x - drag.x0, p.y - drag.y0) < 10) return;   // (still a tap - a finger always wobbles a little)
+            drag.moved = true; if(sel) select(false); c.classList.add("lift"); sfxTap(); }
+          K.setPos(c, { x: p.x - drag.ox, y: p.y - drag.oy }); hover(spaceAt(p));
           // [juice] it leans the way it is carried (a little, eased), upright again when it stops
           drag.tilt = drag.tilt * .7 + Math.max(-9, Math.min(9, (p.x - drag.lx) * .9)) * .3; drag.lx = p.x; if(!reduce) c.style.rotate = drag.tilt.toFixed(2) + "deg";
         });
-        const up = ev =>{
-          if(!drag || ev.pointerId !== drag.id) return;
-          drag = null; c.classList.remove("lift"); hover(null); c.style.rotate = "";
-          const sp = spaceAt(K.local(scene, ev));
+        // a drop on space sp (or none): the drag's release and the tap's flight end here alike
+        function drop(sp){
           if(!sp){ back(); return; }
           if(sp === it){ busy = true; fit(it, c, false); return; }
           const m = it._wrong = (it._wrong || 0) + 1; wrongs++;                // the hint sheet's Drag & Drop ladder, per object
@@ -8530,7 +8678,31 @@ const SlideModules = {
               GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, object: it.id, attempts: m, reason: "wrong" });
               fit(it, c, true); }
           });
+        }
+        const up = ev =>{
+          if(!drag || ev.pointerId !== drag.id) return;
+          const d0 = drag; drag = null; c.classList.remove("lift"); hover(null); c.style.rotate = "";
+          if(!d0.moved){                                                       // a tap: pick it up / put it down
+            if(ev.type === "pointercancel") return;
+            select(!sel); return; }
+          drop(spaceAt(K.local(scene, ev)));
         };
+        // [tap to place] the second tap: on a space (its hit box, as a drop's), or off them all - put it down
+        const onSceneTap = ev =>{
+          if(!c.isConnected){ scene.removeEventListener("click", onSceneTap); return; }
+          if(phase !== "place" || busy || drag || !alive() || cur !== it) return;
+          if(ev.target.closest && ev.target.closest(".cf-card, .cf-item")) return;   // (its own tap, the tray)
+          const sp = spaceAt(K.local(scene, ev));
+          if(!sel){ if(sp && !reduce){ c.classList.remove("cf-invite"); void c.offsetWidth; c.classList.add("cf-invite");   // a space tapped first: the object pops -
+            setTimeout(()=> c.classList.remove("cf-invite"), 1200); } return; }                                         //  "pick me up first" (never a wrong answer)
+          select(false); if(!sp) return;
+          stopNudge(); hover(sp); busy = true;
+          const R = sp._r, cw0 = c.offsetWidth, ch0 = c.offsetHeight;
+          const to = { x: RX + (R.x + R.w / 2) * Z - cw0 / 2, y: (R.y + R.h / 2) * Z - ch0 / 2 };
+          c.classList.add("lift");
+          K.glide(c, to, reduce ? 0 : 460, true).then(()=>{ c.classList.remove("lift"); hover(null); busy = false; if(alive() && phase === "place") drop(sp); });
+        };
+        scene.addEventListener("click", onSceneTap);
         c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
       }
       function fit(it, c, revealed){
@@ -8844,7 +9016,9 @@ function mountSlideNow(idx){
      see-through - its room is still painted on #stage (data-bg, lined up with the module's --horizon as before) and shows
      through the card, the page outside the card white as on T1-T3 (CSS [one frame]); the header band's text goes to the
      card's heading (setPrompt). */
-  const FRAME_ALL = !/[?&]frame=0(?![0-9])/.test(location.search), isGame = slide.phase !== "tutorial";   // (?frame=0: the old full-stage game screens, for comparison - dev only)   // (the user, 2026-10-19: "card + re-layout" - each game module fits the card, nothing shrinks)
+  /* (the user, 2026-10-21, on G1 / G3: "do full screen from here" - the game screens are back on the full stage; only the
+     tutorial sits in the card. ?frame=1 brings the framed game screens back, for comparison - dev only) */
+  const FRAME_ALL = /[?&]frame=1(?![0-9])/.test(location.search), isGame = slide.phase !== "tutorial";
   /* (the user, 2026-10-19: "only the end game will be full screen and also the match the following" - P4 CLASSROOM_FIT
      and P2 / P3 MATCH_ROWS keep their full-stage layout, outside the card) */
   const FULL_STAGE = ["CLASSROOM_FIT", "MATCH_ROWS"].indexOf(slide.type) >= 0;
@@ -9281,8 +9455,8 @@ const ASSET_SIZES = {
   "assets/obj_charpai.webp": 86194,
   "assets/obj_door.webp": 27900,
   "assets/obj_fridge.webp": 42888,
-  "assets/obj_mat_1.webp": 165508,
-  "assets/obj_mat_2.webp": 145580,
+  "assets/obj_mat_1.webp": 147894,
+  "assets/obj_mat_2.webp": 122534,
   "assets/obj_pillow.webp": 90784,
   "assets/obj_stool_v3.webp": 75484,
   "assets/obj_table_long.webp": 31502,
@@ -9304,10 +9478,13 @@ const ASSET_SIZES = {
   "assets/prop_mouse.webp": 27714,
   "assets/robot_body.webp": 47744,
   "assets/robot_face_happy.webp": 13272,
+  "assets/robot_heart_l.webp": 9384,
+  "assets/robot_heart_r.webp": 9034,
   "assets/robot_face_look.webp": 14988,
   "assets/robot_face_sad.webp": 12836,
   "assets/robot_screen.webp": 10534,
   "assets/robot_side_v2.webp": 29274,
+  "assets/robot_side_v3.webp": 31374,
   "assets/room_clock.webp": 12296,
   "assets/room_door.webp": 19620,
   "assets/room_window.webp": 33842,
@@ -9385,7 +9562,7 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p9_reask.ogg": 13239,
   "assets/voiceover/vo_pt_guided.ogg": 8240,
   "assets/voiceover/vo_pt_practice.ogg": 5411,
-  "assets/voiceover/vo_pt_tutorial.ogg": 7171,
+  "assets/voiceover/vo_pt_tutorial.wav": 88364,
   "assets/voiceover/vo_rule_a.ogg": 22585,
   "assets/voiceover/vo_rule_b.ogg": 9415,
   "assets/voiceover/vo_rule_c.ogg": 10547,
@@ -9490,8 +9667,8 @@ const Assets = (function(){
   function slideArt(s){
     const d = s.data || {}, out = [], img = f => out.push("assets/" + f + "." + IMG_EXT);
     if(d.bg && d.bg !== "softboard") img("bg_" + d.bg);                            // #stage[data-bg] (style.css; the softboard is CSS only)
-    if((s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK") && !d.keep_holder) ["robot_body", "robot_screen", "robot_side_v2"].forEach(img);   // [robot] MDK.robot
-    if(s.type === "CLASSROOM_FIT" && d.wrong_cue === "deck") ["robot_body", "robot_screen", "robot_face_happy"].forEach(img);   // [robot] its measuring view's source place
+    if((s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK") && !d.keep_holder) ["robot_body", "robot_screen", "robot_side_v3", "robot_heart_l", "robot_heart_r"].forEach(img);   // [robot] MDK.robot
+    if(s.type === "CLASSROOM_FIT" && d.wrong_cue === "deck") ["robot_body", "robot_screen", "robot_heart_l", "robot_heart_r"].forEach(img);   // [robot] its measuring view's source place
     if(s.type === "MEASURE_ASK" || s.type === "COMPARE_MEASURED" || s.type === "MATCH_ROWS") ["cube_orange", "cube_orange_light"].forEach(img);   // [bulb] MDK.bulb's lit cube
     if(s.type === "MEASURE_DEMO" || s.type === "MEASURE_ASK" || s.type === "COMPARE_MEASURED"){
       if(s.type === "COMPARE_MEASURED" || d.keep_holder) (HOLDER[d.holder] || ["toybox_back", "toybox_front"]).forEach(img);   // MDK.toybox / basket / holder / painting
