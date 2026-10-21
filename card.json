@@ -31,12 +31,12 @@
   "dt_fallback": null,
   "phase_distribution": {
     "tutorial": 3,
-    "guided": 5,
-    "practice": 5
+    "guided": 6,
+    "practice": 4
   },
   "phase_gate_at": {
-    "guided": "G4",
-    "practice": "P1"
+    "guided": "G1",
+    "practice": "G4"
   },
   "scaffold_rules": {
     "nudge_timeout_ms": {
@@ -435,7 +435,7 @@
     },
     {
       "id": "P2",
-      "phase": "practice",
+      "phase": "guided",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -491,7 +491,7 @@
     },
     {
       "id": "P3",
-      "phase": "practice",
+      "phase": "guided",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -546,7 +546,7 @@
     },
     {
       "id": "G4",
-      "phase": "guided",
+      "phase": "practice",
       "eis": "iconic",
       "type": "COMPARE_MEASURED",
       "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",

@@ -3263,12 +3263,12 @@ body.vo-lock .dev-nav{z-index:150001;}
   "dt_fallback": null,
   "phase_distribution": {
     "tutorial": 3,
-    "guided": 5,
-    "practice": 5
+    "guided": 6,
+    "practice": 4
   },
   "phase_gate_at": {
-    "guided": "G4",
-    "practice": "P1"
+    "guided": "G1",
+    "practice": "G4"
   },
   "scaffold_rules": {
     "nudge_timeout_ms": {
@@ -3667,7 +3667,7 @@ body.vo-lock .dev-nav{z-index:150001;}
     },
     {
       "id": "P2",
-      "phase": "practice",
+      "phase": "guided",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -3723,7 +3723,7 @@ body.vo-lock .dev-nav{z-index:150001;}
     },
     {
       "id": "P3",
-      "phase": "practice",
+      "phase": "guided",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -3778,7 +3778,7 @@ body.vo-lock .dev-nav{z-index:150001;}
     },
     {
       "id": "G4",
-      "phase": "guided",
+      "phase": "practice",
       "eis": "iconic",
       "type": "COMPARE_MEASURED",
       "prompt_hi": "कौन-सी चटाई ज़्यादा लंबी है?",
@@ -9123,7 +9123,10 @@ const PHASE_GATE_TITLE = { tutorial:"चलिए, शुरू करें!", 
 const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", practice:"vo_pt_practice" };
 /* the gate (its phase) shown just before slide i, or null: where its phase begins - or, CARD.phase_gate_at { phase: slide
    id }, just before that slide instead (review 2026-10-09: "चलिए साथ में करें ... Papad wali mats hai na usse pahle le aao
-   usko" - guided: G4. G1-G3 stay guided - their look, nudge timing and analytics unchanged - and follow T3 directly) */
+   usko" - guided: G4. G1-G3 stay guided - their look, nudge timing and analytics unchanged - and follow T3 directly).
+   Review 2026-10-21 (the user: "चलिए, साथ में करें before G1, अब आपकी बारी before G4" - the ids stay as they are when the
+   screens are reordered): guided: G1, practice: G4. In today's order G2b, G2, G3 follow T3 directly (still guided); the
+   guided section is G1, P2, P3 (P2 / P3 relabelled guided) and the practice one G4 (relabelled practice), P1, P4. */
 function gateBefore(i){
   const s = CARD.slides[i], prev = CARD.slides[i - 1], at = CARD.phase_gate_at || {};
   if(!s || s.type === "CELEBRATION" || s.type === "PHASE_TRANSITION") return null;
