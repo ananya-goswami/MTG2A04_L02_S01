@@ -31,12 +31,10 @@
   "dt_fallback": null,
   "phase_distribution": {
     "tutorial": 3,
-    "guided": 6,
-    "practice": 4
+    "guided": 4,
+    "practice": 6
   },
-  "phase_gate_at": {
-    "practice": "G4"
-  },
+  "phase_gate_at": {},
   "scaffold_rules": {
     "nudge_timeout_ms": {
       "tutorial": 7000,
@@ -434,7 +432,7 @@
     },
     {
       "id": "P2",
-      "phase": "guided",
+      "phase": "practice",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -490,7 +488,7 @@
     },
     {
       "id": "P3",
-      "phase": "guided",
+      "phase": "practice",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",

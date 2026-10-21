@@ -3263,12 +3263,10 @@ body.vo-lock .dev-nav{z-index:150001;}
   "dt_fallback": null,
   "phase_distribution": {
     "tutorial": 3,
-    "guided": 6,
-    "practice": 4
+    "guided": 4,
+    "practice": 6
   },
-  "phase_gate_at": {
-    "practice": "G4"
-  },
+  "phase_gate_at": {},
   "scaffold_rules": {
     "nudge_timeout_ms": {
       "tutorial": 7000,
@@ -3666,7 +3664,7 @@ body.vo-lock .dev-nav{z-index:150001;}
     },
     {
       "id": "P2",
-      "phase": "guided",
+      "phase": "practice",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -3722,7 +3720,7 @@ body.vo-lock .dev-nav{z-index:150001;}
     },
     {
       "id": "P3",
-      "phase": "guided",
+      "phase": "practice",
       "eis": "iconic",
       "type": "MATCH_ROWS",
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
@@ -9124,9 +9122,9 @@ const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", pra
    id }, just before that slide instead (review 2026-10-09: "चलिए साथ में करें ... Papad wali mats hai na usse pahle le aao
    usko" - guided: G4. G1-G3 stay guided - their look, nudge timing and analytics unchanged - and follow T3 directly).
    Review 2026-10-21 (the user: "चलिए, साथ में करें before G1, अब आपकी बारी before G4" - the ids stay as they are when the
-   screens are reordered): practice: G4 (relabelled practice), then P1, P4. Then (the user, on G2b: "before this, the
-   transition screen with चलिए, साथ में करें") guided has no fixed id - its gate comes where the guided section begins,
-   today G2b: G2b, G2, G3, G1, P2, P3 (P2 / P3 relabelled guided). */
+   screens are reordered). Then, on the screens themselves: "चलिए, साथ में करें" before G2b, "अब आपकी बारी" before P2 -
+   phase_gate_at is empty and each gate comes where its section begins: guided G2b, G2, G3, G1; practice P2, P3, G4
+   (relabelled practice), P1, P4. */
 function gateBefore(i){
   const s = CARD.slides[i], prev = CARD.slides[i - 1], at = CARD.phase_gate_at || {};
   if(!s || s.type === "CELEBRATION" || s.type === "PHASE_TRANSITION") return null;
