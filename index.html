@@ -3267,7 +3267,6 @@ body.vo-lock .dev-nav{z-index:150001;}
     "practice": 4
   },
   "phase_gate_at": {
-    "guided": "G1",
     "practice": "G4"
   },
   "scaffold_rules": {
@@ -9125,8 +9124,9 @@ const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", pra
    id }, just before that slide instead (review 2026-10-09: "चलिए साथ में करें ... Papad wali mats hai na usse pahle le aao
    usko" - guided: G4. G1-G3 stay guided - their look, nudge timing and analytics unchanged - and follow T3 directly).
    Review 2026-10-21 (the user: "चलिए, साथ में करें before G1, अब आपकी बारी before G4" - the ids stay as they are when the
-   screens are reordered): guided: G1, practice: G4. In today's order G2b, G2, G3 follow T3 directly (still guided); the
-   guided section is G1, P2, P3 (P2 / P3 relabelled guided) and the practice one G4 (relabelled practice), P1, P4. */
+   screens are reordered): practice: G4 (relabelled practice), then P1, P4. Then (the user, on G2b: "before this, the
+   transition screen with चलिए, साथ में करें") guided has no fixed id - its gate comes where the guided section begins,
+   today G2b: G2b, G2, G3, G1, P2, P3 (P2 / P3 relabelled guided). */
 function gateBefore(i){
   const s = CARD.slides[i], prev = CARD.slides[i - 1], at = CARD.phase_gate_at || {};
   if(!s || s.type === "CELEBRATION" || s.type === "PHASE_TRANSITION") return null;
