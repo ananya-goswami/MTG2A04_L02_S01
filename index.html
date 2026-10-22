@@ -9952,7 +9952,12 @@ function boot(){
      play) nothing changes: she speaks the moment the loader lifts. Where it is refused, the play button shows at once,
      gold and pulsing; its tap - the gesture the browser waits for - starts the greeting (the button steps back while
      she speaks) and when she and the title animation are done the lesson starts by itself, as HI02H11 does with
-     CARD.landing_vo_on_tap. One tap, on the button, never a random one. */
+     CARD.landing_vo_on_tap. One tap, on the button, never a random one.
+     (the user, 2026-10-22, replacing the above: "the VO plays by itself, or a tap anywhere on the screen brings it; the play
+     button comes only once the VO and the animation are done": where the greeting is refused, the play button stays
+     hidden and the first tap ANYWHERE on the title screen starts the greeting - a completed tap (click), the gesture a
+     tablet's browser waits for; the first touch alone does not unlock sound there. Once she and the title animation are
+     done, the play button pops in and pulses, and the child taps it to start - as where the greeting played by itself.) */
   let _landBlocked = false, _goAfterGreeting = false, _askedOnTap = false;
   let _releasePending = false;
   const releaseStart = (force)=>{ if(!force && !window.__sgIntroDone){ _releasePending = true; return; }
@@ -9973,7 +9978,7 @@ function boot(){
     play(landSrc, ()=>{ if(voEl.ended){ _greetingHeard = true; releaseStart(); } });
     const tok = _playTok, p = voEl.play();                                   // (the same pending play - its promise says if the browser refused)
     if(p && p.catch) p.catch(err =>{ if(err && err.name === "NotAllowedError" && tok === _playTok && onLandingNow() && !_greetingHeard){
-      _landBlocked = true; setStartBtnReady(true); } });                     // [landing autoplay] refused: the play button, now
+      _landBlocked = true; clearTimeout(_startWatchT); stopAudio(); } });   // (stopped at once: nothing is sounding, so the very next tap may start her)                 // [landing autoplay] refused: the button stays hidden - the child's tap anywhere starts her (below)
   };
   // any tap on the landing restarts the 5s idle timer (only once the button is live)
   window.addEventListener("pointerdown", ()=>{ if(onLandingNow() && !startWaiting()) armStartPulse(); }, true);
@@ -10080,9 +10085,12 @@ function boot(){
   /* ...but not when the greeting has already been heard or is playing now, and never on the play button
      itself - tapping the live gold button used to restart the greeting a split second before its click
      silenced it again. */
-  window.addEventListener("pointerdown", function once(ev){ window.removeEventListener("pointerdown", once);
-    if(ev && ev.target && ev.target.closest && ev.target.closest("#sgBtn")) return;
-    if(!_greetingHeard && !isPlaying) playLanding(); }, { once:true });
+  // (2026-10-22: on every completed tap until she has been heard - not once on the first touch, which a tablet's browser does
+  //  not count as the gesture that unlocks sound; a tap the browser still refused is simply tried again on the next)
+  window.addEventListener("click", ev =>{
+    if(!onLandingNow() || _greetingHeard || isPlaying || !startWaiting()) return;
+    if(ev && ev.target && ev.target.closest && ev.target.closest("#sgBtn, #sgVo, .dev-nav")) return;
+    playLanding(); }, true);
 
   $("sgBtn").onclick = ()=>{
     if(startWaiting()){                 // still waiting for the greeting: a tap can only START it
