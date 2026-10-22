@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="hi">
+<html lang="hi" translate="no" class="notranslate">
 <head>
 <meta charset="utf-8">
+<meta name="google" content="notranslate">   <!-- QA 2026-10-22 (Hindi sheet BUG_02 / BUG_18): no Google Translate popup - a translated page rewrote the prompts and the "N ब्लॉक्स" answers -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- [responsive] the page fills the whole screen (notch, home bar); app.js fits the stage inside the safe area -->
 <title>SwiftPAL · MTG2A04_L02_S01 · ब्लॉक से नापें!</title>
 <link rel="icon" href="data:,">   <!-- [QA 15] no favicon request: the browser's automatic /favicon.ico 404 was the last console error -->
@@ -2924,6 +2925,7 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
    other; at .82 (26px) each sits on its own cube. transform, so the pop's own `scale` (mdPop) still runs */
 .mr.mr-stack .md-num{transform:scale(.82);}
 /* the measurement boxes */
+.mr .mr-off{opacity:.35 !important;filter:grayscale(1);pointer-events:none;transition:opacity .25s, filter .25s;}   /* QA 2026-10-22: after the 3rd wrong match only that object and its right box stay on */
 .mr .mr-box{position:absolute;z-index:10;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
   border-radius:18px;border:3px dashed var(--bx-b);background:var(--bx-bg);box-shadow:0 4px 0 var(--bx-sh);
   font-family:var(--font-hi);font-weight:800;font-size:32px;line-height:1;color:#012F76;cursor:grab;touch-action:none;
@@ -4444,18 +4446,24 @@ let _playTok = 0;
    2026-10-05: the speaker is never shown disabled). Sound effects (playSfx) and play()'s silent beats do not lock. A
    drag already under way when a line starts is left to finish: the layer goes up once that pointer is released. The dev
    nav stays on top (QA). */
+/* [vo-lock early] QA 2026-10-22 (Hindi sheet BUG_20): the lock used to go up only on the element's `playing` - on a slow
+   tablet the clip takes a moment to load, and a tap in that moment reached the options before the question was heard.
+   Now play() raises it the moment a vo_* clip is asked for (arm) and lowers it when that clip is done or stopped (release);
+   `playing` still raises it again after a hidden tab or the rotate prompt let go of the clip. Nothing greys out (review
+   2026-10-05: the speaker is never shown disabled). */
 const VoLock = (function(){
   const layer = document.createElement("div"); layer.id = "voLock"; layer.setAttribute("aria-hidden", "true");
   document.body.appendChild(layer);
   const down = new Set(); let want = false;
   const apply = ()=> document.body.classList.toggle("vo-lock", want && down.size === 0);
-  const isVO = ()=> /(^|\/)vo_[^\/]*$/.test(srcOf(voEl).split("?")[0]);
-  voEl.addEventListener("playing", ()=>{ want = isVO(); apply(); });
-  ["pause", "ended", "error", "abort", "emptied"].forEach(t => voEl.addEventListener(t, ()=>{ want = false; apply(); }));
+  const isVO = src => /(^|\/)vo_[^\/]*$/.test(String(src || "").split("?")[0]);
+  voEl.addEventListener("playing", ()=>{ if(currentAudio === voEl){ want = isVO(srcOf(voEl)); apply(); } });
+  ["ended", "error"].forEach(t => voEl.addEventListener(t, ()=>{ want = false; apply(); }));
   window.addEventListener("pointerdown", e =>{ if(e.target !== layer) down.add(e.pointerId); }, true);
   ["pointerup", "pointercancel"].forEach(t => window.addEventListener(t, e =>{ if(down.delete(e.pointerId)) apply(); }, true));
   ["click", "dblclick", "contextmenu"].forEach(t => layer.addEventListener(t, e =>{ e.preventDefault(); e.stopPropagation(); }));
-  return { get on(){ return document.body.classList.contains("vo-lock"); } };
+  return { arm(src){ want = isVO(src); apply(); }, release(){ if(!want) return; want = false; apply(); },
+           get on(){ return document.body.classList.contains("vo-lock"); } };
 })();
 /* chipFor(src): the ONE chip a clip belongs to, or null. The landing greeting belongs to the
    landing chip; a slide's own lines (prompt / ask / conclude ...) to that slide's chip - the in-card
@@ -4489,24 +4497,26 @@ function replayTap(slide, src){
 function stopAudio(){
   _playTok++;
   if(currentAudio){ try{ currentAudio.pause(); }catch(e){} currentAudio=null; }
+  _voDeferred = false; VoLock.release();
   setPlaying(false);
 }
 /* play(src, onEnd): real clip if the path exists; silent beat if missing/blocked. */
 function play(src, onEnd){
   stopAudio(); setPlaying(true);
   const tok = _playTok;
-  let done=false; const fire=()=>{ if(done || tok !== _playTok) return; done=true; currentAudio=null; setPlaying(false); if(onEnd) onEnd(); };
+  let done=false; const fire=()=>{ if(done || tok !== _playTok) return; done=true; currentAudio=null; VoLock.release(); setPlaying(false); if(onEnd) onEnd(); };
+  if(src) VoLock.arm(src);   // [vo-lock early] no tap from the moment the line is asked for
   if(src){
     const a = voEl; currentAudio = a;
     let retried = false;
     a.onended = fire;
     /* the clip's blob: copy failed (Assets): the file's own URL, once; anything else - a silent beat, then on */
     a.onerror = ()=>{ if(tok !== _playTok) return;
-      if(!retried && /^blob:/.test(a.src)){ retried = true; a.src = src; a.play().catch(()=>{ if(tok === _playTok) setTimeout(fire, 1200); }); return; }
+      if(!retried && /^blob:/.test(a.src)){ retried = true; a.src = src; _voStart(a).catch(()=>{ if(tok === _playTok) setTimeout(fire, 1200); }); return; }
       setTimeout(fire, 1200); };
     a.setAttribute("data-asset", src);
     a.src = Assets.url(src); setPlaying(true);   // re-apply now the src is known, so the right chip lights
-    a.play().catch(()=>{ if(tok === _playTok) setTimeout(fire, 1200); });
+    _voStart(a).catch(()=>{ if(tok === _playTok){ VoLock.release(); setTimeout(fire, 1200); } });   // (refused: nothing is sounding - no lock)
     /* WATCHDOG: whatever waits on this clip's end (आगे, the next line, the play button) can never be stranded by a clip
        that stalls mid-way or never reports `ended`: the clip's remaining length + 3s grace, re-armed while it is still
        really moving on. No length yet (metadata stuck): 15s. */
@@ -4514,6 +4524,8 @@ function play(src, onEnd){
     const watch = ()=>{ if(done || tok !== _playTok) return;
       const left = isFinite(a.duration) && a.duration > 0 ? (a.duration - a.currentTime) / (a.playbackRate || 1) : 12;
       setTimeout(()=>{ if(done || tok !== _playTok) return;
+        // [tab pause] a clip held by a hidden tab (or the rotate prompt) is not stalled - it waits, and so does the watchdog
+        if(_voHeld()){ watch(); return; }
         if(!a.paused && !a.ended && a.currentTime > lastT + 0.05){ lastT = a.currentTime; watch(); } else fire(); }, Math.max(0, left) * 1000 + 3000);
     };
     watch();
@@ -4702,6 +4714,27 @@ function bgmPlay(track, onMissing){
 function bgmStart(){ if(!BGM.el) bgmPlay("bgm"); }
 document.addEventListener("visibilitychange", ()=>{ if(!BGM.el) return;
   if(document.hidden) BGM.el.pause(); else BGM.el.play().catch(()=>{}); });
+/* [tab pause] QA 2026-10-22 (Hindi sheet BUG_10 / BUG_14): a hidden tab used to pause only the music - the voiceover, the
+   sound effects and the WebAudio tones went on in the background and the screen moved on without the child. Now all of
+   it pauses, and the voiceover resumes from where it stopped when the tab is back. A clip asked to start while the tab is
+   hidden (an idle re-ask, the next line of a chain) waits for the tab (_voStart); play()'s watchdog waits with it. */
+let _tabHeld = null, _voDeferred = false;
+function _voStart(a){ if(document.hidden){ _voDeferred = true; return Promise.resolve(); } return a.play(); }
+function _voHeld(){ return document.hidden || !!_tabHeld || _voDeferred || document.documentElement.classList.contains("ask-rotate"); }
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){
+    if(_tabHeld) return;
+    _tabHeld = { vo: !!currentAudio && !voEl.paused && !voEl.ended, sfx: _sfxPool.filter(a => !a.paused && !a.ended) };
+    if(_tabHeld.vo) voEl.pause();
+    _tabHeld.sfx.forEach(a =>{ try{ a.pause(); }catch(e){} });
+    if(_juiceAC && _juiceAC.state === "running") _juiceAC.suspend().catch(()=>{});
+  } else {
+    const h = _tabHeld; _tabHeld = null;
+    if(_juiceAC && _juiceAC.state === "suspended") _juiceAC.resume().catch(()=>{});
+    if(h) h.sfx.forEach(a => a.play().catch(()=>{}));
+    if((h && h.vo) || _voDeferred){ _voDeferred = false; if(currentAudio === voEl) voEl.play().catch(()=>{}); }
+  }
+});
 /* dynamic Swiftie buddy: swap pose + a little pop on every reaction (correct/wrong/explain/celebrate) */
 // [20a mascot-01] moods -> production EXPRESSIONS (head webp), not idle-gif basenames.
 //   Ported verbatim from HI01H01_L02_S04_dist (its app lines 2474-2493) together with the
@@ -4949,6 +4982,8 @@ function placeNudge(el){
 }
 
 /* ---------- 8. TAP-OPTION HELPER (shared by 5 slide types) ---------- */
+/* QA 2026-10-22 (Hindi sheet BUG_09): fbBusy - no tap counts while a wrong tap's feedback is still going (fast taps used
+   to stack attempts and wrong sounds, and could run the 3-attempt reveal in a second) */
 function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect, optionRenderer, columnsHint, mastery, hintAction, nudgeTarget, shuffle, onCorrect, onWrong, reask}){
   state.attempts = 0; state.selectedKey = null; state.locked = false;
   state.audioReplays = 0; state.hintUsed = false; state.nudgeUsed = false; state.scaffoldLevel = 0;
@@ -4958,6 +4993,8 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
   // optional custom hint (runs on the live slide instead of a text popup), e.g. a
   // count-demonstration. Wrapped to block option taps while it plays.
   const runHint = hintAction ? (after)=>{ state.hintActive = true; hintAction(()=>{ state.hintActive = false; if(after) after(); }); } : null;
+  let fbBusy = false;
+  const fbDone = ()=>{ fbBusy = false; };
 
   // Shuffle options once so the correct answer isn't pinned to one position (engine-wide anti
   // positional-bias — otherwise "always tap the same spot" can pass mastery). Opt out with
@@ -4977,7 +5014,7 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
     cell.onclick = ()=>{
       /* [10] a wrong card must stay tappable - the .crossed early-return is gone.
          .correct still blocks, because the slide is locked once it is answered. */
-      if(state.locked || state.hintActive || cell.classList.contains("correct")) return;
+      if(state.locked || state.hintActive || fbBusy || cell.classList.contains("correct")) return;
       stopNudge();
       // SME rule: SPEAK THE TAPPED WORD on EVERY tap (right or wrong), then the feedback — never two
       // voices at once (buzz/confetti are sfx, they ride alongside the word). opt.audio = word clip id.
@@ -5001,7 +5038,7 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
           scaffold_level: state.scaffoldLevel, latency_ms: Date.now()-state.slideStart });
         _afterWord(()=> setTimeout(()=> completeSlide(true), 700));   // speak the word → then advance (confetti is the reward)
       } else {
-        state.attempts++; cell.classList.add("crossed");
+        state.attempts++; cell.classList.add("crossed"); fbBusy = true;
         /* [10] QA CHECKLIST: the wrong card auto-reverts after ~900ms and STAYS
            TAPPABLE, so this is the kit's transient .play() (release), no longer
            .out() (elimination). .play() releases at dur*1500+40 then fades over
@@ -5022,11 +5059,11 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
           if(state.attempts >= _maxA){ revealAnswer("wrong"); }
           else if(state.attempts >= 2){ state.scaffoldLevel = Math.max(state.scaffoldLevel, 2);
             GameBus.emit("hint_shown", { slide_id: slide.id, manual: false });   // [QA 14] auto hint -> hint_used
-            if(runHint) runHint(); else play(audioFor(slide, "hint") || audioFor(slide, "try_again") || null, ()=>{}); }
+            if(runHint) runHint(fbDone); else play(audioFor(slide, "hint") || audioFor(slide, "try_again") || null, fbDone); }
           else { state.scaffoldLevel = Math.max(state.scaffoldLevel, 1);
             /* [QA 05] rung 1 = RE-LISTEN: the try-again line, then the question itself again
                (reask:false = the try-again line only, where the deck's incorrect feedback is just that line) */
-            play(audioFor(slide, "try_again") || null, ()=>{ if(reask !== false && !state.locked && !state.hintActive) play(audioFor(slide, "prompt") || null, ()=>{}); }); }
+            play(audioFor(slide, "try_again") || null, ()=>{ if(reask !== false && !state.locked && !state.hintActive) play(audioFor(slide, "prompt") || null, fbDone); else fbDone(); }); }
         });
       }
     };
@@ -7214,7 +7251,12 @@ const SlideModules = {
         });
       }
       state.replayAudio = ()=>{
-        if(phase === "child"){ run.cancelGhost(); say("child").then(()=>{ if(alive() && phase === "child") run.armIdle(); }); run.ghost(); }
+        /* QA 2026-10-22 (Hindi sheet BUG_03): the speaker replays the whole explanation, as first heard - the question, the two
+           ends, the three rules and the child's turn - not only the last line (the demo's own "चलिए, शुरू करते हैं" cue is
+           left out: there is no demo to go with it now) */
+        if(phase === "child"){ run.cancelGhost();
+          const lines = ["prompt", "explain_a", "explain_b", "rule_a", "rule_b", "rule_c", "child"].map(k => audioFor(slide, k)).filter(Boolean);
+          playChain(lines, 0, ()=>{ if(alive() && phase === "child"){ run.ghost(); run.armIdle(); } }); }
         else if(phase === "done"){                                           // the line again - and the stars again, on its count
           let again = null;
           play(audioFor(slide, "conclude") || null, ()=>{ if(again) again(); if(alive()) setNavActive(true); });
@@ -7483,14 +7525,18 @@ const SlideModules = {
            cluttering the screen"): it goes as the last block lands (MDK.robotLeave, ~0.6s), and the answers pop up once it
            has gone (G1's robot stands where they come) */
         const robotGone = ROBOT && box.robot ? K.robotLeave(box, blocks.filter(b => !b._placed)) : Promise.resolve();
-        robotGone.then(()=>{ if(alive() && phase === "ask"){ opts.classList.add("in");
+        /* QA 2026-10-22 (Hindi sheet BUG_08): the question used to start with the cards' pop-in bloops still sounding under
+           it - now it comes once the last card has popped (no tap before it starts: busy; while it is said: the [vo-lock]) */
+        busy = true;
+        robotGone.then(()=>{ if(!alive() || phase !== "ask") return; opts.classList.add("in");
           /* QA checklist (2026-10-21): "options come one by one, with some SFX" - each card's pop-in (.12s apart, CSS
              .mq-opts.in .mq-opt) gets the landing cubes' bloop, a step higher per card, the sparkle on the last */
-          const c = _ac(); if(c) optEls.forEach((o, k)=> sfxCubePop(k, k === optEls.length - 1, c.currentTime + k * 0.12)); } });
-        /* [deck] review 2026-10-08 ("the VO is still not correct"): not busy once the options are up - but no tap reaches
-           them while the question is said (the [vo-lock], VoLock), so it always plays to its end */
-        busy = !DECK;
-        say("ask").then(()=>{ if(!DECK){ busy = false; armAskIdle(); } });
+          const c = _ac(); if(c) optEls.forEach((o, k)=> sfxCubePop(k, k === optEls.length - 1, c.currentTime + k * 0.12));
+          return K.wait(reduce ? 0 : optEls.length * 120 + 450); })
+          /* [deck] review 2026-10-08 ("the VO is still not correct"): not busy once the question starts - but no tap reaches
+             the options while it is said (the [vo-lock], VoLock), so it always plays to its end */
+          .then(()=>{ if(alive() && phase === "ask" && !state.locked){ busy = !DECK; return say("ask"); } })
+          .then(()=>{ if(!DECK && alive() && phase === "ask" && !state.locked){ busy = false; armAskIdle(); } });
       }
       async function onWrong(o){
         wrong++; busy = true;
@@ -7570,7 +7616,8 @@ const SlideModules = {
         const sig = (slide.signals && slide.signals.on_complete && slide.signals.on_complete[0]) || "cardinality_first_try";
         GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrong === 0 && !revealed, first_try: wrong === 0, attempts: wrong + 1, latency_ms: Date.now() - state.slideStart });
         if(!revealed){ sfxCorrect(); try{ confettiCannon(); }catch(e){} setSwMood("happy"); }
-        say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 500));
+        // QA 2026-10-22 (Hindi sheet BUG_08): the praise once the correct chime has rung, not on top of it
+        K.wait(reduce || revealed ? 0 : 700).then(()=> alive() ? say("correct") : null).then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 500));
       }
       function reveal(){ GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" });
         onRight(right, true); }   // (onRight: the other answers go - review 2026-10-19)
@@ -7723,7 +7770,8 @@ const SlideModules = {
         GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrong === 0 && !revealed, first_try: wrong === 0, attempts: wrong + 1, latency_ms: Date.now() - state.slideStart });
         // review 2026-10-08 ("the box with the correct number of blocks will come before the confetti"): the count boxes pop
         // at once (0 / 0.3s), the confetti once both are in
-        if(!revealed){ sfxCorrect(); setSwMood("happy"); setTimeout(()=>{ if(alive()) try{ confettiCannon(); }catch(e2){} }, reduce ? 0 : (els.length - 1) * 300 + 450); }
+        const confAt = reduce ? 0 : (els.length - 1) * 300 + 450;
+        if(!revealed){ sfxCorrect(); setSwMood("happy"); setTimeout(()=>{ if(alive()) try{ confettiCannon(); }catch(e2){} }, confAt); }
         els.forEach((o, i)=> setTimeout(()=>{
           if(!alive()) return; const txt = devNumeral(o.it.n) + " " + unit;
           /* data.hide_wrong_count (P1, review 2026-10-19 - the user: "after selecting the correct answer I can still see the wrong
@@ -7740,7 +7788,9 @@ const SlideModules = {
         // [deck] after the hand nudge the deck asks for "the SFX used for the correct response": data.nudge_sfx_only (G4 -
         // the user chose "SFX only, as written") - the SFX and no correct VO; else (P1, review 2026-10-08 "last VO is still
         // missing in this") the whole correct response, its VO too
-        (DECK && nudged && d.nudge_sfx_only ? K.wait(1600) : say("correct")).then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 900));
+        // QA 2026-10-22 (Hindi sheet BUG_08): the praise once the chime and the confetti's burst have started, not on top of them
+        (DECK && nudged && d.nudge_sfx_only ? K.wait(1600) : K.wait(revealed ? 0 : confAt + 350).then(()=> alive() ? say("correct") : null))
+          .then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 900));
       }
       /* [deck] the deck's page 8 wrong answers (data.wrong_cue "deck", see above) */
       async function deckWrong(){
@@ -7764,6 +7814,9 @@ const SlideModules = {
         if(wrong >= 3) lockWrong();
         rowsOut();                                                           // the hand on the object, not its blocks (above)
         nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.tap); }, 300);
+        // QA 2026-10-22 (Hindi sheet BUG_09): a fast double tap counted twice here (two wrong sounds at once, the 3rd-attempt
+        // lock at once) - taps wait out the wiggle
+        await K.wait(reduce ? 0 : 600); if(!alive() || state.locked) return;
         busy = false; setSwMood("point");
       }
       // the wrong one(s) locked - dimmed, untappable - from the 3rd wrong answer on (QA checklist 2026-10-05; and with the
@@ -7979,11 +8032,20 @@ const SlideModules = {
         return K.glide(b, to, reduce ? 0 : 220, false).then(()=>{
           if(!alive()) return;
           b.classList.add("ok"); e.panel.classList.add("ok"); if(e.slotEl) e.slotEl.classList.add("filled");
-          e.blocks.forEach(x => K.okFlash(x)); sfxCorrect(); setSwMood("happy"); clearCount(e);
+          e.blocks.forEach(x => K.okFlash(x)); sfxCorrect(); cheerOnce(); clearCount(e);
           GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: e.it.id, value: e.it.n, attempts: e.wrong + 1 });
           if(matched === objs.length) finish(); else { busy = false; armIdle(); }
         });
       }
+      // QA 2026-10-22 (Hindi sheet BUG_08 / BUG_17): Swiftie cheers a right match, then is back to normal (she stayed cheering)
+      const cheerOnce = ()=>{ setSwMood("happy"); setTimeout(()=>{ if(alive() && !state.locked && swMood === "happy") setSwMood("point"); }, 1800); };
+      /* QA 2026-10-22 (Hindi sheet BUG_05 / BUG_10): from an object's 3rd wrong match, only it and its right box stay on -
+         every other card and box greyed out and off (.mr-off, hitAt) - until that pair is joined */
+      let focus = null;
+      const offEls = ()=> objs.filter(o => o !== focus && !o.done).flatMap(o => [o.panel, o.img, o.dotEl].concat(o.blocks || []))
+        .concat(boxes.filter(x => x !== focus._rb && !x._done).flatMap(x => [x, x._dotEl])).filter(Boolean);
+      function focusOn(e, rb){ if(!LINES || !rb) return; unfocus(); focus = e; e._rb = rb; offEls().forEach(x => x.classList.add("mr-off")); }
+      function unfocus(e){ if(!focus || (e && e !== focus)) return; scene.querySelectorAll(".mr-off").forEach(x => x.classList.remove("mr-off")); focus = null; }
       async function miss(e, b, from){
         const m = ++e.wrong; wrongAll++; busy = true; stopNudge();
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, object: e.it.id, box: b._v, attempts: m });
@@ -8000,6 +8062,7 @@ const SlideModules = {
           } } finally{ lits.forEach(l => l.off()); }
         } else {                                                             // 3 on: the hand on its right box
           const rb = rightBox(e);
+          focusOn(e, rb);
           if(rb && PPT) ghostDrag(e, rb);                                    // [ppt_hints] 2026-10-13: the ghost drag (was the hand tapping the box's dot)
           else if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
         }
@@ -8018,7 +8081,8 @@ const SlideModules = {
         try{ XAPI.send("question_answered", { slide_id: slide.id, type: slide.type, phase: slide.phase }, { is_correct: true, attempt: wrongAll + 1, score: first ? 1 : 0 }); }catch(e2){}
         recordResult(slide, first); setSwMood("happy");
         try{ confettiCannon(); }catch(e2){}
-        setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(true); }, 700)); }, 450);
+        // (QA 2026-10-22, Hindi sheet BUG_08: 900ms, was 450 - the praise after the last match's chime, not over it)
+        setTimeout(()=>{ if(alive()) say("correct").then(()=> setTimeout(()=>{ if(alive()) completeSlide(true); }, 700)); }, reduce ? 0 : 900);
       }
       /* ---- [lines] joining an object and a box with a line ---- */
       const NS = "http://www.w3.org/2000/svg";
@@ -8034,9 +8098,9 @@ const SlideModules = {
       const near = (p, q, r)=> Math.hypot(p.x - q.x, p.y - q.y) < r;
       const hitAt = p =>{                                                    // an open card or box (or its dot) under p
         const inR = (x, y, w, h)=> p.x >= x - 6 && p.x <= x + w + 6 && p.y >= y - 6 && p.y <= y + h + 6;
-        const e = objs.find(o => !o.done && (inR(panels[o.i].x, panels[o.i].y, panels[o.i].w, panels[o.i].h) || near(p, o.dot, 30)));
+        const e = objs.find(o => !o.done && (!focus || o === focus) && (inR(panels[o.i].x, panels[o.i].y, panels[o.i].w, panels[o.i].h) || near(p, o.dot, 30)));
         if(e) return { kind: "obj", e, el: e.panel, dot: e.dot, dotEl: e.dotEl };
-        const b = boxes.find(x => !x._done && (inR(x._home.x, x._home.y, BW, BH) || near(p, x._dot, 30)));
+        const b = boxes.find(x => !x._done && (!focus || x === focus._rb) && (inR(x._home.x, x._home.y, BW, BH) || near(p, x._dot, 30)));
         return b ? { kind: "box", b, el: b, dot: b._dot, dotEl: b._dotEl } : null;
       };
       const hover = h =>{ if(hov) hov.el.classList.remove("hover"); hov = h; if(h) h.el.classList.add("hover"); };
@@ -8066,7 +8130,7 @@ const SlideModules = {
         mkLine(e.dot, b._dot, "ok"); e.dotEl.classList.add("ok"); b._dotEl.classList.add("ok");
         // (review 2026-10-07 "after correct match the cubes should not show green outline": the card, the line and the box
         //  turn green - the cubes stay as they are, no okFlash)
-        b.classList.add("ok"); e.panel.classList.add("ok"); sfxCorrect(); setSwMood("happy"); clearCount(e);
+        b.classList.add("ok"); e.panel.classList.add("ok"); sfxCorrect(); cheerOnce(); clearCount(e); unfocus(e);
         GameBus.emit("match_correct", { slide_id: slide.id, phase: slide.phase, object: e.it.id, value: e.it.n, attempts: e.wrong + 1 });
         if(matched === objs.length) finish(); else { busy = false; armIdle(); }
       }
