@@ -3315,12 +3315,14 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p2_ask",
         "try_again": "vo_p2_fb",
         "hint": "vo_p2_fb",
-        "reveal": "vo_p2_fb"
+        "reveal": "vo_p2_fb",
+        "correct": "vo_shabash"
       },
       "data": {
         "by": "length",
         "look": "tables",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "options": [
           {
             "src": "assets/obj_table_long.webp",
@@ -3499,12 +3501,14 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p6b_instr",
         "ask": "vo_p6b_ask",
         "correct": "vo_p6b_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p6b_len"
       },
       "data": {
         "n": 5,
         "axis": "x",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "obj": {
           "src": "assets/obj_pillow.webp",
           "ar": 0.5921
@@ -3539,13 +3543,15 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p6_instr",
         "ask": "vo_p6_ask",
         "correct": "vo_p6_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p6_len"
       },
       "data": {
         "n": 7,
         "axis": "y",
         "line_in": 0.11,
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "obj": {
           "src": "assets/obj_almirah_sock.webp",
           "ar": 1.2302,
@@ -3580,12 +3586,14 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p7_instr",
         "ask": "vo_p7_ask",
         "correct": "vo_p7_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p7_len"
       },
       "data": {
         "n": 7,
         "axis": "y",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "obj": {
           "src": "assets/obj_fridge.webp",
           "ar": 1.7208,
@@ -3621,12 +3629,14 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p5_instr",
         "ask": "vo_p5_ask",
         "correct": "vo_p5_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p5_len"
       },
       "data": {
         "n": 12,
         "axis": "x",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "holder": "basket",
         "line_top": 0.88,
         "bg": "room",
@@ -3683,7 +3693,8 @@ body.vo-lock .dev-nav{z-index:150001;}
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "correct": "vo_match_ok"
+        "correct": "vo_match_ok",
+        "try_again": "vo_retry"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -3739,7 +3750,8 @@ body.vo-lock .dev-nav{z-index:150001;}
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "correct": "vo_match_ok"
+        "correct": "vo_match_ok",
+        "try_again": "vo_retry"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -3795,7 +3807,8 @@ body.vo-lock .dev-nav{z-index:150001;}
       "audio": {
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
-        "reask": "vo_p8_reask"
+        "reask": "vo_p8_reask",
+        "retry": "vo_retry"
       },
       "data": {
         "axis": "x",
@@ -3817,8 +3830,7 @@ body.vo-lock .dev-nav{z-index:150001;}
           }
         ],
         "bg": "terrace",
-        "count_box": "card",
-        "hide_wrong_count": true
+        "count_box": "card"
       },
       "signals": {
         "on_complete": [
@@ -3835,7 +3847,8 @@ body.vo-lock .dev-nav{z-index:150001;}
       "audio": {
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
-        "reask": "vo_p9_reask"
+        "reask": "vo_p9_reask",
+        "retry": "vo_retry"
       },
       "data": {
         "axis": "y",
@@ -3878,8 +3891,7 @@ body.vo-lock .dev-nav{z-index:150001;}
         ],
         "riders_random": true,
         "bg": "veranda",
-        "count_box": "card",
-        "hide_wrong_count": true
+        "count_box": "card"
       },
       "signals": {
         "on_complete": [
@@ -3902,7 +3914,8 @@ body.vo-lock .dev-nav{z-index:150001;}
         "measure_chair": "vo_p13_measure_chair",
         "place_chair": "vo_p13_place_chair",
         "measure_board": "vo_p13_measure_board",
-        "place_board": "vo_p13_place_board"
+        "place_board": "vo_p13_place_board",
+        "retry": "vo_retry"
       },
       "data": {
         "no_head": true,
@@ -4072,7 +4085,13 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p13_measure_board": "assets/voiceover/vo_p13_measure_board.ogg",
       "vo_p13_place_almirah": "assets/voiceover/vo_p13_place_almirah.ogg",
       "vo_p13_place_chair": "assets/voiceover/vo_p13_place_chair.ogg",
-      "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg"
+      "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg",
+      "vo_retry": "assets/voiceover/vo_retry.ogg",
+      "vo_p6b_len": "assets/voiceover/vo_p6b_len.ogg",
+      "vo_p6_len": "assets/voiceover/vo_p6_len.ogg",
+      "vo_p7_len": "assets/voiceover/vo_p7_len.ogg",
+      "vo_p5_len": "assets/voiceover/vo_p5_len.ogg",
+      "vo_shabash": "assets/voiceover/vo_shabash.ogg"
     },
     "audio_text": {
       "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
@@ -4137,7 +4156,13 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p13_measure_board": "ब्लैकबोर्ड को ब्लॉक से मापिए।",
       "vo_p13_place_almirah": "अब छोटी अलमारी के लिए सही जगह चुनिए।",
       "vo_p13_place_chair": "अब कुर्सी के लिए सही जगह चुनिए।",
-      "vo_p13_place_board": "अब ब्लैकबोर्ड के लिए सही जगह चुनिए।"
+      "vo_p13_place_board": "अब ब्लैकबोर्ड के लिए सही जगह चुनिए।",
+      "vo_retry": "फिर से कोशिश कीजिए।",
+      "vo_p6b_len": "तकिये की लंबाई 5 ब्लॉक्स है।",
+      "vo_p6_len": "अलमारी की लंबाई 7 ब्लॉक्स है।",
+      "vo_p7_len": "फ्रिज की लंबाई 7 ब्लॉक्स है।",
+      "vo_p5_len": "पलंग की लंबाई 12 ब्लॉक्स है।",
+      "vo_shabash": "शाबाश!"
     },
     "image": {
       "obj_table_long": "assets/obj_table_long.webp",
@@ -5069,7 +5094,11 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
         GameBus.emit(signalName, { slide_id: slide.id, phase: slide.phase, value: true,
           first_try: state.attempts === 0, attempts: state.attempts + 1,
           scaffold_level: state.scaffoldLevel, latency_ms: Date.now()-state.slideStart });
-        _afterWord(()=> setTimeout(()=> completeSlide(true), 700));   // speak the word → then advance (confetti is the reward)
+        /* audio.correct (T1, review 2026-10-26: "in 1st correct attempt add a VO of शाबाश only"): the praise once the chime has
+           rung (QA 2026-10-22 BUG_08), then on; data.nudge_sfx_only - none once a wrong tap has brought the hand (as G1-G4) */
+        const _praise = !(state.attempts > 0 && slide.data && slide.data.nudge_sfx_only) && audioFor(slide, "correct");
+        _afterWord(()=> _praise ? setTimeout(()=>{ if(CARD.slides[state.idx] === slide) play(_praise, ()=> setTimeout(()=> completeSlide(true), 500)); }, 700)
+                                : setTimeout(()=> completeSlide(true), 700));   // speak the word → then advance (confetti is the reward)
       } else {
         state.attempts++; cell.classList.add("crossed"); fbBusy = true;
         /* [10] QA CHECKLIST: the wrong card auto-reverts after ~900ms and STAYS
@@ -7387,12 +7416,16 @@ const SlideModules = {
          a block not laid flush . it goes back (the robot's vanish + a new cube on its lid) - nothing else: no VO, no
                                   lit tile, no ghost (the idle ghost drag stays)
          wrong #1 ............... the option wiggles, the laid blocks glow, audio.try_again ("ब्लॉक्स को एक बार फिर गिनिए।")
+                                  (review 2026-10-26: "फिर से कोशिश कीजिए।" is the practice screens' line, not these)
          wrong #2 ............... each laid block lights in turn as it is counted aloud, एक ... आठ (vo_num_k)
-         wrong #3 on ............ a counting digit under each block, then the hand on the right option (no VO; the
-                                  options stay open - the child taps it)
+         wrong #3 on ............ a counting digit under each block, audio.nudge - its length, "तकिये की लंबाई 5 ब्लॉक्स
+                                  है।" (review 2026-10-26, every guided screen) - then the hand on the right option (the
+                                  wrong ones locked - the child taps it); data.nudge_sfx_only: that tap gets the chime
+                                  and the confetti, no audio.correct (review 2026-10-26: "after 3rd wrong attempt it
+                                  should not say शाबाश ...")
        axis "x": the tiles in a row below the object; "y": a column beside it, from its foot up.
        data: { n, axis, obj:{src, ar, a0, a1}, s, ask_hi, options:[..], unit_hi }
-       audio: prompt, ask, correct, try_again, hint, block_try, block_hint */
+       audio: prompt, ask, correct, try_again, hint, block_try, block_hint; [deck] nudge */
     mount(host, slide){
       const d = slide.data, N = d.n, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -7614,7 +7647,8 @@ const SlideModules = {
           // should not get disabled before the counting has ended" - they dimmed the moment the count began)
           if(!digits){ digits = [];
             for(let k = 0; k < N; k++){ if(!alive()) return; digits.push(K.digit(scene, slotXY(k), S, k + 1, AX === "x" ? "bottom" : "left")); await K.countBeat(null, k + 1); }   // (the counting beat - was 140ms)
-            await K.wait(350); }
+            await K.wait(350); if(!alive()) return;
+            await say("nudge"); }                                            // its length, once counted (review 2026-10-26) - before the hand, so it never points while a tap is held (VoLock)
           if(!alive()) return;
           lockWrong();
           nudged = true; if(alive() && !state.locked) placeNudge(right);
@@ -7656,7 +7690,10 @@ const SlideModules = {
         GameBus.emit(sig, { slide_id: slide.id, phase: slide.phase, value: wrong === 0 && !revealed, first_try: wrong === 0, attempts: wrong + 1, latency_ms: Date.now() - state.slideStart });
         if(!revealed){ sfxCorrect(); try{ confettiCannon(); }catch(e){} setSwMood("happy"); }
         // QA 2026-10-22 (Hindi sheet BUG_08): the praise once the correct chime has rung, not on top of it
-        K.wait(reduce || revealed ? 0 : 700).then(()=> alive() ? say("correct") : null).then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 500));
+        // [deck] data.nudge_sfx_only (G1-G3, review 2026-10-26): after the hand nudge the length was already said (audio.nudge)
+        // - the chime and the confetti only, no शाबाश line (as G4)
+        (DECK && nudged && d.nudge_sfx_only ? K.wait(1600) : K.wait(reduce || revealed ? 0 : 700).then(()=> alive() ? say("correct") : null))
+          .then(()=> setTimeout(()=>{ if(alive()) completeSlide(!revealed); }, 500));
       }
       function reveal(){ GameBus.emit("answer_revealed", { slide_id: slide.id, phase: slide.phase, attempts: wrong, reason: "wrong" });
         onRight(right, true); }   // (onRight: the other answers go - review 2026-10-19)
@@ -7689,14 +7726,15 @@ const SlideModules = {
        each n·S tall on one floor, its column of blocks beside it. data: { axis, s, unit_hi, items:[{src, ar, n,
        correct}] } (items shuffled at mount - "first" and "second" are as they stand). audio: prompt, correct, try_again, hint.
        data.wrong_cue "deck" (G4, review 2026-10-08: "follow the recommendations exactly" - the deck's page 8) instead:
-         wrong #1 ..... the tapped one wiggles; then the blocks of BOTH, first then second, light up one by one with a
+         wrong #1 ..... the tapped one wiggles; audio.retry ("फिर से कोशिश कीजिए।" - review 2026-10-26, the practice
+                        screens); then the blocks of BOTH, first then second, light up one by one with a
                         digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the
                         second); then only the question again (audio.reask) - it plays to its end (VoLock)
          wrong #2 on .. it wiggles; the hand nudges the right one (no VO; the wrong one locks at the 3rd, or at
                         data.lock_at - G4, P1: the 2nd); the child's tap on it
                         gets the correct response (data.nudge_sfx_only, G4: the SFX only - it lights up, its counts
                         show, no correct VO; P1: with its correct VO)
-         no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask. */
+         no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask, retry. */
     mount(host, slide){
       const d = slide.data, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -7818,11 +7856,13 @@ const SlideModules = {
              answer, 6 blocks, just blurred - it should disappear like in the first parts of the game, the behaviour should be the
              same"): only the right one's count comes; the other object stays, dimmed. G4's mats too since the same day (the user: "remove
              the wrong answer completely, as in the other screens - remove the 8 blocks box"), replacing the manager's earlier
-             "the wrong answer also visible on the mats is right" */
+             "the wrong answer also visible on the mats is right". Review 2026-10-26 (G4 + P1, the user: "the wrong option gets
+             blurred, its block box should be also shown ... irrespective of in which attempt"): both slides dropped the flag -
+             the wrong one's count comes too, dimmed with its object (CSS cmCountDim) */
           if(d.hide_wrong_count && o !== e) return;
           if(d.count_box === "card"){                                       // G4: the reference game's answer card (CSS [count-card])
             const c = K.add(scene, "div", "cm-count" + (o === e ? " ok" : ""), "left:" + px(o.plateAt.cx) + ";top:" + px(o.plateAt.y - 22));   // (nearer its row than the badge)
-            c.textContent = txt; if(reduce){ c.style.opacity = 1; c.style.scale = 1; } else requestAnimationFrame(()=> c.classList.add("in"));
+            c.textContent = txt; if(reduce){ c.style.opacity = o === e ? 1 : .45; c.style.scale = 1; } else requestAnimationFrame(()=> c.classList.add("in"));   // (.45: cmCountDim's end)
           } else K.plate(scene, txt, o.plateAt.cx, o.plateAt.y, PW);
         }, i * 300));
         // [deck] after the hand nudge the deck asks for "the SFX used for the correct response": data.nudge_sfx_only (G4 -
@@ -7835,7 +7875,7 @@ const SlideModules = {
       /* [deck] the deck's page 8 wrong answers (data.wrong_cue "deck", see above) */
       async function deckWrong(){
         if(wrong === 1){
-          await K.wait(250);
+          await K.wait(250); await say("retry"); if(!alive() || state.locked) return;   // "फिर से कोशिश कीजिए।" (review 2026-10-26), then the count
           // each row's own count: its blocks lit as they are counted and kept lit (1, then 1 + 2, ...), all off once that
           // row is counted (review 2026-10-09, as G1-G3's 2nd wrong)
           for(const o of els){ const lits = [];
@@ -7926,7 +7966,8 @@ const SlideModules = {
        Right: the line stays, green. Wrong: the line flashes red and fades, the same ladder - the 3rd rung's hand travels
        from the object's dot to its box's dot (HI01 travelNudge) and loops until the next pair.
        data.ppt_hints (P3 - review 2026-10-08 "follow the ppt as it is for everything", SME deck page 11's Feedback/Hint):
-       the deck's own ladder, no hint VO - 1: the red line bounces back into the dot it was drawn from; 2: the object's
+       the deck's own ladder, no hint VO - 1: the red line bounces back into the dot it was drawn from (+ audio.try_again,
+       "फिर से कोशिश कीजिए।" - review 2026-10-26, the practice screens: each object's first wrong match); 2: the object's
        blocks light up one by one with their digits 1, 2, 3 ... (shown, not said); 3 on: a hand nudge on the right box
        (its fingertip tapping the box's dot - the label stays clear), until the next pair. */
     mount(host, slide){
@@ -8357,7 +8398,8 @@ const SlideModules = {
                        that the game runs without VO
          place ....... right: it snaps in + the correct SFX (no praise VO); wrong: the space shakes and the object goes
                        back to the tray - nothing else (the child reconsiders on its own: no hints, never moved in for
-                       them); no idle hand on the tray. audio: intro, measure_<id>, place_<id>. */
+                       them) but, on each object's first wrong space, audio.retry ("फिर से कोशिश कीजिए।" - review
+                       2026-10-26, the practice screens); no idle hand on the tray. audio: intro, measure_<id>, place_<id>, retry. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -8798,7 +8840,7 @@ const SlideModules = {
           sfxWrongSoft(); setSwMood("tryagain"); K.shake(sp._sp, 8);           // the wrong space shakes...
           back().then(()=>{                                                    // ...and the object returns to the tray
             if(!alive() || phase !== "place" || cur !== it) return;
-            if(DECK){ setSwMood("point"); return; }                            // [deck] nothing else - the child reconsiders
+            if(DECK){ setSwMood("point"); if(m === 1) say("retry"); return; }  // [deck] its first time "फिर से कोशिश कीजिए।" (review 2026-10-26); nothing else - the child reconsiders
             if(m === 1) say("try_again");                                      // attempt 1: think again
             else if(m === 2){ K.softGlow(it._sp); placeNudge(it._anchor); say("hint"); }   // attempt 2: its space glows + the hand on it
             else { busy = true; stopNudge();                                   // after the sheet's last attempt: it moves in by itself
@@ -8924,7 +8966,8 @@ const SlideModules = {
     // shakes and returns; #1 - nothing else shown (VO: audio.try_again, via mountTapOptions); #2 - after a moment the
     // right picture glows softly (VO: audio.hint); #3 - the engine shows the answer (audio.reveal) and the hand taps it
     // (o.tap: the middle of its top), then on. Right = SFX + confetti only: the deck's "Correct Response: SFX" (review 2026-10-08 -
-    // the right option's own praise clip, "शाबाश! आपने सही चुना।" vo_ok_mcq2, is gone).
+    // the right option's own praise clip, "शाबाश! आपने सही चुना।" vo_ok_mcq2, is gone) - and on a first-try tap audio.correct,
+    // "शाबाश!" alone (review 2026-10-26; data.nudge_sfx_only: not after the hand - mountTapOptions).
     // data.wrong_cue:"deck" (review 2026-10-08: "follow this instruction VO when selected wrong option as in the ppt" -
     // the deck's page 2 "Incorrect: Pulsate/hand nudge on the long table and play VO: यह टेबल ज्यादा लंबी है।"): every
     // wrong tap - the tapped picture shakes and returns, the right picture pulses (MDK.softGlow) and the hand taps it,
@@ -9750,15 +9793,19 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p4_head.ogg": 25974,
   "assets/voiceover/vo_p5_ask.ogg": 12012,
   "assets/voiceover/vo_p5_instr.ogg": 11805,
+  "assets/voiceover/vo_p5_len.ogg": 11096,
   "assets/voiceover/vo_p5_ok.ogg": 16672,
   "assets/voiceover/vo_p6_ask.ogg": 12884,
   "assets/voiceover/vo_p6_instr.ogg": 12765,
+  "assets/voiceover/vo_p6_len.ogg": 12047,
   "assets/voiceover/vo_p6_ok.ogg": 16891,
   "assets/voiceover/vo_p6b_ask.ogg": 13327,
   "assets/voiceover/vo_p6b_instr.ogg": 11652,
+  "assets/voiceover/vo_p6b_len.ogg": 11303,
   "assets/voiceover/vo_p6b_ok.ogg": 15984,
   "assets/voiceover/vo_p7_ask.ogg": 12845,
   "assets/voiceover/vo_p7_instr.ogg": 11358,
+  "assets/voiceover/vo_p7_len.ogg": 11771,
   "assets/voiceover/vo_p7_ok.ogg": 16739,
   "assets/voiceover/vo_p8_ask.ogg": 15536,
   "assets/voiceover/vo_p8_ok.ogg": 15107,
@@ -9769,9 +9816,11 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_pt_guided.wav": 133596,
   "assets/voiceover/vo_pt_practice.wav": 89980,
   "assets/voiceover/vo_pt_tutorial.wav": 207518,
+  "assets/voiceover/vo_retry.ogg": 7793,
   "assets/voiceover/vo_rule_a.ogg": 22585,
   "assets/voiceover/vo_rule_b.ogg": 9415,
   "assets/voiceover/vo_rule_c.ogg": 10547,
+  "assets/voiceover/vo_shabash.ogg": 6346,
   "assets/voiceover/vo_try_again.ogg": 11485,
   "assets/voiceover/vo_well_done.ogg": 12419
 };

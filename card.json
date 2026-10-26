@@ -70,12 +70,14 @@
         "prompt": "vo_p2_ask",
         "try_again": "vo_p2_fb",
         "hint": "vo_p2_fb",
-        "reveal": "vo_p2_fb"
+        "reveal": "vo_p2_fb",
+        "correct": "vo_shabash"
       },
       "data": {
         "by": "length",
         "look": "tables",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "options": [
           {
             "src": "assets/obj_table_long.webp",
@@ -254,12 +256,14 @@
         "prompt": "vo_p6b_instr",
         "ask": "vo_p6b_ask",
         "correct": "vo_p6b_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p6b_len"
       },
       "data": {
         "n": 5,
         "axis": "x",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "obj": {
           "src": "assets/obj_pillow.webp",
           "ar": 0.5921
@@ -294,13 +298,15 @@
         "prompt": "vo_p6_instr",
         "ask": "vo_p6_ask",
         "correct": "vo_p6_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p6_len"
       },
       "data": {
         "n": 7,
         "axis": "y",
         "line_in": 0.11,
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "obj": {
           "src": "assets/obj_almirah_sock.webp",
           "ar": 1.2302,
@@ -335,12 +341,14 @@
         "prompt": "vo_p7_instr",
         "ask": "vo_p7_ask",
         "correct": "vo_p7_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p7_len"
       },
       "data": {
         "n": 7,
         "axis": "y",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "obj": {
           "src": "assets/obj_fridge.webp",
           "ar": 1.7208,
@@ -376,12 +384,14 @@
         "prompt": "vo_p5_instr",
         "ask": "vo_p5_ask",
         "correct": "vo_p5_ok",
-        "try_again": "vo_try_again"
+        "try_again": "vo_try_again",
+        "nudge": "vo_p5_len"
       },
       "data": {
         "n": 12,
         "axis": "x",
         "wrong_cue": "deck",
+        "nudge_sfx_only": true,
         "holder": "basket",
         "line_top": 0.88,
         "bg": "room",
@@ -438,7 +448,8 @@
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "correct": "vo_match_ok"
+        "correct": "vo_match_ok",
+        "try_again": "vo_retry"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -494,7 +505,8 @@
       "prompt_hi": "हर चीज़ को उसके सही माप से मिलाइए।",
       "audio": {
         "prompt": "vo_match_instr",
-        "correct": "vo_match_ok"
+        "correct": "vo_match_ok",
+        "try_again": "vo_retry"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -550,7 +562,8 @@
       "audio": {
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
-        "reask": "vo_p8_reask"
+        "reask": "vo_p8_reask",
+        "retry": "vo_retry"
       },
       "data": {
         "axis": "x",
@@ -572,8 +585,7 @@
           }
         ],
         "bg": "terrace",
-        "count_box": "card",
-        "hide_wrong_count": true
+        "count_box": "card"
       },
       "signals": {
         "on_complete": [
@@ -590,7 +602,8 @@
       "audio": {
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
-        "reask": "vo_p9_reask"
+        "reask": "vo_p9_reask",
+        "retry": "vo_retry"
       },
       "data": {
         "axis": "y",
@@ -633,8 +646,7 @@
         ],
         "riders_random": true,
         "bg": "veranda",
-        "count_box": "card",
-        "hide_wrong_count": true
+        "count_box": "card"
       },
       "signals": {
         "on_complete": [
@@ -657,7 +669,8 @@
         "measure_chair": "vo_p13_measure_chair",
         "place_chair": "vo_p13_place_chair",
         "measure_board": "vo_p13_measure_board",
-        "place_board": "vo_p13_place_board"
+        "place_board": "vo_p13_place_board",
+        "retry": "vo_retry"
       },
       "data": {
         "no_head": true,
@@ -827,7 +840,13 @@
       "vo_p13_measure_board": "assets/voiceover/vo_p13_measure_board.ogg",
       "vo_p13_place_almirah": "assets/voiceover/vo_p13_place_almirah.ogg",
       "vo_p13_place_chair": "assets/voiceover/vo_p13_place_chair.ogg",
-      "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg"
+      "vo_p13_place_board": "assets/voiceover/vo_p13_place_board.ogg",
+      "vo_retry": "assets/voiceover/vo_retry.ogg",
+      "vo_p6b_len": "assets/voiceover/vo_p6b_len.ogg",
+      "vo_p6_len": "assets/voiceover/vo_p6_len.ogg",
+      "vo_p7_len": "assets/voiceover/vo_p7_len.ogg",
+      "vo_p5_len": "assets/voiceover/vo_p5_len.ogg",
+      "vo_shabash": "assets/voiceover/vo_shabash.ogg"
     },
     "audio_text": {
       "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
@@ -892,7 +911,13 @@
       "vo_p13_measure_board": "ब्लैकबोर्ड को ब्लॉक से मापिए।",
       "vo_p13_place_almirah": "अब छोटी अलमारी के लिए सही जगह चुनिए।",
       "vo_p13_place_chair": "अब कुर्सी के लिए सही जगह चुनिए।",
-      "vo_p13_place_board": "अब ब्लैकबोर्ड के लिए सही जगह चुनिए।"
+      "vo_p13_place_board": "अब ब्लैकबोर्ड के लिए सही जगह चुनिए।",
+      "vo_retry": "फिर से कोशिश कीजिए।",
+      "vo_p6b_len": "तकिये की लंबाई 5 ब्लॉक्स है।",
+      "vo_p6_len": "अलमारी की लंबाई 7 ब्लॉक्स है।",
+      "vo_p7_len": "फ्रिज की लंबाई 7 ब्लॉक्स है।",
+      "vo_p5_len": "पलंग की लंबाई 12 ब्लॉक्स है।",
+      "vo_shabash": "शाबाश!"
     },
     "image": {
       "obj_table_long": "assets/obj_table_long.webp",
