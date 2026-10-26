@@ -449,7 +449,9 @@
       "audio": {
         "prompt": "vo_match_instr",
         "correct": "vo_match_ok",
-        "try_again": "vo_retry"
+        "try_again": "vo_retry",
+        "nudge_bench": "vo_len_bench",
+        "nudge_stool": "vo_len_stool"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -506,7 +508,10 @@
       "audio": {
         "prompt": "vo_match_instr",
         "correct": "vo_match_ok",
-        "try_again": "vo_retry"
+        "try_again": "vo_retry",
+        "nudge_window": "vo_len_window",
+        "nudge_watercan": "vo_len_watercan",
+        "nudge_tv": "vo_len_tv"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -563,13 +568,13 @@
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
         "reask": "vo_p8_reask",
-        "retry": "vo_retry"
+        "retry": "vo_retry",
+        "nudge": "vo_p8_fb"
       },
       "data": {
         "axis": "x",
         "wrong_cue": "deck",
         "nudge_sfx_only": true,
-        "lock_at": 2,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -603,12 +608,13 @@
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
         "reask": "vo_p9_reask",
-        "retry": "vo_retry"
+        "retry": "vo_retry",
+        "nudge": "vo_p9_fb"
       },
       "data": {
         "axis": "y",
         "wrong_cue": "deck",
-        "lock_at": 2,
+        "nudge_sfx_only": true,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -846,7 +852,14 @@
       "vo_p6_len": "assets/voiceover/vo_p6_len.ogg",
       "vo_p7_len": "assets/voiceover/vo_p7_len.ogg",
       "vo_p5_len": "assets/voiceover/vo_p5_len.ogg",
-      "vo_shabash": "assets/voiceover/vo_shabash.ogg"
+      "vo_shabash": "assets/voiceover/vo_shabash.ogg",
+      "vo_p8_fb": "assets/voiceover/vo_p8_fb.ogg",
+      "vo_p9_fb": "assets/voiceover/vo_p9_fb.ogg",
+      "vo_len_bench": "assets/voiceover/vo_len_bench.ogg",
+      "vo_len_stool": "assets/voiceover/vo_len_stool.ogg",
+      "vo_len_window": "assets/voiceover/vo_len_window.ogg",
+      "vo_len_watercan": "assets/voiceover/vo_len_watercan.ogg",
+      "vo_len_tv": "assets/voiceover/vo_len_tv.ogg"
     },
     "audio_text": {
       "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
@@ -917,7 +930,14 @@
       "vo_p6_len": "अलमारी की लंबाई 7 ब्लॉक्स है।",
       "vo_p7_len": "फ्रिज की लंबाई 7 ब्लॉक्स है।",
       "vo_p5_len": "पलंग की लंबाई 12 ब्लॉक्स है।",
-      "vo_shabash": "शाबाश!"
+      "vo_shabash": "शाबाश!",
+      "vo_p8_fb": "यह चटाई ज़्यादा लंबी है।",
+      "vo_p9_fb": "यह कुर्सी ज़्यादा लंबी है।",
+      "vo_len_bench": "बेंच की लंबाई 7 ब्लॉक्स है।",
+      "vo_len_stool": "स्टूल की लंबाई 3 ब्लॉक्स है।",
+      "vo_len_window": "खिड़की की लंबाई 5 ब्लॉक्स है।",
+      "vo_len_watercan": "बोतल की लंबाई 4 ब्लॉक्स है।",
+      "vo_len_tv": "टीवी की लंबाई 6 ब्लॉक्स है।"
     },
     "image": {
       "obj_table_long": "assets/obj_table_long.webp",

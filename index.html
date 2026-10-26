@@ -3694,7 +3694,9 @@ body.vo-lock .dev-nav{z-index:150001;}
       "audio": {
         "prompt": "vo_match_instr",
         "correct": "vo_match_ok",
-        "try_again": "vo_retry"
+        "try_again": "vo_retry",
+        "nudge_bench": "vo_len_bench",
+        "nudge_stool": "vo_len_stool"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -3751,7 +3753,10 @@ body.vo-lock .dev-nav{z-index:150001;}
       "audio": {
         "prompt": "vo_match_instr",
         "correct": "vo_match_ok",
-        "try_again": "vo_retry"
+        "try_again": "vo_retry",
+        "nudge_window": "vo_len_window",
+        "nudge_watercan": "vo_len_watercan",
+        "nudge_tv": "vo_len_tv"
       },
       "data": {
         "unit_hi": "ब्लॉक्स",
@@ -3808,13 +3813,13 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
         "reask": "vo_p8_reask",
-        "retry": "vo_retry"
+        "retry": "vo_retry",
+        "nudge": "vo_p8_fb"
       },
       "data": {
         "axis": "x",
         "wrong_cue": "deck",
         "nudge_sfx_only": true,
-        "lock_at": 2,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -3848,12 +3853,13 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
         "reask": "vo_p9_reask",
-        "retry": "vo_retry"
+        "retry": "vo_retry",
+        "nudge": "vo_p9_fb"
       },
       "data": {
         "axis": "y",
         "wrong_cue": "deck",
-        "lock_at": 2,
+        "nudge_sfx_only": true,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -4091,7 +4097,14 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p6_len": "assets/voiceover/vo_p6_len.ogg",
       "vo_p7_len": "assets/voiceover/vo_p7_len.ogg",
       "vo_p5_len": "assets/voiceover/vo_p5_len.ogg",
-      "vo_shabash": "assets/voiceover/vo_shabash.ogg"
+      "vo_shabash": "assets/voiceover/vo_shabash.ogg",
+      "vo_p8_fb": "assets/voiceover/vo_p8_fb.ogg",
+      "vo_p9_fb": "assets/voiceover/vo_p9_fb.ogg",
+      "vo_len_bench": "assets/voiceover/vo_len_bench.ogg",
+      "vo_len_stool": "assets/voiceover/vo_len_stool.ogg",
+      "vo_len_window": "assets/voiceover/vo_len_window.ogg",
+      "vo_len_watercan": "assets/voiceover/vo_len_watercan.ogg",
+      "vo_len_tv": "assets/voiceover/vo_len_tv.ogg"
     },
     "audio_text": {
       "vo_landing": "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।",
@@ -4162,7 +4175,14 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p6_len": "अलमारी की लंबाई 7 ब्लॉक्स है।",
       "vo_p7_len": "फ्रिज की लंबाई 7 ब्लॉक्स है।",
       "vo_p5_len": "पलंग की लंबाई 12 ब्लॉक्स है।",
-      "vo_shabash": "शाबाश!"
+      "vo_shabash": "शाबाश!",
+      "vo_p8_fb": "यह चटाई ज़्यादा लंबी है।",
+      "vo_p9_fb": "यह कुर्सी ज़्यादा लंबी है।",
+      "vo_len_bench": "बेंच की लंबाई 7 ब्लॉक्स है।",
+      "vo_len_stool": "स्टूल की लंबाई 3 ब्लॉक्स है।",
+      "vo_len_window": "खिड़की की लंबाई 5 ब्लॉक्स है।",
+      "vo_len_watercan": "बोतल की लंबाई 4 ब्लॉक्स है।",
+      "vo_len_tv": "टीवी की लंबाई 6 ब्लॉक्स है।"
     },
     "image": {
       "obj_table_long": "assets/obj_table_long.webp",
@@ -7727,13 +7747,17 @@ const SlideModules = {
        correct}] } (items shuffled at mount - "first" and "second" are as they stand). audio: prompt, correct, try_again, hint.
        data.wrong_cue "deck" (G4, review 2026-10-08: "follow the recommendations exactly" - the deck's page 8) instead:
          wrong #1 ..... the tapped one wiggles; audio.retry ("फिर से कोशिश कीजिए।" - review 2026-10-26, the practice
-                        screens); then the blocks of BOTH, first then second, light up one by one with a
-                        digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the
-                        second); then only the question again (audio.reask) - it plays to its end (VoLock)
-         wrong #2 on .. it wiggles; the hand nudges the right one (no VO; the wrong one locks at the 3rd, or at
-                        data.lock_at - G4, P1: the 2nd); the child's tap on it
-                        gets the correct response (data.nudge_sfx_only, G4: the SFX only - it lights up, its counts
-                        show, no correct VO; P1: with its correct VO)
+                        screens) - nothing else (review 2026-10-26: the count moved to the 2nd, "as the 1st one says फिर
+                        से कोशिश कीजिए")
+         wrong #2 ..... it wiggles; the blocks of BOTH, first then second, light up one by one with a
+                        digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the second);
+                        then, before the lock, only the question again (audio.reask) - it plays to its end (VoLock); a
+                        data.lock_at of 2: a beat with the count on, then as below
+         lock on ...... the wrong one locks at the 3rd (G4, P1 - review 2026-10-26: "in 3rd wrong attempt hand nudge with
+                        the respective vo will come", as every screen) or at data.lock_at; the hand nudges the right one
+                        and, once, audio.nudge ("यह चटाई ज़्यादा लंबी है।" - review 2026-10-26); the child's tap on it
+                        gets the correct response (data.nudge_sfx_only, G4, P1 since 2026-10-26 - its line was just said:
+                        the SFX only - it lights up, its counts show, no correct VO)
          no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask, retry. */
     mount(host, slide){
       const d = slide.data, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
@@ -7874,8 +7898,13 @@ const SlideModules = {
       }
       /* [deck] the deck's page 8 wrong answers (data.wrong_cue "deck", see above) */
       async function deckWrong(){
-        if(wrong === 1){
-          await K.wait(250); await say("retry"); if(!alive() || state.locked) return;   // "फिर से कोशिश कीजिए।" (review 2026-10-26), then the count
+        if(wrong === 1){                                                     // "फिर से कोशिश कीजिए।" alone (review 2026-10-26)
+          await K.wait(250); await say("retry"); if(!alive() || state.locked) return;
+          busy = false; setSwMood("point"); return;
+        }
+        stopAudio();                                                         // (the re-asked question, if still going)
+        if(wrong === 2){                                                     // the count - the 2nd wrong (review 2026-10-26: "do it in 2nd wrong attempt")
+          await K.wait(250);
           // each row's own count: its blocks lit as they are counted and kept lit (1, then 1 + 2, ...), all off once that
           // row is counted (review 2026-10-09, as G1-G3's 2nd wrong)
           for(const o of els){ const lits = [];
@@ -7887,16 +7916,17 @@ const SlideModules = {
             } } finally{ lits.forEach(l => l.off()); }
           }
           if(!alive() || state.locked) return;
-          busy = false; setSwMood("point"); await say("reask");             // only the question again (no tap during it - VoLock)
-          return;
+          if(wrong < (d.lock_at || 3)){ busy = false; setSwMood("point"); await say("reask"); return; }   // only the question again (no tap during it - VoLock)
+          await K.wait(reduce ? 0 : 800); if(!alive() || state.locked) return;   // (a beat with the whole count on, before the hand takes it away)
         }
-        stopAudio();                                                         // (the re-asked question, if still going)
-        if(wrong >= (d.lock_at || 3)) lockWrong();                          // data.lock_at: the wrong answer that locks it (G4: 2 - review 2026-10-26, "in the 2nd wrong attempt itself, disable the chotti chatai"; P1: 2 - "here also same as chatai one")
+        if(wrong >= (d.lock_at || 3)) lockWrong();                          // data.lock_at: the wrong answer that locks it (default the 3rd - G4, P1 again since review 2026-10-26: "in 3rd wrong attempt hand nudge with the respective vo will come", replacing that day's "in the 2nd wrong attempt itself, disable the chotti chatai")
         rowsOut();                                                           // the hand on the object, not its blocks (above)
         nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.tap); }, 300);
         // QA 2026-10-22 (Hindi sheet BUG_09): a fast double tap counted twice here (two wrong sounds at once, the 3rd-attempt
         // lock at once) - taps wait out the wiggle
         await K.wait(reduce ? 0 : 600); if(!alive() || state.locked) return;
+        // audio.nudge with the hand on it, once - as the wrong one locks (review 2026-10-26: "यह चटाई ज़्यादा लंबी है।", as T1's line)
+        if(wrong === (d.lock_at || 3)){ await say("nudge"); if(!alive() || state.locked) return; }
         busy = false; setSwMood("point");
       }
       // the wrong one(s) locked - dimmed, untappable - from the 3rd wrong answer on (QA checklist 2026-10-05; and with the
@@ -7958,7 +7988,7 @@ const SlideModules = {
            3 on ....... it bounces back and the hand points at the right box for that object (it glows softly)
          idle 7s ...... the hand on the next box still to place (flow only).
        data: { unit_hi, bg, join, items:[{ id, src, n, axis, ar (h / w of the picture) }], boxes:[n, ...] (both shuffled at mount) }
-       audio: prompt, correct, try_again. CSS [match rows].
+       audio: prompt, correct, try_again, nudge_<item id> (its length, on its 3rd wrong match - review 2026-10-26). CSS [match rows].
        [lines] data.join "lines" (P2, P3 - review 2026-10-06: "change from drag and drop to match the following"): the
        objects stay as cards side by side, the shuffled boxes stand in a row under them, a dot on each card's foot and each
        box's head. The child joins an object to a box with a line - drags from either dot (or card / box) to the other
@@ -8150,6 +8180,7 @@ const SlideModules = {
           focusOn(e, rb);
           if(rb && PPT) ghostDrag(e, rb);                                    // [ppt_hints] 2026-10-13: the ghost drag (was the hand tapping the box's dot)
           else if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
+          if(m === 3) await say("nudge_" + e.it.id);                         // its length, with the drag (review 2026-10-26: "बेंच की लंबाई 7 ब्लॉक्स है।")
         }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
@@ -9756,6 +9787,11 @@ const ASSET_SIZES = {
   "assets/voiceover/sfx_celebrate.ogg": 8344,
   "assets/voiceover/vo_demo_start.ogg": 8560,
   "assets/voiceover/vo_landing.ogg": 29144,
+  "assets/voiceover/vo_len_bench.ogg": 12823,
+  "assets/voiceover/vo_len_stool.ogg": 11724,
+  "assets/voiceover/vo_len_tv.ogg": 12194,
+  "assets/voiceover/vo_len_watercan.ogg": 11556,
+  "assets/voiceover/vo_len_window.ogg": 12299,
   "assets/voiceover/vo_match_instr.ogg": 14012,
   "assets/voiceover/vo_match_ok.ogg": 21117,
   "assets/voiceover/vo_num_1.ogg": 2601,
@@ -9808,9 +9844,11 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p7_len.ogg": 11771,
   "assets/voiceover/vo_p7_ok.ogg": 16739,
   "assets/voiceover/vo_p8_ask.ogg": 15536,
+  "assets/voiceover/vo_p8_fb.ogg": 9240,
   "assets/voiceover/vo_p8_ok.ogg": 15107,
   "assets/voiceover/vo_p8_reask.ogg": 13171,
   "assets/voiceover/vo_p9_ask.ogg": 14799,
+  "assets/voiceover/vo_p9_fb.ogg": 11312,
   "assets/voiceover/vo_p9_ok.ogg": 16665,
   "assets/voiceover/vo_p9_reask.ogg": 13239,
   "assets/voiceover/vo_pt_guided.wav": 133596,
@@ -9899,14 +9937,23 @@ const Assets = (function(){
     if(OFF || !started) return;
     let crit = false;
     for(const it of items.values()) if(it.tag <= CRIT && it.st !== 2){ crit = true; break; }
-    /* the landing's files (CRIT) and anything a waiting slide asked for (GATE) by tag; the rest smallest first */
-    const rank = it => it.tag <= GATE ? it.tag : 0;
+    /* the landing's files (CRIT) and anything a waiting slide asked for (GATE) by tag; then the lesson in its own order -
+       each slide's files (and the section clip before it) ahead of the next slide's, smallest first within a slide - and
+       the files no slide names (REST) last. (2026-10-26, the user: "make sure the assets ... does not take a lot of time in
+       opening in other devices": it was the whole rest smallest first - the first section's 1.8MB Swiftie clip, needed
+       the moment play is tapped, came almost last, and a slow connection waited on it after the tap.) */
+    const rank = it => it.tag;
+    /* ...and a file starts only while nothing of an earlier group is still coming (a group's own files share the line): a
+       slide's big file has the bandwidth to itself, not a fifth of it beside later slides' files (the 1.8MB clip took ~15s
+       on a 4 Mbit/s line that way, ~4s alone) */
+    let ahead = Infinity; for(const it of items.values()) if(it.st === 1) ahead = Math.min(ahead, rank(it));
     while(active < CONCURRENCY){
       let best = null;
       for(const it of items.values())
         if(it.st === 0 && (!best || rank(it) < rank(best) || (rank(it) === rank(best) && (it.size < best.size || (it.size === best.size && it.n < best.n))))) best = it;
       if(!best || ((crit || hold) && best.tag > CRIT)) return;   // the landing's own files have the line to themselves
-      load(best);
+      if(rank(best) > ahead) return;                             // an earlier group still coming: it goes first
+      load(best); ahead = Math.min(ahead, rank(best));
     }
   }
   function whenDone(srcs, cb){
