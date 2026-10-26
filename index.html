@@ -8055,7 +8055,14 @@ const SlideModules = {
       const lineItems = [].concat(...CARD.slides.filter(s => s.type === "MATCH_ROWS" && s.data && s.data.join === "lines")
         .map(s => s.data.items), items).map(it => Object.assign({ ar: 1, axis: "x" }, it));
       const maxHc = Math.max(...lineItems.map(it => coef(it).hc)), nI = items.length;
-      const S_stack = (H - (CARDF ? 8 : 40) - G * (nI - 1) - nI * (2 * PAD + ENDS)) / (nI * maxHc);   // (40: ~20px clear over and under the stack; the cube stays 48)
+      /* [digits in] review 2026-10-26 ("in all 3 the numbering should stay inside the box"): a card keeps room for its
+         object's counting digits (the 2nd wrong match - MDK.digit, 32px: "above" a row, 34px over its blocks; "left" of a
+         column, 30px), DIG_IN px clear of its edge - the cube is the largest that lets that fit too (on a short screen the TV's
+         row + its digits, not the window, is the tallest) */
+      const DIG_UP = 34, DIG_LEFT = 30, DIG_IN = PAD + 2;
+      const digUp = it => it.axis === "x" ? DIG_UP : 0, digLeft = it => it.axis === "x" ? 0 : DIG_LEFT;
+      const perCard = (H - (CARDF ? 8 : 40) - G * (nI - 1)) / nI;            // (40: ~20px clear over and under the stack; the cube stays 48)
+      const S_stack = Math.min((perCard - 2 * PAD - ENDS) / maxHc, ...lineItems.map(it => (perCard - 2 * DIG_IN - digUp(it)) / coef(it).hc));
       const ROWS = !LINES && S_rows >= S_cols, S = Math.min(K.CUBE, Math.floor(LINES ? S_stack : ROWS ? S_rows : S_cols));   // the game's one cube
       scene.classList.add(LINES ? "mr-stack" : ROWS ? "mr-rows" : "mr-cols");
       // each object's panel (scene px)
@@ -8064,7 +8071,8 @@ const SlideModules = {
         // one card size for all six on P2 + P3 (the widest object's width, the tallest one's height - review 2026-10-07);
         // the cards, the lines' band (160 - 340) and the boxes centred across the scene
         const gwOf = it => it.axis === "x" ? it.n * S : S + 10 + it.n * S / (it.ar * spanOf(it));
-        const cw = Math.max(...lineItems.map(gwOf)) + 2 * (PAD + ENDS), hs = items.map(()=> maxHc * S + 2 * PAD + ENDS);   // [same size] one card for all six
+        const cw = Math.max(Math.max(...lineItems.map(gwOf)) + 2 * (PAD + ENDS), ...lineItems.map(it => gwOf(it) + digLeft(it) + 2 * DIG_IN));   // [same size] one card for all six
+        const ch = Math.max(maxHc * S + 2 * PAD + ENDS, ...lineItems.map(it => coef(it).hc * S + digUp(it) + 2 * DIG_IN)), hs = items.map(()=> ch);   // ([digits in] their room too)
         const band = Math.max(160, Math.min(340, LW - cw - BW - 40)), x0 = LX + (LW - cw - band - BW) / 2;
         let y = (H - hs.reduce((a, h)=> a + h, 0) - G * (items.length - 1)) / 2;
         panels = hs.map(h =>{ const p = { x: x0, y, w: cw, h }; y += h + G; return p; });
@@ -8094,7 +8102,8 @@ const SlideModules = {
         // center of respective boxes": in the middle of its card both ways, measured on what is drawn (blocks + object;
         // a column's group is S + 10 + the object's width, not the layout's wc estimate)
         const gw = LINES && it.axis !== "x" ? S + 10 + it.n * S / (it.ar * spanOf(it)) : c.wc * S, gh = c.hc * S;
-        const gx = P.x + (P.w - gw) / 2, gy = ROWS ? P.y + (P.h - gh) / 2 + ENDS / 2 : LINES ? P.y + (P.h - gh) / 2 : P.y + P.h - PAD - gh;
+        let gx = P.x + (P.w - gw) / 2, gy = ROWS ? P.y + (P.h - gh) / 2 + ENDS / 2 : LINES ? P.y + (P.h - gh) / 2 : P.y + P.h - PAD - gh;
+        if(LINES){ gx = Math.max(gx, P.x + DIG_IN + digLeft(it)); gy = Math.max(gy, P.y + DIG_IN + digUp(it)); }   // [digits in] centred, unless its digits would cross the edge
         let ox, oy, ow, oh;
         if(it.axis === "x"){ ow = it.n * S; oh = ow * it.ar; ox = gx; oy = gy + Math.max(0, S - oh * seatOf(it)); }
         else { oh = it.n * S / spanOf(it); ow = oh / it.ar; ox = gx + S + 10; oy = gy; }
