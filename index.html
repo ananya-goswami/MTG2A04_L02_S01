@@ -1981,6 +1981,11 @@ body.is-start .sg-sky{
    lower edge, so this 2px dot sits 10px above it. */
 .pk-tables .pk-tap,.cm .cm-tap{position:absolute;width:2px;height:2px;margin:-10px 0 0 -1px;pointer-events:none;}
 .pk-tables .opt-cell.faded .pk-pic{opacity:.45;transition:opacity .3s;}
+/* [T1 off] review 2026-10-26 ("disable the small table in 1st wrong attempt"): the wrong table, once tapped, is disabled -
+   untappable at once (this beats the [10] .crossed pointer-events:auto !important that keeps a wrong card live), faded and
+   greyed as the locked mats / chairs are (.cm-locked) once its .4s shake is over (app.js PICK_EXTREME, wrong_cue "deck") */
+.pk-tables .opt-cell.pk-off{pointer-events:none !important;cursor:default;}
+.pk-tables .opt-cell.pk-off .pk-pic{opacity:.45;filter:saturate(.4);transition:opacity .3s .4s,filter .3s .4s;}
 /* [T1 ground] (review 2026-10-05: "these tables don't feel like they are placed on the floor"). The one flat navy ellipse
    sat under the FRONT feet only, while the tables are drawn in perspective - the back feet stand ~20% of the picture
    higher - so the back legs floated, and a cool blue shade on a warm wood floor read as pasted on. Now (app.js
@@ -2653,7 +2658,7 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
 .cf-item{position:absolute;box-sizing:border-box;border-radius:16px;border:2.69px solid #D5D8DF;background:#fff;box-shadow:0 4px 0 #D9D9D9;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;cursor:pointer;
   font-family:var(--font-hi);font-weight:800;font-size:18px;color:#012F76;transition:opacity .3s,filter .3s;-webkit-tap-highlight-color:transparent;}
-.cf-item img{max-width:86%;height:62%;object-fit:contain;pointer-events:none;}
+.cf-item img{max-width:92%;height:86%;object-fit:contain;pointer-events:none;}   /* review 2026-10-26: no name under it any more - the picture takes its room (was 86% / 62%) */
 .cf-item:active{translate:0 2px;box-shadow:0 2px 0 #D9D9D9;}
 .cf-item.done{opacity:.45;filter:grayscale(1);cursor:default;}
 .cf.cf-measuring .cf-item{opacity:0;pointer-events:none;}
@@ -2740,7 +2745,10 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
 .nav-btn.active:active{animation:none;}
 @keyframes navReadyPulse{0%,100%{scale:1;}30%{scale:1.08;}58%{scale:.985;}}
 /* the title screen's speaker button is DISABLED while the greeting speaks, enabled again after it */
-/* (the title screen's speaker is never disabled - review 2026-10-05; .sg-vo.is-disabled removed) */
+/* [speaker grey] QA 2026-10-23 (BUG_01, replacing review 2026-10-05's "never disabled"): every speaker - title screen, header,
+   tutorial card - greyed out and untappable while a voiceover plays (app.js speakersBusy). The fade is filter's opacity(),
+   which multiplies with the chip's own opacity - so a chip that is hidden stays hidden */
+body.vo-speaking .sg-vo,body.vo-speaking .audio-chip,body.vo-speaking .tut-audio{filter:grayscale(1) opacity(.5);pointer-events:none;cursor:default;}
 /* the third feedback layer on a 3-option question: the right card keeps a soft green ring while the hand points at it;
    the wrong ones are locked (.locked: faded, untappable) */
 .mq-opt.hint-on{border-color:#00B132;box-shadow:0 4px 0 #D9D9D9,0 0 0 6px rgba(0,177,50,.28);}
@@ -3793,6 +3801,7 @@ body.vo-lock .dev-nav{z-index:150001;}
         "axis": "x",
         "wrong_cue": "deck",
         "nudge_sfx_only": true,
+        "lock_at": 2,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -3831,6 +3840,7 @@ body.vo-lock .dev-nav{z-index:150001;}
       "data": {
         "axis": "y",
         "wrong_cue": "deck",
+        "lock_at": 2,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -4039,8 +4049,8 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p9_ask": "assets/voiceover/vo_p9_ask.ogg",
       "vo_p9_ok": "assets/voiceover/vo_p9_ok.ogg",
       "vo_p9_reask": "assets/voiceover/vo_p9_reask.ogg",
-      "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
-      "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
+      "vo_pt_guided": "assets/voiceover/vo_pt_guided.wav",
+      "vo_pt_practice": "assets/voiceover/vo_pt_practice.wav",
       "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.wav",
       "vo_p3_head": "assets/voiceover/vo_p3_head.ogg",
       "vo_p3_explain_a": "assets/voiceover/vo_p3_explain_a.ogg",
@@ -4104,9 +4114,9 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p9_ask": "कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए।",
       "vo_p9_ok": "शाबाश! यह कुर्सी ज़्यादा लंबी है।",
       "vo_p9_reask": "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?",
-      "vo_pt_guided": "चलिए, साथ में करें!",
-      "vo_pt_practice": "अब आपकी बारी!",
-      "vo_pt_tutorial": "चलिए, शुरू करें!",
+      "vo_pt_guided": "बहुत बढ़िया! चलिए, साथ में करें!",
+      "vo_pt_practice": "वाह! अब आपकी बारी!",
+      "vo_pt_tutorial": "ध्यान से देखिए और मेरे साथ जानिए। चलिए, शुरू करें!",
       "vo_p3_head": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
       "vo_p3_explain_a": "इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे।",
       "vo_p3_explain_b": "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।",
@@ -4424,6 +4434,22 @@ const GameBus = window.GameBus = {
 
 /* ---------- 3. AUDIO ---------- */
 let isPlaying=false, currentAudio=null;
+/* [speaker grey] QA 2026-10-23 (BUG_01: "speaker should be greyed-out until VO is not over"; then the user: "apply this
+   throughout the game whenever vo plays"): while a voiceover clip (vo_*) plays, every speaker - the title screen's, the
+   header's, the tutorial card's - is greyed out and untappable (body.vo-speaking, CSS [speaker grey]), and live again once
+   it is over. Sound effects and play()'s silent beats leave them alone. The release waits SPK_HOLD_MS, so a run of lines -
+   a count एक, दो, तीन ..., the question after its feedback - keeps them grey across the short gaps between the clips
+   instead of flickering. */
+const SPK_HOLD_MS = 300;
+let _spkT = 0;
+function isVoClip(src){ return /(^|\/)vo_[^\/]*$/.test(String(src || "").split("?")[0]); }
+function speakersBusy(on){
+  clearTimeout(_spkT);
+  const set = v =>{ document.body.classList.toggle("vo-speaking", v);
+    document.querySelectorAll(".audio-chip, .tut-audio, .sg-vo").forEach(c => c.setAttribute("aria-disabled", v ? "true" : "false")); };
+  if(on) set(true);
+  else if(document.body.classList.contains("vo-speaking")) _spkT = setTimeout(()=> set(false), SPK_HOLD_MS);
+}
 function setPlaying(on){
   // the dynamic Swiftie sits header-left; the audio chips pulse to signal playback. r4/F1: share the
   // .playing toggle across the header chip AND the tut-card replay chip (the header is hidden in the
@@ -4435,6 +4461,7 @@ function setPlaying(on){
   const src = on && currentAudio ? srcOf(currentAudio) : null;
   const from = on ? chipFor(src) : null;
   document.querySelectorAll(".audio-chip, .tut-audio, .sg-vo").forEach(c => c.classList.toggle("playing", c === from));
+  speakersBusy(isVoClip(src));   // [speaker grey] every speaker greyed while a voiceover plays
   swApplyPose();   // freeze/unfreeze Swiftie's mouth: animate only while a clip is sounding
 }
 /* [QA 15] ONE reusable VO element, not a new Audio() per clip. Every clip used to get its own
@@ -4446,7 +4473,7 @@ let _playTok = 0;
 /* [vo-lock] review 2026-10-08 "make sure the screen is disabled whenever the VO is playing throughout the game": while a
    voiceover clip (assets/voiceover/vo_*) is really sounding - from the element's own `playing` to its pause / end /
    error - a clear layer over the whole game (#voLock, CSS [vo-lock]) takes every tap and drag; nothing greys out (review
-   2026-10-05: the speaker is never shown disabled). Sound effects (playSfx) and play()'s silent beats do not lock. A
+   2026-10-05: the speaker is never shown disabled; since QA 2026-10-23 the speakers do grey out - [speaker grey]). Sound effects (playSfx) and play()'s silent beats do not lock. A
    drag already under way when a line starts is left to finish: the layer goes up once that pointer is released. The dev
    nav stays on top (QA). */
 /* [vo-lock early] QA 2026-10-22 (Hindi sheet BUG_20): the lock used to go up only on the element's `playing` - on a slow
@@ -4459,7 +4486,7 @@ const VoLock = (function(){
   document.body.appendChild(layer);
   const down = new Set(); let want = false;
   const apply = ()=> document.body.classList.toggle("vo-lock", want && down.size === 0);
-  const isVO = src => /(^|\/)vo_[^\/]*$/.test(String(src || "").split("?")[0]);
+  const isVO = isVoClip;
   voEl.addEventListener("playing", ()=>{ if(currentAudio === voEl){ want = isVO(srcOf(voEl)); apply(); } });
   ["ended", "error"].forEach(t => voEl.addEventListener(t, ()=>{ want = false; apply(); }));
   window.addEventListener("pointerdown", e =>{ if(e.target !== layer) down.add(e.pointerId); }, true);
@@ -6829,9 +6856,14 @@ const MDK = (function(){
         //  where it was" zone was 0.9 of a cube - a drop near the robot but off its lid slid back instead of vanishing. Now
         //  only a real put-back - its centre within a third of a cube of where it was picked up - or a tap with no drag)
         const home = !hit && (!dr.moved || Math.hypot(at.x - dr.from.x, at.y - dr.from.y) <= S * 0.33);
+        /* QA 2026-10-23 (BUG_05 "double tap on the block moved outside its area - it is placed in the incorrect
+           placeholder"): a cube on its way back - the wrong drop's wiggle, vanish and rise (420 + 300 + 420ms), or the slide
+           back of a put-back - could be grabbed again; that tap's own slide back, to where it was grabbed (the wrong tile),
+           landed after the robot had taken it home, and left it on the wrong tile (a drag onto the right tile counted it
+           placed, then it vanished). It is not grabbed again (_busy) until it is back. */
         if(home){
-          drop(b); b.style.zIndex = 30;
-          glide(b, dr.from, reduce() ? 0 : 200, false).then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3; if(live() && !drag) armIdle(); });
+          drop(b); b.style.zIndex = 30; b._busy = true;
+          glide(b, dr.from, reduce() ? 0 : 200, false).then(()=>{ b._busy = false; if(!cfg.alive()) return; b.style.zIndex = b._z || 3; if(live() && !drag) armIdle(); });
           return;
         }
         if(hit){                                                            // flush against the last one
@@ -6841,14 +6873,14 @@ const MDK = (function(){
           GameBus.emit("measure_unit_placed", { slide_id: cfg.slide.id, phase: cfg.slide.phase, count: n, of: N });
           Promise.resolve(cfg.onHit ? cfg.onHit(n, to) : null).then(()=>{ if(!live()) return; if(n >= N){ on = false; clearTimeout(idleT); if(cfg.onAll) cfg.onAll(); } else armIdle(); });
         } else {                                                            // a gap / an overlap / off the row: back to the box
-          sfxWrongSoft(); drop(b); b.style.zIndex = 30;
+          sfxWrongSoft(); drop(b); b.style.zIndex = 30; b._busy = true;        // (BUG_05, above: not grabbed until it is back)
           const k = placed, m = misses[k] = (misses[k] || 0) + 1;
           GameBus.emit("answer_wrong", { slide_id: cfg.slide.id, phase: cfg.slide.phase, attempts: ++state.attempts });
           if(cfg.onWrong) cfg.onWrong(m);
           // [robot] cfg.respawn: it wiggles where it lies, vanishes, and a new one rises on the lid (MDK.robot respawn) - else back to the box
           const back = cfg.respawn ? (shake(b, 7), wait(reduce() ? 0 : 420).then(()=> cfg.alive() ? cfg.respawn(b) : null))
                                    : glide(b, b._home, reduce() ? 0 : 420, true);
-          back.then(()=>{ if(!cfg.alive()) return; b.style.zIndex = b._z || 3;
+          back.then(()=>{ b._busy = false; if(!cfg.alive()) return; b.style.zIndex = b._z || 3;
             if(!cfg.respawn) shake(b, 7);                                   // a wrong drop wiggles (QA checklist)
             if(!live() || drag || placed !== k) return;
             /* QA checklist 2026-10-05 - three layers: 1 think again (hints.say(1)); 2 the strong hint, the rule - start
@@ -7656,7 +7688,8 @@ const SlideModules = {
          wrong #1 ..... the tapped one wiggles; then the blocks of BOTH, first then second, light up one by one with a
                         digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the
                         second); then only the question again (audio.reask) - it plays to its end (VoLock)
-         wrong #2 on .. it wiggles; the hand nudges the right one (no VO, nothing locked); the child's tap on it
+         wrong #2 on .. it wiggles; the hand nudges the right one (no VO; the wrong one locks at the 3rd, or at
+                        data.lock_at - G4, P1: the 2nd); the child's tap on it
                         gets the correct response (data.nudge_sfx_only, G4: the SFX only - it lights up, its counts
                         show, no correct VO; P1: with its correct VO)
          no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask. */
@@ -7814,7 +7847,7 @@ const SlideModules = {
           return;
         }
         stopAudio();                                                         // (the re-asked question, if still going)
-        if(wrong >= 3) lockWrong();
+        if(wrong >= (d.lock_at || 3)) lockWrong();                          // data.lock_at: the wrong answer that locks it (G4: 2 - review 2026-10-26, "in the 2nd wrong attempt itself, disable the chotti chatai"; P1: 2 - "here also same as chatai one")
         rowsOut();                                                           // the hand on the object, not its blocks (above)
         nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.tap); }, 300);
         // QA 2026-10-22 (Hindi sheet BUG_09): a fast double tap counted twice here (two wrong sounds at once, the 3rd-attempt
@@ -8156,22 +8189,32 @@ const SlideModules = {
       /* [ppt_hints] the 3rd rung - 2026-10-13 ("in 3rd wrong attempt replace hand nudge with ghost drag in both match the
          following screens", P2 + P3): the hand shows the move itself - it presses on the object's dot, drags a blue line
          across to its RIGHT box's ring, holds there a beat, then hand and line fade; again and again until the child's next
-         pair (clearHelp -> stopTravel). Nothing is joined. Reduced motion: the hand waits on the box's ring, the line drawn. */
+         pair (clearHelp -> stopTravel). Nothing is joined. Reduced motion: the hand waits on the box's ring, the line drawn.
+         (review 2026-10-26 "its dragging the wrong blue line, and the dotted line is still there": the object's "pull me"
+         handle stayed on its dot beside the hand's line - now, as in the child's own drag (pick) and the demo, the card and
+         its dot are picked while the hint runs: the handle gone, the line drawn from the blue dot)
+         (review 2026-10-26 "when user also matching there are 2 lines coming, one of user, one of the hand": while the child
+         has a card or box picked - drawing a line, or between two taps - the hand and its line step aside; let go unjoined,
+         the hint starts over from the dot) */
       function ghostDrag(e, rb){
         stopTravel(); travel = K.hand(scene, 0);
         const a = e.dot, b = rb._dot, ln = mkLine(a, a, "live");
-        let raf = 0; const t0 = performance.now(), CYCLE = 2400;
-        travel._stop = ()=>{ cancelAnimationFrame(raf); ln.remove(); };
-        if(reduce){ travel.on(b); setLine(ln, a, b); return; }
+        let raf = 0, t0 = performance.now(), held = false; const CYCLE = 2400;
+        const mark = on =>{ e.panel.classList.toggle("sel", on); e.dotEl.classList.toggle("sel", on); };   // (kept on each frame: a tap on nothing unpicks)
+        travel._stop = ()=>{ cancelAnimationFrame(raf); ln.remove(); if(!(sel && sel.e === e)) mark(false); };
+        mark(true);
         const ease = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
         const step = now =>{
+          raf = requestAnimationFrame(step);
+          if(sel){ held = true; travel.el.style.opacity = 0; travel.el.classList.remove("press"); ln.style.opacity = 0; if(sel.e !== e) mark(false); return; }
+          if(held){ held = false; t0 = now; }
+          if(reduce){ travel.on(b); travel.el.style.opacity = 1; setLine(ln, a, b); ln.style.opacity = 1; mark(true); return; }   // (reduced motion: still, on the box's ring)
           const t = ((now - t0) % CYCLE) / CYCLE;                            // 0-.1 the hand in on the dot, .1-.62 the drag, .62-.84 hold, .84-1 fade
           const k = t < .1 ? 0 : t < .62 ? ease((t - .1) / .52) : 1;
           const p = { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
           const o = t < .1 ? t / .1 : t < .84 ? 1 : 1 - (t - .84) / .16;
           travel.on(p); travel.el.style.opacity = o; travel.el.classList.toggle("press", t >= .08 && t < .84);
-          setLine(ln, a, p); ln.style.opacity = t < .1 ? 0 : o;
-          raf = requestAnimationFrame(step);
+          setLine(ln, a, p); ln.style.opacity = t < .1 ? 0 : o; mark(true);
         };
         raf = requestAnimationFrame(step);
       }
@@ -8452,7 +8495,12 @@ const SlideModules = {
       const IX = SH ? SHELF.end : 20, TG = 18, TW = (TWD - 2 * IX - 3 * TG) / 4;
       items.forEach((it, i)=>{
         const t = K.add(tray, "button", "cf-item", "left:" + px(IX + i * (TW + TG)) + ";top:" + (SH ? "0" : "8px") + ";width:" + px(TW) + ";height:" + px(SH ? TH : TH - 18));
-        t.type = "button"; t.style.setProperty("--i", i); t.innerHTML = '<img alt=""><span></span>'; t.querySelector("img").src = it.src; t.querySelector("span").textContent = it.name_hi;   // [juice] --i: its turn to drop in
+        t.type = "button"; t.style.setProperty("--i", i);   // [juice] --i: its turn to drop in
+        /* review 2026-10-26 ("remove the written text in the option table, kursi etc so that the option assets looks a little
+           bigger"): the box shows the picture alone, bigger (CSS .cf-item img); its name stays its accessible name. (The shelf
+           keeps its names on its lip.) */
+        t.innerHTML = SH ? '<img alt=""><span></span>' : '<img alt="">'; t.querySelector("img").src = it.src; t.setAttribute("aria-label", it.name_hi);
+        if(SH) t.querySelector("span").textContent = it.name_hi;
         t.addEventListener("click", ()=> pick(it)); it._t = t;
       });
       /* (review 2026-10-07 "after it is placed the disabled option should get removed and the other options should come to
@@ -8906,6 +8954,9 @@ const SlideModules = {
         } : d.wrong_cue === "deck" ? (opt, cell)=>{
           MDK.shake(cell.querySelector(".pk-in") || cell, 10);                                         // shakes and returns
           const right = host.querySelector('.opt-cell[data-right="1"]'); if(!right || right === cell) return;
+          /* review 2026-10-26 (the user: "disable the small table in 1st wrong attempt"): the tapped table is disabled at
+             once - untappable, and faded + greyed as its shake ends (CSS [T1 off]) - so only the right one is left to tap */
+          cell.classList.add("pk-off");
           setTimeout(()=>{ if(!right.isConnected || (right.classList.contains("correct") && !right.classList.contains("reveal-pulse"))) return;   // tapped right meanwhile
             MDK.softGlow(right.querySelector(".pk-in") || right, true); placeNudge(right.querySelector(".pk-tap") || right); }, 450);   // pulses + the hand taps its leg
         } : undefined,
@@ -9185,6 +9236,11 @@ function afterConfetti(fn){
 /* onscreen headline per gate (display only; distinct from any narration). Eligibility = phase IN this map. */
 const PHASE_GATE_TITLE = { tutorial:"चलिए, शुरू करें!",   /* review 2026-10-19 (manager): "चलिए शुरू करते हैं" की जगह "चलिए शुरू करें!" (text; the clip is unchanged) */ guided:"चलिए, साथ में करें!", practice:"अब आपकी बारी!" };   // QA checklist 2026-10-05: the headlines are exactly the lines Swiftie speaks (each VO is now that line alone), so the text appears only as she says it
 const PHASE_GATE_VO    = { tutorial:"vo_pt_tutorial", guided:"vo_pt_guided", practice:"vo_pt_practice" };
+/* where the headline's own words start in a gate's line, ms (the headline goes on .28s before them - CSS pgWipe's delay).
+   A gate not listed: its line IS its headline, on from the line's start. tutorial (BUG_02): "ध्यान से देखिए और मेरे साथ
+   जानिए।" comes first, "चलिए, शुरू करें!" at 3.10s (as HI02H11_L02_S02's CARD.gate.title_cue_ms, 3075). guided: "बहुत
+   बढ़िया!" first, "चलिए, साथ में करें!" at 1.355s; practice: "वाह!" first, "अब आपकी बारी!" at 0.935s (that game: 925). */
+const PHASE_GATE_TITLE_AT = { tutorial: 3100, guided: 1355, practice: 935 };
 /* the gate (its phase) shown just before slide i, or null: where its phase begins - or, CARD.phase_gate_at { phase: slide
    id }, just before that slide instead (review 2026-10-09: "चलिए साथ में करें ... Papad wali mats hai na usse pahle le aao
    usko" - guided: G4. G1-G3 stay guided - their look, nudge timing and analytics unchanged - and follow T3 directly).
@@ -9201,8 +9257,27 @@ function gateBefore(i){
 }
 /* [peek-2] The clip's own length, and the CSS duck-down that follows it. Both are contracts
    with assets/gif/peeking.webp and @keyframes pgDuck — if either is re-cut, change it here too. */
-const ANIM_ASSETS = ["loader.webp", "new_landing_swiftee_anim.webp", "peeking.webp", "sw_head_celebrate_anim.webp", "sw_head_hint_anim.webp", "sw_head_tryagain_anim.webp", "sw_lg_celebrating_anim.webp"];
+const ANIM_ASSETS = ["loader.webp", "new_landing_swiftee_anim.webp", "peeking.webp", "peeking_tutorial.webp", "peeking_guided.webp", "peeking_practice.webp", "sw_head_celebrate_anim.webp", "sw_head_hint_anim.webp", "sw_head_tryagain_anim.webp", "sw_lg_celebrating_anim.webp"];
 const PG_CLIP_MS = 8304;  // peeking.webp: hands arrive, peek, blink, come out, talk with blinks, duck back; 8.30s, plays once (9.72s before 2026-10-05).
+/* [lip-sync] QA 2026-10-23 (BUG_02) + the user, 2026-10-26 ("take the VO from" HI02H11_L02_S02; "make sure swifty lip is
+   opening and closing smoothly throughout the VO"): the first gate's line is now that game's vo_pt_tutorial - "ध्यान से देखिए
+   और मेरे साथ जानिए। चलिए, शुरू करें!", 4.3s. peeking.webp's talking part flaps on a beat of its own (7 opens in 4.4s, holds
+   up to .36s) - open in a pause, shut mid-word. peeking_tutorial.webp is the same clip with its talking part re-cut to THIS
+   line: frames 0-57 are peeking.webp's own bytes (the rise - the line still starts on frame 58, PG_TALK_MS); from there the
+   beak opens on each syllable (the line's loudness, 30ms ahead of the sound) and is shut in every pause, a half-way frame
+   softens each open / close, only frames within 3 of the clip's own pose at that moment are used (no head jumps - the
+   largest pose step is the original's own), and her two blinks fall in the pause after "देखिए" and as she finishes.
+   sync: true - the gate drives that clip by the line's own clock (PeekPlayer, opts.clock): a slow decode, a late start or
+   a held voice never lets the beak and the words drift apart.
+   The user, 2026-10-26 ("in the 2nd transition screen also take bahut badiya line from it ... if possible copy the 3rd
+   transition screen vo to mine also"): guided - that game's "बहुत बढ़िया!" + its "चलिए, साथ में करें!" (its line's own
+   middle sentence left out; cut in silence, its own 0.44s pause between), 2.78s; practice - its line as it is, "वाह! अब
+   आपकी बारी!", 1.87s. Each has its own clip, cut the same way. A line this short keeps the clip's own pace (no squeeze) and
+   its clip ends 1.3s after the line - she ducks ~1s after it (PG_TAIL_MS + pgDuck). peeking.webp stays the default. */
+const PG_CLIPS = { tutorial: { src: "assets/gif/peeking_tutorial.webp", ms: 8634, sync: true },
+                   guided:   { src: "assets/gif/peeking_guided.webp",   ms: 6814, sync: true },
+                   practice: { src: "assets/gif/peeking_practice.webp", ms: 5904, sync: true } };
+const pgClip = phase => PG_CLIPS[phase] || { src: "assets/gif/peeking.webp", ms: PG_CLIP_MS, sync: false };
 const PG_EXIT_MS = 520;    // .phase-gate.leaving / @keyframes pgDuck - a FALLBACK bound only; animationend is what actually closes the gate
 /* [peek-5] review 2026-09-30: the headline and VO came up the instant the gate opened, while
    Swiftie was still peeking over the ledge - she "spoke" 4s before her mouth moved. They now
@@ -9228,9 +9303,9 @@ const PG_LOAD_CAP_MS = 2500;   // never wait longer than this for the clip to de
 let _peekUrl = "";
 /* [loading] the clip is the loader's GATE file (Assets): fetched once as a Blob, right after the landing's own files -
    the gate's <img> no longer pulls it with the page, ahead of them. Each gate: a fresh blob: URL of it. */
-function restartPeek(img){
+function restartPeek(img, src){
   const old = _peekUrl;
-  img.src = _peekUrl = Assets.fresh("assets/gif/peeking.webp");
+  img.src = _peekUrl = Assets.fresh(src || "assets/gif/peeking.webp");
   if(old && old.indexOf("blob:") === 0) URL.revokeObjectURL(old);
 }
 /* [peek-7] review 2026-10-05: "swifty gif in the transition screen is glitching a lot". The clip itself is clean
@@ -9244,8 +9319,13 @@ const PeekPlayer = (()=>{
   const SRC = "assets/gif/peeking.webp", TYPE = "image/webp";
   let run = 0;
   function stop(){ run++; }
-  function play(cv, img){
-    const my = ++run, blob = Assets.blob(SRC);
+  /* opts.src: the clip (default peeking.webp). opts.clock(ms) ([lip-sync]): the clip's own time, ms, at ms of wall time
+     since its first frame was drawn - each frame is drawn when that clock reaches it, the clip waits while the clock
+     stands still, and a frame whose time is already over is decoded but not drawn, so the clip catches the clock up.
+     No clock: each frame for its own duration, as before. */
+  function play(cv, img, opts){
+    const o = opts || {}, src = o.src || SRC, clock = o.clock;
+    const my = ++run, blob = Assets.blob(src);
     if(!cv || !blob || typeof ImageDecoder === "undefined") return Promise.resolve(false);
     if(img) img.style.display = "none";
     cv.style.display = "";
@@ -9263,6 +9343,25 @@ const PeekPlayer = (()=>{
       const first = count > 0 ? (await dec.decode({ frameIndex: 0 })).image : null;
       if(!first || my !== run){ if(first) first.close(); dec.close(); return false; }
       draw(first);
+      if(clock){                                                    // [lip-sync] frames on the clip's clock
+        const t0 = performance.now(), at = ()=> clock(performance.now() - t0);
+        let i = 0, cur = first, end = (cur.duration || 90000) / 1000;   // the clip's ms where the frame on show ends
+        let next = count > 1 ? dec.decode({ frameIndex: 1 }) : null;
+        (async ()=>{
+          while(next){
+            let n; try { n = (await next).image; } catch(e){ break; }
+            let left;
+            while(my === run && (left = end - at()) > 1) await new Promise(res => setTimeout(res, Math.min(left, 40)));
+            if(my !== run){ n.close(); break; }
+            const nEnd = end + (n.duration || 90000) / 1000;
+            if(!(i + 2 < count && at() >= nEnd)) draw(n);           // its time already over (and not the last): not drawn
+            cur.close(); cur = n; i++; end = nEnd;
+            next = i + 1 < count ? dec.decode({ frameIndex: i + 1 }) : null;
+          }
+          cur.close(); dec.close();
+        })();
+        return true;
+      }
       let i = 0, cur = first, due = performance.now() + (cur.duration || 90000) / 1000;   // VideoFrame.duration: us
       let next = count > 1 ? dec.decode({ frameIndex: 1 }) : null;
       (async ()=>{
@@ -9299,6 +9398,17 @@ function phaseBlurTransition(cb, toPhase){
   // VO only if the card actually ships it; else a silent beat — the clip floor keeps the peek visible.
   const voId = PHASE_GATE_VO[toPhase];
   const voSrc = (voId && CARD.assets && CARD.assets.audio && CARD.assets.audio[voId]) || null;
+  const clip = pgClip(toPhase);
+  /* [lip-sync] a lip-synced clip runs on her line's clock: up to frame 58 (PG_TALK_MS) on the wall clock, then held there
+     until the line really sounds; while it sounds, PG_TALK_MS + the line's own position; after it, on at the wall clock's
+     pace from where it ended (afterVo) */
+  let voEndClip = -1, voEndMs = -1;
+  const lineMs = ()=> (currentAudio === voEl && srcOf(voEl) === voSrc) ? voEl.currentTime * 1000 : -1;   // -1: her line is not on
+  const clipClock = ms =>{
+    if(voEndClip >= 0){ if(voEndMs < 0) voEndMs = ms; return voEndClip + ms - voEndMs; }
+    const v = lineMs();
+    return v > 0 ? PG_TALK_MS + v : Math.min(ms, PG_TALK_MS);
+  };
   /* The clip's clock starts when it can actually paint, NOT when the gate opens: decoding a
      fresh 1500px clip (or downloading it, on the ?r= fallback) takes a moment, and timing from
      the open would put the VO ahead of her mouth by however long that took. */
@@ -9314,24 +9424,34 @@ function phaseBlurTransition(cb, toPhase){
     if(cv) cv.style.display = "none";
     if(!img){ startClock(); return; }
     img.style.display = "";
-    restartPeek(img);                 // from frame 0, every gate
+    restartPeek(img, clip.src);       // from frame 0, every gate
     if(img.decode) img.decode().then(startClock, startClock); else startClock();
   };
-  PeekPlayer.play(cv, img).then(ok =>{ if(tok !== _gateToken) return; if(ok) startClock(); else useImg(); }, useImg);
+  PeekPlayer.play(cv, img, { src: clip.src, clock: clip.sync ? clipClock : null }).then(ok =>{ if(tok !== _gateToken) return; if(ok) startClock(); else useImg(); }, useImg);
   setTimeout(startClock, PG_LOAD_CAP_MS);   // a stalled download never strands the gate
   function talk(){
     if(tok !== _gateToken) return;          // a newer gate superseded us
-    gate.classList.add("talking");          // headline pops in (CSS) on the same tick the VO starts
+    const titleAt = PHASE_GATE_TITLE_AT[toPhase];
+    if(titleAt == null) gate.classList.add("talking");   // headline pops in (CSS) on the same tick the VO starts
     play(voSrc, afterVo);
+    if(titleAt != null){                    // ...or on its own words, later in the line (its .28s CSS delay included)
+      const t0 = Date.now();
+      (function cue(){
+        if(tok !== _gateToken || !gate.classList.contains("show") || gate.classList.contains("talking")) return;
+        const v = lineMs();
+        if((v >= 0 ? v : Date.now() - t0) >= titleAt - 280) gate.classList.add("talking"); else requestAnimationFrame(cue);
+      })();
+    }
   }
   function afterVo(){
     if(tok !== _gateToken){ closeGate(); return; }               // a newer gate superseded us
+    voEndClip = PG_TALK_MS + (voSrc ? (voEl.currentTime || 0) * 1000 : 0);   // [lip-sync] the clip runs on from where her line ended
     /* peeking.webp plays ONCE: rise, talk, then park on her smile (PG_CLIP_MS).
        A line that outlasts the clip still governs - she holds the parked smile until
        it ends, then ducks at once. A line that ends while she is still talking (the
        2.3s practice line against 4.4s of mouth) ducks her PG_TAIL_MS after it, so her
        beak is not flapping in silence. With no VO at all the whole clip plays out. */
-    const clipLeft = Math.max(0, PG_CLIP_MS - (Date.now() - clipAt));
+    const clipLeft = Math.max(0, clip.ms - (clip.sync ? voEndClip : Date.now() - clipAt));
     const hold = voSrc ? Math.min(clipLeft, PG_TAIL_MS) : clipLeft;
     const finish = ()=>{
       PeekPlayer.stop();
@@ -9497,6 +9617,9 @@ const ASSET_SIZES = {
   "assets/gif/loader.webp": 137428,
   "assets/gif/new_landing_swiftee_anim.webp": 641710,
   "assets/gif/peeking.webp": 1252974,
+  "assets/gif/peeking_guided.webp": 1633490,
+  "assets/gif/peeking_practice.webp": 1243122,
+  "assets/gif/peeking_tutorial.webp": 1879852,
   "assets/gif/sw_head_celebrate_anim.webp": 293618,
   "assets/gif/sw_head_hint_anim.webp": 316076,
   "assets/gif/sw_head_tryagain_anim.webp": 313414,
@@ -9628,9 +9751,9 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_p9_ask.ogg": 14799,
   "assets/voiceover/vo_p9_ok.ogg": 16665,
   "assets/voiceover/vo_p9_reask.ogg": 13239,
-  "assets/voiceover/vo_pt_guided.ogg": 8240,
-  "assets/voiceover/vo_pt_practice.ogg": 5411,
-  "assets/voiceover/vo_pt_tutorial.wav": 88364,
+  "assets/voiceover/vo_pt_guided.wav": 133596,
+  "assets/voiceover/vo_pt_practice.wav": 89980,
+  "assets/voiceover/vo_pt_tutorial.wav": 207518,
   "assets/voiceover/vo_rule_a.ogg": 22585,
   "assets/voiceover/vo_rule_b.ogg": 9415,
   "assets/voiceover/vo_rule_c.ogg": 10547,
@@ -9751,9 +9874,8 @@ const Assets = (function(){
     if(s.phase === "tutorial" && s.type !== "CELEBRATION") img("start_mascot");      // the tutorial card's Swiftie
     return out;
   }
-  const PEEK = art("peeking.webp");
-  const FONTS = ["assets/fonts/baloo2-800.woff2", "assets/fonts/baloo2-700.woff2", "assets/fonts/baloo2-600.woff2"];
-  function gateFiles(phase){ return [PEEK, vo(PHASE_GATE_VO[phase])].filter(Boolean); }
+  const FONTS =["assets/fonts/baloo2-800.woff2", "assets/fonts/baloo2-700.woff2", "assets/fonts/baloo2-600.woff2"];
+  function gateFiles(phase){ return [pgClip(phase).src, vo(PHASE_GATE_VO[phase])].filter(Boolean); }   // its own clip ([lip-sync]) + its line
   function init(){
     if(items.size) return;
     /* CRIT: the landing - what the boot loader waits for */
@@ -9946,7 +10068,9 @@ function boot(){
   };
   setStartBtnReady(false);   // grey + disabled from first paint, until the greeting has been heard
   /* [landing intro] the gold pop waits for the whole intro too (title words -> cubes -> lines, "sg-intro-done"),
-     so the button is the LAST thing to arrive (review 2026-09-29). The 18s watchdog still forces it - never stranded. */
+     so the button is the LAST thing to arrive (review 2026-09-29). The 18s watchdog still forces it - never stranded.
+     QA 2026-10-23 (BUG_01, "play button's appearance delay should be minimised"): it pops the moment the greeting ends -
+     it no longer waits for the title animation, which ran on ~1.9s past the greeting. */
   /* [landing autoplay] review 2026-10-08 ("I am still needing to click randomly on the title screen that comes after the
      loading screen to play the VO - this should be automatic"; the user: "without adding any extra element the voiceover
      should play after the loader"): a browser with no tap on the page yet refuses every sound, so the greeting tried
@@ -9962,22 +10086,21 @@ function boot(){
      tablet's browser waits for; the first touch alone does not unlock sound there. Once she and the title animation are
      done, the play button pops in and pulses, and the child taps it to start - as where the greeting played by itself.) */
   let _landBlocked = false, _goAfterGreeting = false, _askedOnTap = false;
-  let _releasePending = false;
-  const releaseStart = (force)=>{ if(!force && !window.__sgIntroDone){ _releasePending = true; return; }
-    clearTimeout(_startWatchT); _releasePending = false; if(!onLandingNow()) return;
+  const releaseStart = ()=>{
+    clearTimeout(_startWatchT); if(!onLandingNow()) return;
     if(_goAfterGreeting && _greetingHeard){ _goAfterGreeting = false; startGame(true); return; }   // [landing autoplay] on by itself
     setStartBtnReady(true); };
-  document.addEventListener("sg-intro-done", ()=>{ if(_releasePending) releaseStart(); });
   const playLanding = ()=>{
     if(!onLandingNow()) return;
     document.dispatchEvent(new Event("sg-greeting-start"));                  // (the cube row's watchdog counts from here)
-    clearTimeout(_startWatchT); _startWatchT = setTimeout(()=> releaseStart(true), 18000);   // watchdog (forces it; 18s: the intro now starts on "आज", ends ~13.5s)
+    clearTimeout(_startWatchT); _startWatchT = setTimeout(releaseStart, 18000);   // watchdog (18s: never stranded if the greeting never reports back)
     /* released only when the greeting was really heard; a blocked/failed start leaves it grey for the
        child's first tap (or the watchdog) */
-    /* review 2026-10-05: "why is the sound box getting disabled - this should not happen anywhere in the game": the
-       speaker is never greyed out (the QA checklist's disabled-while-the-greeting-speaks state is gone). A tap while the
-       greeting is still playing is ignored, as on every speaker (replayTap), so it never restarts the line mid-way. */
-    if(_landBlocked) setStartBtnReady(false);                                // [landing autoplay] she speaks now - the button steps back
+    /* QA 2026-10-23 (BUG_01, replacing review 2026-10-05's "the speaker is never greyed out"): the speaker greys out while
+       the greeting speaks (as every speaker while any voiceover plays - [speaker grey], speakersBusy). A tap while the greeting is still playing is ignored, as on
+       every speaker (replayTap), so it never restarts the line mid-way. A replay from the speaker once she has been heard
+       leaves the play button as it is ("play button should remain intact") - it used to step back for the whole line. */
+    if(_landBlocked && !_greetingHeard) setStartBtnReady(false);             // [landing autoplay] she speaks now - the button steps back
     play(landSrc, ()=>{ if(voEl.ended){ _greetingHeard = true; releaseStart(); } });
     const tok = _playTok, p = voEl.play();                                   // (the same pending play - its promise says if the browser refused)
     if(p && p.catch) p.catch(err =>{ if(err && err.name === "NotAllowedError" && tok === _playTok && onLandingNow() && !_greetingHeard){
@@ -11629,7 +11752,7 @@ boot();
      built here, the step only releases the play button once the title animation is done. The pencil now lies ON the
      table with its own contact shadow (CSS [landing pencil on the table]). ROW_ON brings the old static row back. */
   const ROW_ON = false;
-  function run(){                                                    // the title animation is done: release the play button
+  function run(){                                                    // the title animation is done: "sg-intro-done" (the play button no longer waits for it - QA 2026-10-23 BUG_01)
     if(started) return;
     started = true; if(ROW_ON) show(); introDone();
   }

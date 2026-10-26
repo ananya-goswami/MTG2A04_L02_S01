@@ -556,6 +556,7 @@
         "axis": "x",
         "wrong_cue": "deck",
         "nudge_sfx_only": true,
+        "lock_at": 2,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -594,6 +595,7 @@
       "data": {
         "axis": "y",
         "wrong_cue": "deck",
+        "lock_at": 2,
         "unit_hi": "ब्लॉक्स",
         "items": [
           {
@@ -802,8 +804,8 @@
       "vo_p9_ask": "assets/voiceover/vo_p9_ask.ogg",
       "vo_p9_ok": "assets/voiceover/vo_p9_ok.ogg",
       "vo_p9_reask": "assets/voiceover/vo_p9_reask.ogg",
-      "vo_pt_guided": "assets/voiceover/vo_pt_guided.ogg",
-      "vo_pt_practice": "assets/voiceover/vo_pt_practice.ogg",
+      "vo_pt_guided": "assets/voiceover/vo_pt_guided.wav",
+      "vo_pt_practice": "assets/voiceover/vo_pt_practice.wav",
       "vo_pt_tutorial": "assets/voiceover/vo_pt_tutorial.wav",
       "vo_p3_head": "assets/voiceover/vo_p3_head.ogg",
       "vo_p3_explain_a": "assets/voiceover/vo_p3_explain_a.ogg",
@@ -867,9 +869,9 @@
       "vo_p9_ask": "कौन-सी कुर्सी ज़्यादा लंबी है? उस पर टैप करिए।",
       "vo_p9_ok": "शाबाश! यह कुर्सी ज़्यादा लंबी है।",
       "vo_p9_reask": "अब बताइए, कौन-सी कुर्सी ज़्यादा ऊँची है?",
-      "vo_pt_guided": "चलिए, साथ में करें!",
-      "vo_pt_practice": "अब आपकी बारी!",
-      "vo_pt_tutorial": "चलिए, शुरू करें!",
+      "vo_pt_guided": "बहुत बढ़िया! चलिए, साथ में करें!",
+      "vo_pt_practice": "वाह! अब आपकी बारी!",
+      "vo_pt_tutorial": "ध्यान से देखिए और मेरे साथ जानिए। चलिए, शुरू करें!",
       "vo_p3_head": "यह टेबल कितनी लंबी है? चलिए, इसे ब्लॉक से मापकर देखते हैं।",
       "vo_p3_explain_a": "इसके लिए हम टेबल के एक छोर से मापना शुरू करेंगे।",
       "vo_p3_explain_b": "फिर एक-एक ब्लॉक रखते हुए दूसरे छोर तक जाएंगे।",
