@@ -2673,7 +2673,7 @@ body:has(.cf.cf-measuring) #stage,body:has(.cf.cf-measuring) #stage .slide-stage
 .cf.cf-measuring .cf-room{opacity:0;}
 .cf-mv{position:absolute;inset:0;transition:opacity .4s;}
 .cf-mv.out{opacity:0;}
-.md-stage.in .md-block.cf-spare{animation:mdFadeOut .4s ease-in forwards;}
+.md-stage.in .md-block.cf-spare,.md-stage.in .md-num.cf-spare{animation:mdFadeOut .4s ease-in forwards;}   /* (+ the count's numbers once it is measured, app.js CLASSROOM_FIT measured) */
 .cf-card{position:absolute;z-index:20;cursor:grab;touch-action:none;user-select:none;animation:mdPopIn .45s cubic-bezier(.3,1.5,.5,1) both;
   filter:drop-shadow(0 6px 8px rgba(12,46,92,.22));transition:filter .15s,opacity .3s;}
 .cf-card *{pointer-events:none;}
@@ -5014,6 +5014,10 @@ function placeNudge(el){
 /* ---------- 8. TAP-OPTION HELPER (shared by 5 slide types) ---------- */
 /* QA 2026-10-22 (Hindi sheet BUG_09): fbBusy - no tap counts while a wrong tap's feedback is still going (fast taps used
    to stack attempts and wrong sounds, and could run the 3-attempt reveal in a second) */
+/* shuffled(a): a shuffled copy of a (Fisher-Yates). Review 2026-10-26 ("options should reshuffle throughout the game"):
+   every screen's options - the tap options, MEASURE_ASK's answers, COMPARE_MEASURED's two objects, MATCH_ROWS' objects
+   and boxes, CLASSROOM_FIT's tray - come in a new order each time the screen opens */
+function shuffled(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect, optionRenderer, columnsHint, mastery, hintAction, nudgeTarget, shuffle, onCorrect, onWrong, reask}){
   state.attempts = 0; state.selectedKey = null; state.locked = false;
   state.audioReplays = 0; state.hintUsed = false; state.nudgeUsed = false; state.scaffoldLevel = 0;
@@ -5029,8 +5033,7 @@ function mountTapOptions({slide, host, signalName, stimulus, options, isCorrect,
   // Shuffle options once so the correct answer isn't pinned to one position (engine-wide anti
   // positional-bias — otherwise "always tap the same spot" can pass mastery). Opt out with
   // shuffle:false for inherently-ordered options (e.g. a number line).
-  const _opts = (shuffle === false) ? options.slice()
-    : (function(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; })(options);
+  const _opts = (shuffle === false) ? options.slice() : shuffled(options);
 
   const wrap = document.createElement("div"); wrap.className = "q-row";
   if(stimulus){ wrap.appendChild(stimulus); }
@@ -7548,7 +7551,8 @@ const SlideModules = {
         onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); } });   // [robot] watching while idle
       /* ---- ask ---- */
       const opts = K.add(scene, "div", "mq-opts", "top:" + px(H - OPT_H + 8));
-      const optEls = d.options.map(v =>{ const o = K.add(opts, "button", "mq-opt"); o.type = "button"; o.textContent = devNumeral(v) + " " + (d.unit_hi || "ब्लॉक्स"); o._v = v; return o; });
+      // (review 2026-10-26: the answers in a new order each time - shuffled)
+      const optEls = shuffled(d.options).map(v =>{ const o = K.add(opts, "button", "mq-opt"); o.type = "button"; o.textContent = devNumeral(v) + " " + (d.unit_hi || "ब्लॉक्स"); o._v = v; return o; });
       const right = optEls.find(o => o._v === N);
       let wrong = 0, busy = false;
       function ask(){
@@ -7683,7 +7687,7 @@ const SlideModules = {
          wrong #3 ..... (the sheet stops at 2) the right one is shown, its counts + VO, on (never stuck)
        axis "x" (the mats): each n·S long, its row of blocks under it, both rows on one line. axis "y" (the chairs):
        each n·S tall on one floor, its column of blocks beside it. data: { axis, s, unit_hi, items:[{src, ar, n,
-       correct}] } (items in the deck's order - its "first" and "second"). audio: prompt, correct, try_again, hint.
+       correct}] } (items shuffled at mount - "first" and "second" are as they stand). audio: prompt, correct, try_again, hint.
        data.wrong_cue "deck" (G4, review 2026-10-08: "follow the recommendations exactly" - the deck's page 8) instead:
          wrong #1 ..... the tapped one wiggles; then the blocks of BOTH, first then second, light up one by one with a
                         digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the
@@ -7706,7 +7710,7 @@ const SlideModules = {
       scene.style.height = px(H);
       // Tighter secondary spacing gives the compared objects and their block rulers
       // more of the stage without changing any measurement or answer logic.
-      const items = d.items, unit = d.unit_hi || "ब्लॉक्स", GAP = 56, PW = 148, PH = Math.round(PW / MDK.BADGE_AR), NUM = 44, CG = 10;
+      const items = shuffled(d.items), unit = d.unit_hi || "ब्लॉक्स", GAP = 56, PW = 148, PH = Math.round(PW / MDK.BADGE_AR), NUM = 44, CG = 10;   // (review 2026-10-26: the longer one not always on the right - shuffled)
       /* the block size: the two (plus, for columns, their digits and count plates) across the width; the taller one
          (plus, for rows, its blocks, the digits and the plate) down the height */
       // data.zoom (P1 only, review 2026-10-07: "zoom in this screen a bit" - chosen knowing its cubes then differ from the
@@ -7903,7 +7907,7 @@ const SlideModules = {
                         or from the bottom up beside it (axis "y": its height) - the measured span's two ends dashed. The
                         objects are scaled so their blocks look plausible (one block size on the slide: it is the unit).
                         Three rows (or, when that gives the blocks more room - tall objects - three cards side by side);
-                        the boxes, "<n> ब्लॉक्स", in the deck's shuffled order, in a column on the right.
+                        the boxes, "<n> ब्लॉक्स", shuffled anew each time (review 2026-10-26), in a column on the right.
          a match ...... the child drags a box onto an object. Right: it locks in beside / under that object (green), the
                         object's blocks flash green, a positive SFX. All three: confetti + audio.correct ("शाबाश! आपने सभी
                         चीज़ों को उनके सही माप से मिला दिया।"), on.
@@ -7913,7 +7917,7 @@ const SlideModules = {
                         3 ... (each one said - vo_num_k): the measure, counted
            3 on ....... it bounces back and the hand points at the right box for that object (it glows softly)
          idle 7s ...... the hand on the next box still to place (flow only).
-       data: { unit_hi, bg, join, items:[{ id, src, n, axis, ar (h / w of the picture) }], boxes:[n, ...] (the shuffled order) }
+       data: { unit_hi, bg, join, items:[{ id, src, n, axis, ar (h / w of the picture) }], boxes:[n, ...] (both shuffled at mount) }
        audio: prompt, correct, try_again. CSS [match rows].
        [lines] data.join "lines" (P2, P3 - review 2026-10-06: "change from drag and drop to match the following"): the
        objects stay as cards side by side, the shuffled boxes stand in a row under them, a dot on each card's foot and each
@@ -7953,7 +7957,11 @@ const SlideModules = {
       // [lines] review 2026-10-06 "increase the size of all 6 boxes": the boxes 196 x 76 -> 236 x 92
       const BW = LINES ? 236 : 196, BH = LINES ? 92 : 76, BG = 22, PAD = LINES ? (CARDF ? 6 : 8) : 12, G = LINES ? (CARDF ? 8 : 12) : 10, ENDS = CARDF ? 8 : 10;   // [lines] 8 / 12 (review 2026-10-07: the 3rd card sat on the stage's bottom edge)
       const LX = 8, LW = LINES ? W - 2 * LX : W - BW - 64 - LX;            // the objects' area (left); the boxes' column (right) - [lines] the whole width
-      const items = d.items.map(it => Object.assign({ ar: 1, axis: "x" }, it));
+      /* review 2026-10-26 ("options should reshuffle throughout the game"): the objects and the boxes come in a new order each
+         time (shuffled) - and, as in the deck's own order, no box straight across from its own object (BX: a derangement) */
+      const items = shuffled(d.items).map(it => Object.assign({ ar: 1, axis: "x" }, it));
+      let BX = shuffled(d.boxes);
+      for(let t = 0; t < 50 && BX.some((v, j)=> items[j] && items[j].n === v); t++) BX = shuffled(d.boxes);
       // an object + its blocks, for a block size S: w = wc * S, h = hc * S
       // it.span [f0, f1] (axis "y"): the part of the picture's height the blocks measure (default all of it) - review
       // 2026-10-07 "increase the size of monitor just a little": the monitor's 1 block is its screen (0 - .826), the stand below
@@ -8000,8 +8008,8 @@ const SlideModules = {
         panels = ws.map(w =>{ const p = { x, y: cy, w, h: ch }; x += w + G; return p; });
       }
       // [lines] the boxes stacked in the right column, spread evenly over the cards' height
-      const nB = d.boxes.length, T0 = panels[0].y, T1 = panels[panels.length - 1].y + panels[panels.length - 1].h;
-      const homes = d.boxes.map((v, j)=> LINES ? { x: boxX, y: T0 + (j + .5) * (T1 - T0) / nB - BH / 2 }
+      const nB = BX.length, T0 = panels[0].y, T1 = panels[panels.length - 1].y + panels[panels.length - 1].h;
+      const homes = BX.map((v, j)=> LINES ? { x: boxX, y: T0 + (j + .5) * (T1 - T0) / nB - BH / 2 }
                                       : ROWS ? { x: boxX, y: panels[j].y + (rowH - BH) / 2 }
                                             : { x: boxX, y: (H - 3 * BH - 2 * BG) / 2 + j * (BH + BG) });
       const slotOf = i => ROWS ? { x: boxX, y: panels[i].y + (rowH - BH) / 2 } : { x: panels[i].x + (panels[i].w - BW) / 2, y: panels[i].y + panels[i].h + 12 };
@@ -8040,7 +8048,7 @@ const SlideModules = {
         return e;
       });
       /* ---- the boxes ---- */
-      const boxes = d.boxes.map((v, j)=>{
+      const boxes = BX.map((v, j)=>{
         const b = K.add(scene, "div", "mr-box" + (LINES ? "" : " tone-" + ["green", "blue", "yellow"][j % 3]), "left:" + px(homes[j].x) + ";top:" + px(homes[j].y) + ";width:" + px(BW) + ";height:" + px(BH));
         b.textContent = devNumeral(v) + " " + (v === 1 ? "ब्लॉक" : unit); b._v = v; b._home = homes[j]; b._done = false; b.setAttribute("role", "button");
         if(LINES){ b.classList.add("mr-pin"); b._dot = { x: homes[j].x, y: homes[j].y + BH / 2 };
@@ -8324,7 +8332,8 @@ const SlideModules = {
          intro ....... the VO (audio.intro); the child picks ANY object (idle 8s: the hand on the tray - flow only)
          measure ..... the object enlarges in the centre, the classroom fades out; its blocks wait in the tray (two
                        more than it needs). The child lays them from one end to the other: no idle ghost, no start pulse,
-                       no counting VO, no target outlines; a block not flush goes back (the hint sheet's Drag & Drop
+                       no target outlines; each block laid gets its number and is counted aloud (vo_num_k, review
+                       2026-10-26 - the numbers go once it is measured); a block not flush goes back (the hint sheet's Drag & Drop
                        ladder, MDK.childMeasure). The first object, if it is the one the VO names (data.vo_object, the
                        bench): audio.measure
          place ....... the blocks stay on it; the classroom comes back and its spaces pulse; the measured object waits
@@ -8341,8 +8350,8 @@ const SlideModules = {
        room's px (1033 x 340). audio: intro, measure, place, item_ok, try_again, hint, block_try, block_hint.
        data.wrong_cue "deck" (review 2026-10-08: "follow the recommdations exactly" - the deck's page 13) instead:
          measure ..... ONE block waits at the source place (the rest stacked under it - each one taken shows the next);
-                       nothing else: no ghost, no start pulse, no counting VO, no hints, no target outlines - a block not
-                       flush just goes back
+                       nothing else: no ghost, no start pulse, no hints, no target outlines - a block not flush just goes
+                       back; each block laid is numbered and counted aloud, as above
          VO .......... the FIRST object picked, whichever it is, gets its own two lines (audio.measure_<id>,
                        audio.place_<id>: "<name> को ब्लॉक से मापिए।" / "अब <name> के लिए सही जगह चुनिए।"); after
                        that the game runs without VO
@@ -8383,8 +8392,9 @@ const SlideModules = {
       let TY = FULL ? RHz - TH - 10 * Z : RHz + 14; const H = FULL ? RHz : TY + TH;
       scene.style.height = px(H); if(d.no_head && !FULL) scene.style.marginTop = px(Math.max(0, (H0 - H) / 2));
       const RW = RW0, RH = RH0, RX = (W - RWz) / 2, SC = d.sc || 36, unit = d.unit_hi || "ब्लॉक्स";
-      const items = d.items;
+      const items = shuffled(d.items);                                       // the tray's order: new each time (review 2026-10-26)
       const say = role => new Promise(r => { const s = audioFor(slide, role); if(!s) return r(); play(s, r); });
+      const sayNum = n => new Promise(r => play("assets/voiceover/vo_num_" + n + "." + AUDIO_EXT, r));
       const setHead = t =>{ setPrompt(t); };
       const DECK = d.wrong_cue === "deck";                                   // the deck's page 13 as it is (see above)
       const voRole = (role, it)=> DECK ? role + "_" + it.id : role;          // [deck] each object's own measure / place line
@@ -8645,7 +8655,11 @@ const SlideModules = {
           idleMs: 0, showTiles: false, hints: DECK ? null : { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },
           ghostAt: DECK ? Infinity : undefined,                              // [deck] a block not flush just goes back
           respawn: box ? box.respawn : undefined,                             // [robot] ... vanishes, and a new one rises on its lid
-          onHit: ()=>{ if(box){ box.react("happy"); box.settle(); } },
+          /* review 2026-10-26 ("when a child puts the cubes one by one there should be VO played as 1, 2, 3, 4 ... also
+             show numbering beside the cube"): each block laid gets its number - above a row, left of a column (as T2 /
+             T3, MDK.digit) - and is counted aloud (vo_num_k); the numbers fade once it is measured (measured, below) */
+          onHit: (n, tile)=>{ if(box){ box.react("happy"); box.settle(); }
+            K.digit(layer, tile, S, n, it.axis === "x" ? "above" : "left"); return sayNum(n); },
           onWrong: ()=>{ if(box) box.react("sad"); },
           onGrab: ()=>{ if(box) box.look(false); },
           onAll: ()=>{ if(box) K.robotLeave(box, blocks.filter(b => !b._placed));   // review 2026-10-19: measured - the robot goes, the object + its cubes stay clean
@@ -8691,6 +8705,7 @@ const SlideModules = {
         if(!alive() || cur !== it) return;
         run.stop(); phase = "place";
         layer.querySelectorAll(".md-block:not(.placed):not(.rb-top)").forEach(b => b.classList.add("cf-spare"));   // ([robot] the one on its lid stays)
+        layer.querySelectorAll(".md-num").forEach(e => e.classList.add("cf-spare"));   // review 2026-10-26: the count's numbers go before it is placed
         /* the blocks stay on it a moment; then the classroom comes back and the object, still measured, moves to the tray */
         setTimeout(()=>{ if(!alive() || cur !== it) return;
           // [juice] the object with its blocks on it flies down onto the tray as one (the card starts where they stand)
