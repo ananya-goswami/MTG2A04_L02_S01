@@ -3813,7 +3813,6 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
         "reask": "vo_p8_reask",
-        "retry": "vo_retry",
         "nudge": "vo_p8_fb"
       },
       "data": {
@@ -3920,8 +3919,7 @@ body.vo-lock .dev-nav{z-index:150001;}
         "measure_chair": "vo_p13_measure_chair",
         "place_chair": "vo_p13_place_chair",
         "measure_board": "vo_p13_measure_board",
-        "place_board": "vo_p13_place_board",
-        "retry": "vo_retry"
+        "place_board": "vo_p13_place_board"
       },
       "data": {
         "no_head": true,
@@ -4492,8 +4490,16 @@ function speakersBusy(on){
   clearTimeout(_spkT);
   const set = v =>{ document.body.classList.toggle("vo-speaking", v);
     document.querySelectorAll(".audio-chip, .tut-audio, .sg-vo").forEach(c => c.setAttribute("aria-disabled", v ? "true" : "false")); };
-  if(on) set(true);
-  else if(document.body.classList.contains("vo-speaking")) _spkT = setTimeout(()=> set(false), SPK_HOLD_MS);
+  if(on || _spkHold) set(true);
+  else if(document.body.classList.contains("vo-speaking")) _spkT = setTimeout(()=>{ if(!_spkHold) set(false); }, SPK_HOLD_MS);
+}
+/* a module can keep the speakers grey across a whole scripted run of lines, the gaps between them included however long
+   (T2/T3's tutorial, review 2026-10-27: "till the tutorial is going on keep the audio icon disabled even if VO pauses a
+   little"): speakersHold(tok) ... speakersHold(null, tok). Only its own token releases it; a new slide drops any hold. */
+let _spkHold = null;
+function speakersHold(tok, from){
+  if(tok) _spkHold = tok; else if(!from || _spkHold === from) _spkHold = null; else return;
+  speakersBusy(!!(isPlaying && currentAudio && isVoClip(srcOf(currentAudio))));
 }
 function setPlaying(on){
   // the dynamic Swiftie sits header-left; the audio chips pulse to signal playback. r4/F1: share the
@@ -7338,12 +7344,11 @@ const SlideModules = {
         });
       }
       state.replayAudio = ()=>{
-        /* QA 2026-10-22 (Hindi sheet BUG_03): the speaker replays the whole explanation, as first heard - the question, the two
-           ends, the three rules and the child's turn - not only the last line (the demo's own "चलिए, शुरू करते हैं" cue is
-           left out: there is no demo to go with it now) */
+        /* review 2026-10-27 (T2, T3: "if i tap on this, only [the last] line should be repeated not the whole tutorial"): the
+           speaker replays the child's line alone ("अब आगे आप मापिए और बताइए, ...") - it replaced QA 2026-10-22's (Hindi sheet
+           BUG_03) whole explanation, question to child's turn. Until that line has been said the speaker stays grey (the script) */
         if(phase === "child"){ run.cancelGhost();
-          const lines = ["prompt", "explain_a", "explain_b", "rule_a", "rule_b", "rule_c", "child"].map(k => audioFor(slide, k)).filter(Boolean);
-          playChain(lines, 0, ()=>{ if(alive() && phase === "child"){ run.ghost(); run.armIdle(); } }); }
+          play(audioFor(slide, "child") || null, ()=>{ if(alive() && phase === "child"){ run.ghost(); run.armIdle(); } }); }
         else if(phase === "done"){                                           // the line again - and the stars again, on its count
           let again = null;
           play(audioFor(slide, "conclude") || null, ()=>{ if(again) again(); if(alive()) setNavActive(true); });
@@ -7351,6 +7356,8 @@ const SlideModules = {
         }
       };
       /* ---- the script ---- */
+      // the speaker grey from the first line to the end of the child's line, through every pause (review 2026-10-27, T2 + T3)
+      const spkTok = {}; speakersHold(spkTok);
       (async ()=>{
         try{
           const tp = document.querySelector("#slideHost .tut-prompt");
@@ -7407,9 +7414,10 @@ const SlideModules = {
           }
           // the child's turn: the ghost drag shows how while the VO asks
           K.pose(null); phase = "child"; target(DEMO); run.start();
-          const gh = run.ghost(); await say("child"); guard(); await gh; guard();
+          const gh = run.ghost(); await say("child"); guard(); speakersHold(null, spkTok); await gh; guard();
           run.armIdle();
         } catch(e){ if(e !== STOP) console.error("[MEASURE_DEMO]", e); }
+        finally{ speakersHold(null, spkTok); }
       })();
     }
   },
@@ -7748,7 +7756,9 @@ const SlideModules = {
        data.wrong_cue "deck" (G4, review 2026-10-08: "follow the recommendations exactly" - the deck's page 8) instead:
          wrong #1 ..... the tapped one wiggles; audio.retry ("फिर से कोशिश कीजिए।" - review 2026-10-26, the practice
                         screens) - nothing else (review 2026-10-26: the count moved to the 2nd, "as the 1st one says फिर
-                        से कोशिश कीजिए")
+                        से कोशिश कीजिए") - P1 only: without audio.retry (G4 since review 2026-10-27: "only 2 attempt as its
+                        illogical to have 3 attempt when the option is 2 only") the ladder starts at the count below, so
+                        G4's 1st wrong counts and its 2nd locks
          wrong #2 ..... it wiggles; the blocks of BOTH, first then second, light up one by one with a
                         digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the second);
                         then, before the lock, only the question again (audio.reask) - it plays to its end (VoLock); a
@@ -7758,7 +7768,7 @@ const SlideModules = {
                         and, once, audio.nudge ("यह चटाई ज़्यादा लंबी है।" - review 2026-10-26); the child's tap on it
                         gets the correct response (data.nudge_sfx_only, G4, P1 since 2026-10-26 - its line was just said:
                         the SFX only - it lights up, its counts show, no correct VO)
-         no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask, retry. */
+         no idle re-ask (the deck has no inactivity line). audio: prompt, correct, reask, nudge, retry (optional). */
     mount(host, slide){
       const d = slide.data, AX = d.axis === "y" ? "y" : "x", K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -7898,12 +7908,16 @@ const SlideModules = {
       }
       /* [deck] the deck's page 8 wrong answers (data.wrong_cue "deck", see above) */
       async function deckWrong(){
-        if(wrong === 1){                                                     // "फिर से कोशिश कीजिए।" alone (review 2026-10-26)
+        /* the rung of the ladder (retry -> count -> hand). Without audio.retry it starts at the count, so the 2nd wrong is the
+           last (G4, review 2026-10-27: "remove fir se kosis kigiye audio, as there will be only 2 attempt as its illogical to
+           have 3 attempt when the option is 2 only") */
+        const rung = wrong + (audioFor(slide, "retry") ? 0 : 1);
+        if(rung === 1){                                                      // "फिर से कोशिश कीजिए।" alone (review 2026-10-26)
           await K.wait(250); await say("retry"); if(!alive() || state.locked) return;
           busy = false; setSwMood("point"); return;
         }
         stopAudio();                                                         // (the re-asked question, if still going)
-        if(wrong === 2){                                                     // the count - the 2nd wrong (review 2026-10-26: "do it in 2nd wrong attempt")
+        if(rung === 2){                                                      // the count - the 2nd wrong (review 2026-10-26: "do it in 2nd wrong attempt")
           await K.wait(250);
           // each row's own count: its blocks lit as they are counted and kept lit (1, then 1 + 2, ...), all off once that
           // row is counted (review 2026-10-09, as G1-G3's 2nd wrong)
@@ -7916,17 +7930,17 @@ const SlideModules = {
             } } finally{ lits.forEach(l => l.off()); }
           }
           if(!alive() || state.locked) return;
-          if(wrong < (d.lock_at || 3)){ busy = false; setSwMood("point"); await say("reask"); return; }   // only the question again (no tap during it - VoLock)
+          if(rung < (d.lock_at || 3)){ busy = false; setSwMood("point"); await say("reask"); return; }   // only the question again (no tap during it - VoLock)
           await K.wait(reduce ? 0 : 800); if(!alive() || state.locked) return;   // (a beat with the whole count on, before the hand takes it away)
         }
-        if(wrong >= (d.lock_at || 3)) lockWrong();                          // data.lock_at: the wrong answer that locks it (default the 3rd - G4, P1 again since review 2026-10-26: "in 3rd wrong attempt hand nudge with the respective vo will come", replacing that day's "in the 2nd wrong attempt itself, disable the chotti chatai")
+        if(rung >= (d.lock_at || 3)) lockWrong();                           // data.lock_at: the rung that locks it (default the 3rd - G4, P1 again since review 2026-10-26: "in 3rd wrong attempt hand nudge with the respective vo will come", replacing that day's "in the 2nd wrong attempt itself, disable the chotti chatai")
         rowsOut();                                                           // the hand on the object, not its blocks (above)
         nudged = true; setTimeout(()=>{ if(alive() && !state.locked) placeNudge(right.tap); }, 300);
         // QA 2026-10-22 (Hindi sheet BUG_09): a fast double tap counted twice here (two wrong sounds at once, the 3rd-attempt
         // lock at once) - taps wait out the wiggle
         await K.wait(reduce ? 0 : 600); if(!alive() || state.locked) return;
         // audio.nudge with the hand on it, once - as the wrong one locks (review 2026-10-26: "यह चटाई ज़्यादा लंबी है।", as T1's line)
-        if(wrong === (d.lock_at || 3)){ await say("nudge"); if(!alive() || state.locked) return; }
+        if(rung === (d.lock_at || 3)){ await say("nudge"); if(!alive() || state.locked) return; }
         busy = false; setSwMood("point");
       }
       // the wrong one(s) locked - dimmed, untappable - from the 3rd wrong answer on (QA checklist 2026-10-05; and with the
@@ -8438,8 +8452,8 @@ const SlideModules = {
                        that the game runs without VO
          place ....... right: it snaps in + the correct SFX (no praise VO); wrong: the space shakes and the object goes
                        back to the tray - nothing else (the child reconsiders on its own: no hints, never moved in for
-                       them) but, on each object's first wrong space, audio.retry ("फिर से कोशिश कीजिए।" - review
-                       2026-10-26, the practice screens); no idle hand on the tray. audio: intro, measure_<id>, place_<id>, retry. */
+                       them), no voice either (its audio.retry, "फिर से कोशिश कीजिए।" of 2026-10-26, removed at review
+                       2026-10-27); no idle hand on the tray. audio: intro, measure_<id>, place_<id>. */
     mount(host, slide){
       const d = slide.data, K = MDK, px = K.px, reduce = K.reduce();
       state.ownsAudio = true; state.locked = false; setNavActive(false); $("navBtn").style.display = "none"; setSwMood("point");
@@ -8880,7 +8894,7 @@ const SlideModules = {
           sfxWrongSoft(); setSwMood("tryagain"); K.shake(sp._sp, 8);           // the wrong space shakes...
           back().then(()=>{                                                    // ...and the object returns to the tray
             if(!alive() || phase !== "place" || cur !== it) return;
-            if(DECK){ setSwMood("point"); if(m === 1) say("retry"); return; }  // [deck] its first time "फिर से कोशिश कीजिए।" (review 2026-10-26); nothing else - the child reconsiders
+            if(DECK){ setSwMood("point"); return; }                            // [deck] no voice - the child reconsiders (review 2026-10-27: "in the last game remove फिर से कोशिश कीजिए audio", added 2026-10-26)
             if(m === 1) say("try_again");                                      // attempt 1: think again
             else if(m === 2){ K.softGlow(it._sp); placeNudge(it._anchor); say("hint"); }   // attempt 2: its space glows + the hand on it
             else { busy = true; stopNudge();                                   // after the sheet's last attempt: it moves in by itself
@@ -9185,6 +9199,7 @@ function mountSlideNow(idx){
   state.audioReplays = 0; state.gateNavUntilAudio = false; state.endBtnPending = false;
   state.replayAudio = null;   // a module may set a slide-specific replay (e.g. teach slides whose
                               // audio roles aren't in the autoPlayChain order); else the chip replays the chain
+  speakersHold(null);         // (the last slide's speaker hold, if it was left mid-script)
   state.ownsAudio = false;    // a module that drives its OWN audio sequence sets this → skip autoPlayChain
                               // (else the auto prompt-chain stomps/truncates the module's timed VO)
   const slide = CARD.slides[idx];
@@ -9795,7 +9810,7 @@ const ASSET_SIZES = {
   "assets/sw_head_tryagain.webp": 48836,
   "assets/voiceover/sfx_celebrate.ogg": 8344,
   "assets/voiceover/vo_demo_start.ogg": 8560,
-  "assets/voiceover/vo_landing.ogg": 29144,
+  "assets/voiceover/vo_landing.ogg": 31761,
   "assets/voiceover/vo_len_bench.ogg": 12823,
   "assets/voiceover/vo_len_stool.ogg": 11724,
   "assets/voiceover/vo_len_tv.ogg": 12194,
@@ -10425,7 +10440,9 @@ function boot(){
     /* review 2026-10-08 ("match exactly from ppt"): the deck's own greeting is back - "नमस्ते दोस्त! मैं हूँ स्विफ्टी। आज हम
        सीखेंगे - किसी चीज की लंबाई कैसे मापते हैं।" (the 2026-09-28 render, 7.5s; silencedetect -35dB: नमस्ते दोस्त 0.29-1.25 | मैं हूँ
        स्विफ्टी 1.62-2.81 | आज हम सीखेंगे 3.18-4.36 | किसी चीज की लंबाई कैसे मापते हैं 4.67-7.13): "आज" at 3.18s */
-    const T_WORD = 3.18;
+    /* 2026-10-27: vo_landing.ogg replaced by the recorded "Title VO - लंबाई मापना" (same line, 7.31s; -40dB:
+       नमस्ते दोस्त 0.28-1.33 | मैं हूँ स्विफ्टी 1.60-2.71 | आज हम सीखेंगे 3.38-4.50 | किसी चीज की लंबाई कैसे मापते हैं 4.78-6.96): "आज" at 3.38s */
+    const T_WORD = 3.38;
     const PULL = 0.6, HOLD = 0.15;                             // stretch, then a short hold at full stretch (tightened 2026-09-29: the
                                                                // whole first screen must stay short - 15 slides follow)
     const PAST_NIB = 5;                                        // stage px: ल's left edge is pulled this far PAST the pencil nib tip.

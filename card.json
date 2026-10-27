@@ -568,7 +568,6 @@
         "prompt": "vo_p8_ask",
         "correct": "vo_p8_ok",
         "reask": "vo_p8_reask",
-        "retry": "vo_retry",
         "nudge": "vo_p8_fb"
       },
       "data": {
@@ -675,8 +674,7 @@
         "measure_chair": "vo_p13_measure_chair",
         "place_chair": "vo_p13_place_chair",
         "measure_board": "vo_p13_measure_board",
-        "place_board": "vo_p13_place_board",
-        "retry": "vo_retry"
+        "place_board": "vo_p13_place_board"
       },
       "data": {
         "no_head": true,
