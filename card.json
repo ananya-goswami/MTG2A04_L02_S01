@@ -607,7 +607,6 @@
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
         "reask": "vo_p9_reask",
-        "retry": "vo_retry",
         "nudge": "vo_p9_fb"
       },
       "data": {

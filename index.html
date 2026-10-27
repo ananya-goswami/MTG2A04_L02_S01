@@ -3852,7 +3852,6 @@ body.vo-lock .dev-nav{z-index:150001;}
         "prompt": "vo_p9_ask",
         "correct": "vo_p9_ok",
         "reask": "vo_p9_reask",
-        "retry": "vo_retry",
         "nudge": "vo_p9_fb"
       },
       "data": {
@@ -7277,8 +7276,12 @@ const SlideModules = {
         ghostAt: 1,
         onHit: (n, tile)=>{ placeMark(tile, n); target(n); if(box.react) box.react("happy"); if(box.settle) box.settle(blocks.filter(b => !b._placed)); return sayNum(n); },   // the box's pile settles
         onWrong: ()=>{ if(box.react) box.react("sad"); },                    // [robot] its face: hearts / closed eyes
-        onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); },   // [robot] watching while idle
+        onIdle: ()=>{ if(box.look) box.look(true); }, onGrab: ()=>{ if(box.look) box.look(false); speakersHold(spkOwn); },   // [robot] watching while idle
         onAll: finish });
+      /* the speaker grey from the child's first cube to the end of the screen (review 2026-10-27, T2 + T3: "when user is
+         themselves putting the cubes the sound icon should be disabled", after "then keep the icon disabled throughout") -
+         it is live only between the child's line and that first grab, to hear the line again */
+      const spkOwn = {};
       /* the result, on the VO's word (review 2026-09-30: "when VO says 6 blocks the word should pop up, after that
          immediately the stars on the border rotate in inner direction to represent celebration"): the badge rises out
          of the box the moment the conclusion line says the count - d.count_at, that word's start in the clip (word
@@ -7756,15 +7759,15 @@ const SlideModules = {
        data.wrong_cue "deck" (G4, review 2026-10-08: "follow the recommendations exactly" - the deck's page 8) instead:
          wrong #1 ..... the tapped one wiggles; audio.retry ("फिर से कोशिश कीजिए।" - review 2026-10-26, the practice
                         screens) - nothing else (review 2026-10-26: the count moved to the 2nd, "as the 1st one says फिर
-                        से कोशिश कीजिए") - P1 only: without audio.retry (G4 since review 2026-10-27: "only 2 attempt as its
-                        illogical to have 3 attempt when the option is 2 only") the ladder starts at the count below, so
-                        G4's 1st wrong counts and its 2nd locks
+                        से कोशिश कीजिए") - with audio.retry only, which G4 and P1 no longer have (review 2026-10-27: "only 2
+                        attempt as its illogical to have 3 attempt when the option is 2 only"; P1: "same for this game
+                        also"): without it the ladder starts at the count below - the 1st wrong counts, the 2nd locks
          wrong #2 ..... it wiggles; the blocks of BOTH, first then second, light up one by one with a
                         digit below each (they stay) as each is counted aloud (vo_num_k, from एक again for the second);
                         then, before the lock, only the question again (audio.reask) - it plays to its end (VoLock); a
                         data.lock_at of 2: a beat with the count on, then as below
-         lock on ...... the wrong one locks at the 3rd (G4, P1 - review 2026-10-26: "in 3rd wrong attempt hand nudge with
-                        the respective vo will come", as every screen) or at data.lock_at; the hand nudges the right one
+         lock on ...... the wrong one locks at the 3rd rung (G4, P1 - review 2026-10-26: "in 3rd wrong attempt hand nudge with
+                        the respective vo will come", as every screen; their 2nd wrong since 2026-10-27) or at data.lock_at; the hand nudges the right one
                         and, once, audio.nudge ("यह चटाई ज़्यादा लंबी है।" - review 2026-10-26); the child's tap on it
                         gets the correct response (data.nudge_sfx_only, G4, P1 since 2026-10-26 - its line was just said:
                         the SFX only - it lights up, its counts show, no correct VO)
