@@ -3696,6 +3696,7 @@ body.vo-lock .dev-nav{z-index:150001;}
         "correct": "vo_match_ok",
         "try_again": "vo_retry",
         "nudge_bench": "vo_len_bench",
+        "nudge_board": "vo_len_board",
         "nudge_stool": "vo_len_stool"
       },
       "data": {
@@ -4098,6 +4099,7 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p8_fb": "assets/voiceover/vo_p8_fb.ogg",
       "vo_p9_fb": "assets/voiceover/vo_p9_fb.ogg",
       "vo_len_bench": "assets/voiceover/vo_len_bench.ogg",
+      "vo_len_board": "assets/voiceover/vo_len_board.ogg",
       "vo_len_stool": "assets/voiceover/vo_len_stool.ogg",
       "vo_len_window": "assets/voiceover/vo_len_window.ogg",
       "vo_len_watercan": "assets/voiceover/vo_len_watercan.ogg",
@@ -4176,6 +4178,7 @@ body.vo-lock .dev-nav{z-index:150001;}
       "vo_p8_fb": "यह चटाई ज़्यादा लंबी है।",
       "vo_p9_fb": "यह कुर्सी ज़्यादा लंबी है।",
       "vo_len_bench": "बेंच की लंबाई 7 ब्लॉक्स है।",
+      "vo_len_board": "ब्लैकबोर्ड की लंबाई 5 ब्लॉक्स है।",
       "vo_len_stool": "स्टूल की लंबाई 3 ब्लॉक्स है।",
       "vo_len_window": "खिड़की की लंबाई 5 ब्लॉक्स है।",
       "vo_len_watercan": "बोतल की लंबाई 4 ब्लॉक्स है।",
@@ -8207,6 +8210,7 @@ const SlideModules = {
           if(rb && PPT) ghostDrag(e, rb);                                    // [ppt_hints] 2026-10-13: the ghost drag (was the hand tapping the box's dot)
           else if(rb){ rb.classList.add("hint"); K.softGlow(rb); if(LINES) e.panel.classList.add("hint"); else placeNudge(rb); }   // [lines] the card + box light up, no hand
           if(m === 3) await say("nudge_" + e.it.id);                         // its length, with the drag (review 2026-10-26: "बेंच की लंबाई 7 ब्लॉक्स है।")
+                                                                             // (the blackboard's, 2026-10-27: its recorded VO9 says 7 - its "ब्लैकबोर्ड की लंबाई" joined to VO11's "5 ब्लॉक्स है।")
         }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
@@ -9815,6 +9819,7 @@ const ASSET_SIZES = {
   "assets/voiceover/vo_demo_start.ogg": 8560,
   "assets/voiceover/vo_landing.ogg": 31761,
   "assets/voiceover/vo_len_bench.ogg": 12823,
+  "assets/voiceover/vo_len_board.ogg": 12861,
   "assets/voiceover/vo_len_stool.ogg": 11724,
   "assets/voiceover/vo_len_tv.ogg": 12194,
   "assets/voiceover/vo_len_watercan.ogg": 11556,
