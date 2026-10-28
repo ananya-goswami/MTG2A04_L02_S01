@@ -3095,7 +3095,12 @@ body.vo-lock .dev-nav{z-index:150001;}
 .md-stage.in.cf .cf-item.cf-idle-pulse:not(:disabled),.cf-item.cf-idle-pulse:not(:disabled){transform-origin:50% 50%;animation:cfIdlePulse 1.15s cubic-bezier(.34,.62,.3,1) 2;   /* twice, then still (review 2026-10-13) */animation-delay:0s;}
 /* (review 2026-10-13 "too much pulsating, lessen it, I don't want collision between the options": the play button's 1.10
    grew each ~360px card ~18px a side into its neighbours - the gap is ~22px. 1.04 = ~7px a side, the same rhythm) */
-@keyframes cfIdlePulse{0%,100%{scale:1;}30%{scale:1.04;}58%{scale:.995;}}   /* (the tray's drop-in rule, .md-stage.in.cf .cf-item, is more specific - it overrode the pulse: matched here) */
+@keyframes cfIdlePulse{0%,100%{scale:1;}30%{scale:1.04;}58%{scale:.995;}}
+/* its twin (the user 2026-10-28: the pulse again after every 7s): the same pulse under another name - app.js swaps the two
+   classes, which starts it again; taking the class off would fall back to the drop-in above and replay the tray's entrance */
+.md-stage.in.cf .cf-item.cf-idle-pulse2:not(:disabled),.cf-item.cf-idle-pulse2:not(:disabled){transform-origin:50% 50%;animation:cfIdlePulse2 1.15s cubic-bezier(.34,.62,.3,1) 2;animation-delay:0s;}
+@keyframes cfIdlePulse2{0%,100%{scale:1;}30%{scale:1.04;}58%{scale:.995;}}
+@media (prefers-reduced-motion:reduce){ .md-stage.in.cf .cf-item.cf-idle-pulse2,.cf-item.cf-idle-pulse2{animation:none;} }   /* (the tray's drop-in rule, .md-stage.in.cf .cf-item, is more specific - it overrode the pulse: matched here) */
 @media (prefers-reduced-motion:reduce){ .md-stage.in.cf .cf-item.cf-idle-pulse,.cf-item.cf-idle-pulse{animation:none;} }
 
 /* [gap box red] 2026-10-13 ("when this dotted box comes, show red shade inside it - throughout the game"): the gap demo's
@@ -7642,7 +7647,7 @@ const SlideModules = {
           /* [deck] review 2026-10-08 ("the VO is still not correct"): not busy once the question starts - but no tap reaches
              the options while it is said (the [vo-lock], VoLock), so it always plays to its end */
           .then(()=>{ if(alive() && phase === "ask" && !state.locked){ busy = !DECK; return say("ask"); } })
-          .then(()=>{ if(!DECK && alive() && phase === "ask" && !state.locked){ busy = false; armAskIdle(); } });
+          .then(()=>{ if(alive() && phase === "ask" && !state.locked){ if(!DECK) busy = false; armAskIdle(); } });   // [deck] too: the idle re-ask (QA BUG_03, 2026-10-28)
       }
       async function onWrong(o){
         wrong++; busy = true;
@@ -7698,12 +7703,14 @@ const SlideModules = {
       }
       /* an idle child in the question (7s, QA checklist 2026-10-05): the question is asked again - and on the third
          layer, the hand returns to the right card */
-      // [deck] not on the deck's page 5 (no inactivity line for the question): the question is never re-asked by itself
+      // [deck] QA 2026-10-23 (BUG_03 case 1; the user 2026-10-28: "repeat VO after 7 seconds inactivity ... after every 7
+      // seconds", G1-G3 once the answers are up): the question is re-asked every 7s of inactivity too - its VO only
       let askIdleT = 0;
-      function armAskIdle(){ clearTimeout(askIdleT); if(DECK) return; askIdleT = setTimeout(()=>{
+      function armAskIdle(){ clearTimeout(askIdleT); askIdleT = setTimeout(()=>{
         if(!alive() || phase !== "ask" || busy || state.locked) return;
-        if(right.classList.contains("hint-on") || nudged) placeNudge(right);
-        busy = true; say("ask").then(()=>{ if(alive() && !state.locked){ busy = false; armAskIdle(); } });
+        if(isPlaying){ armAskIdle(); return; }                               // a line still sounding (the speaker's replay): never cut it - 7s more
+        if(!DECK && (right.classList.contains("hint-on") || nudged)) placeNudge(right);
+        busy = true; say(DECK && nudged ? "nudge" : "ask").then(()=>{ if(alive() && !state.locked){ busy = false; armAskIdle(); } });   // (once the hand has shown it: its length, never the question again)
       }, IDLE_MS); }
       function onRight(o, revealed){
         state.locked = true; busy = true; stopNudge(); clearTimeout(askIdleT);
@@ -7735,7 +7742,9 @@ const SlideModules = {
         if(phase !== "ask" || busy || state.locked || !alive() || o.classList.contains("locked")) return; stopNudge(); clearTimeout(askIdleT);
         if(o === right) onRight(o, false); else onWrong(o);
       }));
-      state.replayAudio = ()=>{ if(phase === "measure"){ say("prompt"); run.ghost(); } else if(!busy) say("ask"); };
+      /* [deck] once the hand has shown the answer (the 3rd wrong: the digits, "तकिये की लंबाई 5 ब्लॉक्स है।") the speaker says
+         that line again - not the question "अब बताइए, ... कितनी है?" (the user 2026-10-28: "not logically correct") */
+      state.replayAudio = ()=>{ if(phase === "measure"){ say("prompt"); run.ghost(); } else if(!busy) say(DECK && nudged ? "nudge" : "ask"); };
       /* ---- go ---- */
       requestAnimationFrame(()=>{ scene.classList.add("in"); K.show(lines.start); K.show(lines.end); });
       say("prompt").then(()=>{ if(alive() && phase === "measure") run.armIdle(); });
@@ -7958,7 +7967,7 @@ const SlideModules = {
         GameBus.emit("answer_wrong", { slide_id: slide.id, phase: slide.phase, attempts: wrong });
         sfxWrongSoft(); setSwMood("tryagain");
         K.shake(e.img, 10); if(e.rider) K.shake(e.rider, 10);                                      // wiggles and returns (its rider with it)
-        if(DECK) return deckWrong();
+        if(DECK) return deckWrong().then(()=>{ if(alive() && !state.locked && !busy) armIdle(); });   // the idle re-ask from the end of its feedback
         /* QA checklist 2026-10-05 - three layers: 1 think again (audio.try_again); 2 the strong hint - count both rows,
            more blocks is longer (audio.hint); 3 the wrong one locks (dimmed, untappable), the right one glows and the
            hand points at it (audio.nudge) - the child still taps it */
@@ -7971,18 +7980,21 @@ const SlideModules = {
         }
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
-      /* an idle child (7s, QA checklist 2026-10-05): the question again - on the third layer the hand comes back too */
+      /* an idle child (7s, QA checklist 2026-10-05): the question again - on the third layer the hand comes back too.
+         [deck] the question again too, every 7s of inactivity - its VO only (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: G4, P1) */
       let idleT = 0;
-      function armIdle(){ clearTimeout(idleT); if(DECK) return; idleT = setTimeout(()=>{   // [deck] never re-asked by itself
+      function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{
         if(!alive() || busy || state.locked) return;
-        if(wrong >= 3) placeNudge(right.hit);
-        busy = true; say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
+        if(isPlaying){ armIdle(); return; }                                  // a line still sounding (the speaker's replay): never cut it - 7s more
+        if(!DECK && wrong >= 3) placeNudge(right.hit);
+        busy = true; say(DECK && nudged ? "nudge" : "prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
       }, IDLE_MS); }
       els.forEach(e => e.hit.addEventListener("click", ()=>{
         if(busy || state.locked || !alive() || e.locked) return; clearTimeout(idleT);
         if(e === right) onRight(e, false); else { stopNudge(); onWrong(e); }
       }));
-      state.replayAudio = ()=>{ if(!busy) say("prompt"); };
+      // [deck] once the hand has shown the answer: "यह चटाई ज़्यादा लंबी है।" again, not the question (the user 2026-10-28)
+      state.replayAudio = ()=>{ if(!busy) say(DECK && nudged ? "nudge" : "prompt"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
       say("prompt").then(()=>{ if(alive() && !state.locked && !wrong){ busy = false; armIdle(); } });
       setTimeout(()=>{ if(alive() && busy && !state.locked && !wrong) busy = false; }, 1600);   // a tap may come while the question plays
@@ -8162,7 +8174,14 @@ const SlideModules = {
       const home = (b, bounce)=> K.glide(b, b._home, reduce ? 0 : 380, true).then(()=>{ b.style.zIndex = "";
         if(bounce && !reduce && alive()) b.animate([{ translate: "0 -12px" }, { translate: "0 0" }, { translate: "0 -5px" }, { translate: "0 0" }], { duration: 380, easing: "ease-out" }); });
       // [lines] no idle hand (review 2026-10-07 "remove hand nudge from match the following" - the one-time demo shows the move)
-      function armIdle(){ clearTimeout(idleT); if(LINES) return; idleT = setTimeout(()=>{
+      // - the instruction again instead, every 7s of inactivity (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: P2, P3)
+      function armIdle(){ clearTimeout(idleT);
+        if(LINES){ idleT = setTimeout(()=>{
+          if(!alive() || busy || down || state.locked) return;
+          if(isPlaying){ armIdle(); return; }                               // a line still sounding (the speaker's replay): never cut it - 7s more
+          busy = true; say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
+        }, IDLE_MS); return; }
+        idleT = setTimeout(()=>{
         if(!alive() || busy || drag || state.locked) return;
         const nb = boxes.find(b => !b._done); if(nb && placeNudge(nb)) state.nudgeUsed = true;
       }, IDLE_MS); }
@@ -8672,10 +8691,16 @@ const SlideModules = {
          7s with no pick - from the end of the intro VO, or from the return to the tray after a placement - and every object
          still in the tray pulses, the title screen play button's pulse (ctaPulse), until the child picks one */
       const IDLE_PULSE_MS = 7000;
-      const stopPulse = ()=> items.forEach(it => it._t.classList.remove("cf-idle-pulse"));
+      const stopPulse = ()=> items.forEach(it => it._t.classList.remove("cf-idle-pulse", "cf-idle-pulse2"));
       function armIdle(){ clearTimeout(idleT);
-        if(DECK){ stopPulse(); idleT = setTimeout(()=>{ if(!alive() || phase !== "pick" || state.locked) return;
-          items.forEach(it =>{ if(!it._done) it._t.classList.add("cf-idle-pulse"); }); }, IDLE_PULSE_MS); return; }
+        if(DECK){ stopPulse(); idleT = setTimeout(function pulse(){ if(!alive() || phase !== "pick" || state.locked) return;
+          /* ...and again after every 7s more (the user 2026-10-28): the next pulse swaps to its twin class (cf-idle-pulse2, the
+             same pulse) - taking the class off fell back to the tray's drop-in (cfDropIn): the boxes came in again ("only
+             pulsate is fine") */
+          items.forEach(it =>{ if(it._done) return; const cl = it._t.classList;
+            if(cl.contains("cf-idle-pulse")){ cl.remove("cf-idle-pulse"); cl.add("cf-idle-pulse2"); }
+            else { cl.remove("cf-idle-pulse2"); cl.add("cf-idle-pulse"); } });
+          idleT = setTimeout(pulse, 2300 + IDLE_PULSE_MS); }, IDLE_PULSE_MS); return; }   // (its two pulses: 2 x 1.15s)
         idleT = setTimeout(()=>{ if(!alive() || phase !== "pick") return;
         const it = items.find(x => x.id === d.vo_object && !x._done) || items.find(x => !x._done); if(it && placeNudge(it._t)) state.nudgeUsed = true; }, IDLE_MS); }
       function toPick(idle){
@@ -8755,7 +8780,7 @@ const SlideModules = {
           box.link(blocks);
         } else for(let j = 0; j < M; j++){ const b = K.cube(layer, j, bx + j * (S + gap), by, S); b._z = 3; b.style.zIndex = b._z; blocks.push(b); }
         run = K.childMeasure({ scene, slide, alive: ()=> alive() && phase === "measure", blocks, slots, slotXY, S, hand: K.hand(layer, S),
-          idleMs: 0, showTiles: false, hints: DECK ? null : { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },
+          idleMs: IDLE_MS, showTiles: false, hints: DECK ? null : { say: a => say(a === 1 ? "block_try" : a === 2 ? "block_hint" : "block_nudge") },   // idle: the ghost drag every 7s (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28) - from the robot's arrival, below
           ghostAt: DECK ? Infinity : undefined,                              // [deck] a block not flush just goes back
           respawn: box ? box.respawn : undefined,                             // [robot] ... vanishes, and a new one rises on its lid
           /* review 2026-10-26 ("when a child puts the cubes one by one there should be VO played as 1, 2, 3, 4 ... also
@@ -8800,7 +8825,8 @@ const SlideModules = {
           //  was ~8-10 robot widths, not ~15 - at the same pace the whole entrance took 2.6-3.1s (as short as the 3.2s drive
           //  turned down before), a wave every ~0.75s. On it the robot drives at 2.2: home ~4.9-5.9s after it sets off (as the
           //  ~4.7-5.4s of the drive before the waves), a slow sway every ~1.5s. The traced path keeps 4.2)
-          box.drive(path.map(([px_, py_])=> [px_ - hx, py_ - hy]), { far: 850, speed: d.drive_path === "traced" ? 4.2 : 3.0, delay: 300 }); }
+          box.drive(path.map(([px_, py_])=> [px_ - hx, py_ - hy]), { far: 850, speed: d.drive_path === "traced" ? 4.2 : 3.0, delay: 300 })
+            .then(()=>{ if(alive() && phase === "measure" && cur === it && run) run.armIdle(); }); }   // the idle ghost's 7s count from its arrival (its cube can be taken from then)
         // (2026-10-13 "when I select one of the options the transition is happening really slow": 2.2 -> 3.0 - home ~3.6-4.3s
         //  after the tap, was ~4.9-5.9s; still slower than the 3.2s drive called "really fast" on 2026-10-09)
       }
@@ -8861,6 +8887,17 @@ const SlideModules = {
           cueT.push(setTimeout(()=> scene.classList.remove("cf-cue"), 4600)); };
         setTimeout(()=>{ if(alive() && phase === "place") invite(true); }, from ? 700 : 300);
         let drag = null, busy = false;
+        /* idle (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: "after 7 seconds of inactivity pulsate the options then
+           pulsate ... all 4 dotted boxes, same effect as it happens for the 1st time"): 7s with nothing done, that cue again
+           (the object pops, then the open spaces), and again after every 7s more - until it is placed. A tap starts the 7s over. */
+        let idleCueT = 0;
+        const armCue = ()=>{ clearTimeout(idleCueT); idleCueT = setTimeout(()=>{
+          if(!alive() || phase !== "place" || cur !== it || !c.isConnected) return;
+          if(drag || busy || sel || isPlaying){ armCue(); return; }          // carried, flying, picked up, or a line sounding: 7s more
+          invite(true); idleCueT = setTimeout(armCue, 4600); }, IDLE_MS); };   // (the cue: 2.3s the object + 2.3s the spaces)
+        idleCueT = setTimeout(armCue, (from ? 700 : 300) + 4600);            // counted from the end of the first cue
+        const onAct = ()=>{ if(!alive() || phase !== "place" || cur !== it || !c.isConnected){ clearTimeout(idleCueT); scene.removeEventListener("pointerdown", onAct, true); return; } armCue(); };
+        scene.addEventListener("pointerdown", onAct, true);
         const spaceAt = p =>{ const x = (p.x - RX) / Z, y = p.y / Z; return items.find(o => !o._done && x >= o._hit.x && x <= o._hit.x + o._hit.w && y >= o._hit.y && y <= o._hit.y + o._hit.h) || null; };
         const hover = sp => items.forEach(o => o._sp.classList.toggle("hover", o === sp));
         const back = ()=>{ busy = true; return K.glide(c, home, reduce ? 0 : 480, true).then(()=>{ busy = false;   // [juice] a settle on landing
@@ -9083,6 +9120,22 @@ const SlideModules = {
       });
       if(d.look){ const g = host.querySelector(".opt-grid"); if(g) g.classList.add("pk-" + d.look);
         const card = host.closest(".tut-card"); if(card) card.classList.add("tc-" + d.look); }   // the card's own look (CSS [T1 tables]: the floor)
+      /* [idle re-ask] QA 2026-10-23 (BUG_03 case 1; the user 2026-10-28: "repeat VO after 7 seconds inactivity ... after every
+         7 seconds"): 7s with no tap and no line sounding - the question again (audio.prompt), every 7s until it is answered.
+         The wrong-tap feedback is unchanged (the user: "keep this as it is") */
+      if(d.wrong_cue === "deck"){
+        const grid = host.querySelector(".opt-grid"); let quiet = Date.now();
+        const act = ()=>{ quiet = Date.now(); };
+        document.addEventListener("pointerdown", act, true);
+        const idleT = setInterval(()=>{
+          if(!grid || !grid.isConnected || CARD.slides[state.idx] !== slide || state.locked){ clearInterval(idleT); document.removeEventListener("pointerdown", act, true); return; }
+          if(isPlaying || state.hintActive){ quiet = Date.now(); return; }   // inactivity counts from the end of the last line
+          if(Date.now() - quiet >= IDLE_MS){ quiet = Date.now(); play(audioFor(slide, state.attempts > 0 ? "try_again" : "prompt") || null, ()=>{}); }   // (once the hand has shown it: "यह टेबल ज्यादा लंबी है।")
+        }, 200);
+        /* the speaker, once the hand has shown the answer (after a wrong tap): "यह टेबल ज्यादा लंबी है।" again, not the question
+           (the user 2026-10-28: "not logically correct"); before it, as ever (the slide's VO chain) */
+        state.replayAudio = ()=>{ if(state.attempts > 0 && !state.locked) play(audioFor(slide, "try_again") || null, ()=>{}); else autoPlayChain(slide); };
+      }
     }
   },
 
