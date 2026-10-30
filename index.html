@@ -7704,13 +7704,15 @@ const SlideModules = {
       /* an idle child in the question (7s, QA checklist 2026-10-05): the question is asked again - and on the third
          layer, the hand returns to the right card */
       // [deck] QA 2026-10-23 (BUG_03 case 1; the user 2026-10-28: "repeat VO after 7 seconds inactivity ... after every 7
-      // seconds", G1-G3 once the answers are up): the question is re-asked every 7s of inactivity too - its VO only
+      // seconds", G1-G3 once the answers are up): the question is re-asked every 7s of inactivity too - its VO only -
+      // until the hand shows the answer: then no idle VO at all (QA 2026-10-30 BUG_06: "since the hand nudge has appeared,
+      // there is no need for the idle VO here")
       let askIdleT = 0;
-      function armAskIdle(){ clearTimeout(askIdleT); askIdleT = setTimeout(()=>{
+      function armAskIdle(){ clearTimeout(askIdleT); if(DECK && nudged) return; askIdleT = setTimeout(()=>{
         if(!alive() || phase !== "ask" || busy || state.locked) return;
         if(isPlaying){ armAskIdle(); return; }                               // a line still sounding (the speaker's replay): never cut it - 7s more
         if(!DECK && (right.classList.contains("hint-on") || nudged)) placeNudge(right);
-        busy = true; say(DECK && nudged ? "nudge" : "ask").then(()=>{ if(alive() && !state.locked){ busy = false; armAskIdle(); } });   // (once the hand has shown it: its length, never the question again)
+        busy = true; say("ask").then(()=>{ if(alive() && !state.locked){ busy = false; armAskIdle(); } });
       }, IDLE_MS); }
       function onRight(o, revealed){
         state.locked = true; busy = true; stopNudge(); clearTimeout(askIdleT);
@@ -7981,13 +7983,14 @@ const SlideModules = {
         if(alive() && !state.locked){ busy = false; setSwMood("point"); armIdle(); }
       }
       /* an idle child (7s, QA checklist 2026-10-05): the question again - on the third layer the hand comes back too.
-         [deck] the question again too, every 7s of inactivity - its VO only (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: G4, P1) */
+         [deck] the question again too, every 7s of inactivity - its VO only (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: G4, P1) -
+         until the hand shows the answer: then no idle VO at all (QA 2026-10-30 BUG_06) */
       let idleT = 0;
-      function armIdle(){ clearTimeout(idleT); idleT = setTimeout(()=>{
+      function armIdle(){ clearTimeout(idleT); if(DECK && nudged) return; idleT = setTimeout(()=>{
         if(!alive() || busy || state.locked) return;
         if(isPlaying){ armIdle(); return; }                                  // a line still sounding (the speaker's replay): never cut it - 7s more
         if(!DECK && wrong >= 3) placeNudge(right.hit);
-        busy = true; say(DECK && nudged ? "nudge" : "prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
+        busy = true; say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
       }, IDLE_MS); }
       els.forEach(e => e.hit.addEventListener("click", ()=>{
         if(busy || state.locked || !alive() || e.locked) return; clearTimeout(idleT);
@@ -9122,15 +9125,16 @@ const SlideModules = {
         const card = host.closest(".tut-card"); if(card) card.classList.add("tc-" + d.look); }   // the card's own look (CSS [T1 tables]: the floor)
       /* [idle re-ask] QA 2026-10-23 (BUG_03 case 1; the user 2026-10-28: "repeat VO after 7 seconds inactivity ... after every
          7 seconds"): 7s with no tap and no line sounding - the question again (audio.prompt), every 7s until it is answered.
-         The wrong-tap feedback is unchanged (the user: "keep this as it is") */
+         The wrong-tap feedback is unchanged (the user: "keep this as it is"). A wrong tap brings the hand onto the answer -
+         from then on no idle VO (QA 2026-10-30 BUG_06: "since the hand nudge has appeared, there is no need for the idle VO") */
       if(d.wrong_cue === "deck"){
         const grid = host.querySelector(".opt-grid"); let quiet = Date.now();
         const act = ()=>{ quiet = Date.now(); };
         document.addEventListener("pointerdown", act, true);
         const idleT = setInterval(()=>{
-          if(!grid || !grid.isConnected || CARD.slides[state.idx] !== slide || state.locked){ clearInterval(idleT); document.removeEventListener("pointerdown", act, true); return; }
+          if(!grid || !grid.isConnected || CARD.slides[state.idx] !== slide || state.locked || state.attempts > 0){ clearInterval(idleT); document.removeEventListener("pointerdown", act, true); return; }
           if(isPlaying || state.hintActive){ quiet = Date.now(); return; }   // inactivity counts from the end of the last line
-          if(Date.now() - quiet >= IDLE_MS){ quiet = Date.now(); play(audioFor(slide, state.attempts > 0 ? "try_again" : "prompt") || null, ()=>{}); }   // (once the hand has shown it: "यह टेबल ज्यादा लंबी है।")
+          if(Date.now() - quiet >= IDLE_MS){ quiet = Date.now(); play(audioFor(slide, "prompt") || null, ()=>{}); }
         }, 200);
         /* the speaker, once the hand has shown the answer (after a wrong tap): "यह टेबल ज्यादा लंबी है।" again, not the question
            (the user 2026-10-28: "not logically correct"); before it, as ever (the slide's VO chain) */
