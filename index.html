@@ -8188,10 +8188,12 @@ const SlideModules = {
       const home = (b, bounce)=> K.glide(b, b._home, reduce ? 0 : 380, true).then(()=>{ b.style.zIndex = "";
         if(bounce && !reduce && alive()) b.animate([{ translate: "0 -12px" }, { translate: "0 0" }, { translate: "0 -5px" }, { translate: "0 0" }], { duration: 380, easing: "ease-out" }); });
       // [lines] no idle hand (review 2026-10-07 "remove hand nudge from match the following" - the one-time demo shows the move)
-      // - the instruction again instead, every 7s of inactivity (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: P2, P3)
+      // - the instruction again instead, every 7s of inactivity (QA 2026-10-23 BUG_03 case 1; the user 2026-10-28: P2, P3) -
+      // but not while the hand shows an object's match (its 3rd wrong on, until that pair is joined): the hand only
+      // (QA 2026-10-30 BUG_08: "only hand nudge should come instead of VO repeating")
       function armIdle(){ clearTimeout(idleT);
-        if(LINES){ idleT = setTimeout(()=>{
-          if(!alive() || busy || down || state.locked) return;
+        if(LINES){ if(focus) return; idleT = setTimeout(()=>{
+          if(!alive() || busy || down || state.locked || focus) return;
           if(isPlaying){ armIdle(); return; }                               // a line still sounding (the speaker's replay): never cut it - 7s more
           busy = true; say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); } });
         }, IDLE_MS); return; }
@@ -8454,7 +8456,9 @@ const SlideModules = {
         demoT.push(setTimeout(()=>{ if(demoEls) arrow.classList.remove("on"); }, 2900));
         demoT.push(setTimeout(stopDemo, 3250));
       }
-      state.replayAudio = ()=>{ if(!busy) say("prompt"); };
+      // the speaker, while the hand shows an object's match: the most recent line - its length ("बेंच की लंबाई 7 ब्लॉक्स है।"),
+      // not the instruction (QA 2026-10-30 BUG_08)
+      state.replayAudio = ()=>{ if(!busy) say(focus ? "nudge_" + focus.it.id : "prompt"); };
       requestAnimationFrame(()=> scene.classList.add("in"));
       say("prompt").then(()=>{ if(alive() && !state.locked){ busy = false; armIdle(); demo(); } });
       setTimeout(()=>{ if(alive() && busy && !matched && !wrongAll) busy = false; }, 1600);   // a drag may start while the instruction plays
