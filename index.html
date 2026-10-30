@@ -5416,7 +5416,7 @@ const MDK = (function(){
         el.style.setProperty("--rot", home ? el._rot + "deg" : "0deg"); }
       // [robot] away from its home (the lid) = rb-away: the robot's aura is only lit while its cube is on the lid
       if(el._home) el.classList.toggle("rb-away", !(Math.abs(to.x - el._home.x) < .5 && Math.abs(to.y - el._home.y) < .5));
-      let fin = false; const done = ()=>{ if(fin) return; fin = true; setPos(el, to); el.classList.remove("moving"); if(h) setPos(h.el, h.grip(to)); res(); };
+      let fin = false; const done = ()=>{ if(fin) return; fin = true; setPos(el, to); el.classList.remove("moving"); if(h && el.isConnected) setPos(h.el, h.grip(to)); res(); };   // (a cancelled ghost cube, removed: the hand may be on its next one - BUG_07)
       el.classList.add("moving");                                            // (a painting's cube shows while it flies: CSS .in-art-home)
       if(reduce() || ms <= 0){ done(); return; }
       const o = { duration: ms, easing: "cubic-bezier(.45,.05,.35,1)" };
@@ -6877,7 +6877,18 @@ const MDK = (function(){
       return axis() === "x" ? dx <= S * ALONG && dy <= S * ACROSS : dy <= S * ALONG && dx <= S * ACROSS; };
     const lift = b =>{ b.classList.add("lift"); b.style.zIndex = 30; };
     const drop = b =>{ b.classList.remove("lift"); b.style.zIndex = b._placed ? 6 : (b._z || 3); };
-    async function ghost(keep){                                              // keep: the tile stays lit after it (hint attempt 2)
+    /* QA 2026-10-30 (BUG_07 "the speaker tapped while the hand shows the block placing - the hand animation is distorted"):
+       a second ghost started on top of the one still going (the speaker's replay, G1-G3) - two ghost cubes, and the two
+       glides both moving the one hand, so it came off its cube. While one is going, a call joins it; a new one only
+       starts once it is over or cancelled */
+    let ghosting = null, ghostTok = -1;
+    function ghost(keep){
+      if(ghosting && ghostTok === tok) return ghosting;
+      const p = ghost1(keep); ghosting = p; ghostTok = tok;
+      p.then(()=>{ if(ghosting === p) ghosting = null; }, ()=>{ if(ghosting === p) ghosting = null; });
+      return p;
+    }
+    async function ghost1(keep){                                             // keep: the tile stays lit after it (hint attempt 2)
       const t = ++tok, src = blocks.find(b => !b._placed); if(!src || placed >= N || !hand) return;
       const g = src.cloneNode(false); g.classList.add("ghost"); g.classList.remove("lift"); g.style.zIndex = 31; scene.appendChild(g); setPos(g, pos(src));
       const slot = slots[placed];
@@ -6889,7 +6900,7 @@ const MDK = (function(){
       } catch(e){ if(e !== STOP) throw e; }
       g.remove(); if(t === tok){ hand.off(); if(!drag && !keep) slot.classList.remove("show", "target"); }
     }
-    const cancelGhost = ()=>{ tok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); if(hand) hand.off(); };
+    const cancelGhost = ()=>{ tok++; scene.querySelectorAll(".md-block.ghost").forEach(e => e.remove()); if(hand) hand.off(); };   // (its glide ends on a removed cube: the hand is left alone - glide)
     const armIdle = ()=>{ clearTimeout(idleT); if(!cfg.idleMs) return;
       idleT = setTimeout(()=>{ if(live() && !drag){ if(cfg.onIdle) cfg.onIdle(); ghost().then(()=>{ if(live()) armIdle(); }); } }, cfg.idleMs); };
     blocks.forEach(b =>{
